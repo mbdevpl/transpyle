@@ -1,0 +1,8 @@
+coverage
+coveralls
+pip >= 9.0
+pylint
+setuptools >= 20.5
+twine
+wheel
+-rtest_requirements.txt

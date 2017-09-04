@@ -1,3 +1,6 @@
-typed-ast
-typed-astunparse
+horast
+loo.py
+open-fortran-parser
 static-typing
+typing >= 3.5; python_version < '3.5'
+version_query
