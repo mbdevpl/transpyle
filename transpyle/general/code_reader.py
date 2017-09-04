@@ -3,6 +3,7 @@
 import collections
 import os
 import typing as t
+import inspect
 
 READ_NOT_FILE_MSG = 'given path "{}" does not lead to a file'
 READ_WRONG_EXT_MSG = '"{}" has wrong extension (i.e. not one of: {})'
@@ -68,3 +69,7 @@ class CodeReader:
 
     def __str__(self):
         return f'{type(self).__qualname__}(extensions={self._extensions})'
+
+
+def read_function(function):
+    return inspect.getsource(function)

@@ -4,7 +4,7 @@
 import os
 import unittest
 
-from transpyle.code.code_reader import CodeReader
+from transpyle.general.code_reader import CodeReader
 
 _ROOT = os.getcwd()
 

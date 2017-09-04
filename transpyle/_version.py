@@ -1,3 +1,5 @@
-"""Version of transpule package."""
+"""Version of transpyle package."""
 
-VERSION = '0.1.0.dev0'
+import version_query
+
+VERSION = version_query.generate_version_str()
