@@ -23,6 +23,7 @@ class CodeReader:
         assert extensions is None or isinstance(extensions, collections.abc.Iterable)
         if __debug__:
             if extensions is not None:
+                assert len(extensions) > 0
                 for extension in extensions:
                     assert isinstance(extension, str), (type(extension), extension, extensions)
 
