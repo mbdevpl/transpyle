@@ -27,9 +27,17 @@ class Tests(unittest.TestCase):
             '~/Projects/fortran/flash-subset/FLASH4.4/source/physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90'
             '']
         for path in paths:
-            path = pathlib.Path(path)
+            path = pathlib.Path(path).expanduser()
             if not path.is_file():
                 continue
+            with self.subTest(path=path):
+                parser = FortranParser()
+                root_node = parser.parse(path, verbosity=100)
+                self.assertIsNotNone(root_node)
+                generalizer = FortranAstGeneralizer()
+                tree = generalizer.generalize(root_node)
+                self.assertIsInstance(tree, typed_ast.ast3.AST)
+                typed_astunparse.dump(tree)
 
     def test_parse(self):
         for input_path in EXAMPLES_F77 + EXAMPLES_F95:
@@ -49,7 +57,7 @@ class Tests(unittest.TestCase):
                 generalizer = FortranAstGeneralizer()
                 tree = generalizer.generalize(root_node)
                 self.assertIsInstance(tree, typed_ast.ast3.AST)
-                typed_astunparse.dump(tree)
+                #typed_astunparse.dump(tree)
                 #code = typed_astunparse.unparse(typed_tree)
                 #self.assertGreater(len(code), 0)
                 #result_path = transformations_path.joinpath(input_path.stem + '.py')

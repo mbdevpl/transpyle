@@ -168,6 +168,17 @@ class FortranAstGeneralizer(AstGeneralizer):
             return typed_ast3.keyword(arg=node.attrib['name'], value=values[0])
         return typed_ast3.arg(arg=node.attrib['name'], annotation=None)
 
+    def _return(self, node: ET.Element) -> typed_ast3.Return:
+        has_value = node.attrib['hasValue'] == 'true'
+        if not has_value:
+            return typed_ast3.Return(value=None)
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+
+    def _stop(self, node: ET.Element) -> typed_ast3.Call:
+        _LOG.warning('ignoring exit code in """%s"""', ET.tostring(node).decode().rstrip())
+        return typed_ast3.Call(func=typed_ast3.Name(id='exit'), args=[], keywords=[])
+
     def _program(self, node: ET.Element) -> typed_ast3.AST:
         module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
         body = self.transform_all_subnodes(node.find('./body'))
@@ -558,8 +569,10 @@ class FortranAstGeneralizer(AstGeneralizer):
                 mode += {
                     'formatted': '',
                     'unformatted': 'b'}[kwarg.value.s]
-        assert filename is not None
-        assert len(mode) > 0
+        assert filename is not None, ET.tostring(node).decode().rstrip()
+        if not mode:
+            mode = 'r'
+        assert 0 < len(mode) <= 2, ET.tostring(node).decode().rstrip()
         self._ensure_top_level_import('typing', 't')
         return typed_ast3.AnnAssign(
             target=file_handle, value=typed_ast3.Call(
@@ -876,8 +889,8 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _type(self, node: ET.Element) -> type:
         name = node.attrib['name'].lower()
         length = \
-            self.transform(node.find('./length')) if node.attrib['hasLength'] == "true" else None
-        kind = self.transform(node.find('./kind')) if node.attrib['hasKind'] == "true" else None
+            self.transform(node.find('./length')) if node.attrib['hasLength'] == 'true' else None
+        kind = self.transform(node.find('./kind')) if node.attrib['hasKind'] == 'true' else None
         if length is not None and kind is not None:
             raise SyntaxError(
                 'only  one of "length" and "kind" can be provided, but both were given'
