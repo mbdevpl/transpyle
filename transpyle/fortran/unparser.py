@@ -5,7 +5,7 @@ import logging
 from astunparse.unparser import INFSTR
 import horast
 import typed_ast.ast3 as typed_ast3
-import typed_ast.ast3
+import typed_astunparse
 from typed_astunparse.unparser import interleave
 
 from ..general import Language, Unparser
@@ -18,8 +18,13 @@ class Fortran77Unparser(horast.unparser.Unparser):
     lang_name = 'Fortran 77'
 
     def _unsupported_syntax(self, tree):
-        raise SyntaxError('unparsing {} like """{}""" is unsupported for {}'.format(
-            tree.__class__.__name__, typed_ast.ast3.dump(tree), self.lang_name))
+        unparsed = 'invalid'
+        try:
+            unparsed = '"""{}"""'.format(typed_astunparse.unparse(tree).strip())
+        except AttributeError:
+            pass
+        raise SyntaxError('unparsing {} like """{}""" ({} in Python) is unsupported for {}'.format(
+            tree.__class__.__name__, typed_ast3.dump(tree), unparsed, self.lang_name))
 
     def _Import(self, t):
         if len(t.names) > 1:
@@ -69,13 +74,13 @@ class Fortran77Unparser(horast.unparser.Unparser):
         interleave(lambda: self.write(", "), self.dispatch, t.targets)
 
     def _Assert(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Exec(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Print(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('old Python AST is not supported')
 
     def _Global(self, t):
         self._unsupported_syntax(t)
@@ -123,7 +128,7 @@ class Fortran77Unparser(horast.unparser.Unparser):
         raise NotImplementedError('not yet implemented')
 
     def _While(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _With(self, t):
         self._unsupported_syntax(t)
@@ -139,10 +144,10 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.write(repr(tree.s))
 
     def _FormattedValue(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _JoinedStr(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Name(self, t):
         self.write(t.id)
@@ -159,10 +164,10 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.write(repr_n.replace("inf", INFSTR))
 
     def _List(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _ListComp(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _GeneratorExp(self, t):
         self._unsupported_syntax(t)
@@ -174,10 +179,10 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _comprehension(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _IfExp(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Set(self, t):
         self._unsupported_syntax(t)
@@ -186,7 +191,7 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _Tuple(self, t):
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     unop = {"Invert":"~", "Not": ".not.", "UAdd":"+", "USub":"-"}
     def _UnaryOp(self, t):
@@ -195,7 +200,7 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.write(" ")
         self.dispatch(t.operand)
         self.write(")")
-        raise NotImplementedError('not yet implemented')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     binop = { "Add":"+", "Sub":"-", "Mult":"*", "Div":"/", "Mod":"%",
                     "LShift":"<<", "RShift":">>", "BitOr":"|", "BitXor":"^", "BitAnd":"&",
@@ -373,7 +378,7 @@ class FortranUnparser(Unparser):
     def __init__(self):
         super().__init__(Language.find('Fortran 2008'))
 
-    def unparse(self, tree: typed_ast.ast3.AST) -> str:
+    def unparse(self, tree) -> str:
         stream = io.StringIO()
         Fortran77Unparser(tree, file=stream)
         return stream.getvalue()
