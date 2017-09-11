@@ -1,6 +1,7 @@
 """Transformer of Fortran AST into Python AST."""
 
 import collections.abc
+import functools
 import itertools
 import logging
 import typing as t
@@ -301,6 +302,8 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _loop(self, node: ET.Element):
         if node.attrib['type'] == 'do':
             return self._loop_do(node)
+        elif node.attrib['type'] == 'implied-do':
+            return self._loop_do_while(node)
         elif node.attrib['type'] == 'do-while':
             return self._loop_do_while(node)
         elif node.attrib['type'] == 'forall':
@@ -316,15 +319,37 @@ class FortranAstGeneralizer(AstGeneralizer):
             raise SyntaxError('at least one of required sub nodes is not present in:\n{}'
                               .format(ET.tostring(node).decode().rstrip()))
         target, iter_ = self._index_variable(index_variable)
-        body = self.transform_all_subnodes(body_node, ignored={'block'})
+        body = self.transform_all_subnodes(body_node, warn=False, ignored={'block'})
         return typed_ast3.For(target=target, iter=iter_, body=body, orelse=[])
+
+    def _loop_implied_do(self, node: ET.Element) -> typed_ast3.ListComp:
+        index_variable = node.find('./header/index-variable')
+        body_node = node.find('./body')
+        if index_variable is None or body_node is None:
+            raise SyntaxError('at least one of required sub nodes is not present in:\n{}'
+                              .format(ET.tostring(node).decode().rstrip()))
+        comp_target, comp_iter = self._index_variable(index_variable)
+        expressions = self.transform_all_subnodes(body_node, warn=False, ignored={})
+        assert len(expressions) > 0
+        elt = expressions[0] if len(expressions == 1) else typed_ast3.Tuple(elts=expressions)
+        generator = typed_ast3.comprehension(
+            target=comp_target, iter=comp_iter, ifs=[], is_async=0)
+        return typed_ast3.ListComp(elt=elt, generators=[generator])
+            #target=target, iter=iter_, body=body, orelse=[])
+
+    def _expression(self, node):
+        expression = self.transform_all_subnodes(node)
+        if len(expression) != 1:
+            raise NotImplementedError('exactly one output expected but {} found in:/n{}'.format(
+                len(expression), ET.tostring(node).decode().rstrip()))
+        return expression[0]
 
     def _loop_do_while(self, node: ET.Element) -> typed_ast3.While:
         header_node = node.find('./header')
         header = self.transform_all_subnodes(header_node, warn=False)
         assert len(header) == 1
         condition = header[0]
-        body = self.transform_all_subnodes(node.find('./body'), ignored={'block'})
+        body = self.transform_all_subnodes(node.find('./body'), warn=False, ignored={'block'})
         return typed_ast3.While(test=condition, body=body, orelse=[])
 
     def _loop_forall(self, node: ET.Element) -> typed_ast3.For:
@@ -341,7 +366,7 @@ class FortranAstGeneralizer(AstGeneralizer):
                 continue
             inner_loop.body = [typed_ast3.For(target=target, iter=iter_, body=[], orelse=[])]
             inner_loop = inner_loop.body[0]
-        inner_loop.body = self.transform_all_subnodes(node.find('./body'))
+        inner_loop.body = self.transform_all_subnodes(node.find('./body'), warn=False)
         return outer_loop
 
     def _index_variable(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, typed_ast3.Call]:
@@ -355,12 +380,12 @@ class FortranAstGeneralizer(AstGeneralizer):
             assert len(args) == 1, args
             range_args.append(args[0])
         if upper_bound is not None:
-            args = self.transform_all_subnodes(upper_bound)
+            args = self.transform_all_subnodes(upper_bound, warn=False)
             assert len(args) == 1, args
             range_args.append(typed_ast3.BinOp(
                 left=args[0], op=typed_ast3.Add(), right=typed_ast3.Num(n=1)))
         if step is not None:
-            args = self.transform_all_subnodes(step)
+            args = self.transform_all_subnodes(step, warn=False)
             assert len(args) == 1, args
             range_args.append(args[0])
         iter_ = typed_ast3.Call(
@@ -386,7 +411,7 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _statement(self, node: ET.Element):
         details = self.transform_all_subnodes(
             node, warn=False, ignored={
-                'format',
+                'format', 'allocate-stmt',
                 'action-stmt', 'executable-construct', 'execution-part-construct',
                 'execution-part'})
         flatten_sequence(details)
@@ -823,10 +848,9 @@ class FortranAstGeneralizer(AstGeneralizer):
         header = self.transform_all_subnodes(header_node, warn=False, ignored={'ac-implied-do-control'})
         assert len(header) == 1
         comp_target, comp_iter = header[0]
-        return typed_ast3.ListComp(
-            elt=values[0],
-            generators=[
-                typed_ast3.comprehension(target=comp_target, iter=comp_iter, ifs=[], is_async=0)])
+        generator = typed_ast3.comprehension(
+            target=comp_target, iter=comp_iter, ifs=[], is_async=0)
+        return typed_ast3.ListComp(elt=values[0], generators=[generator])
 
     def _array_constructor_values(self, node: ET.Element) -> typed_ast3.List:
         value_nodes = node.findall('./value')
@@ -994,6 +1018,14 @@ class FortranAstGeneralizer(AstGeneralizer):
             "cannot convert intrinsic call from raw AST:\n{}"
             .format(typed_astunparse.unparse(call)))
 
+    def _intrinsic_numpy_call(self, call, name=None):
+        if name is None:
+            name = call.func.id
+        return typed_ast3.Call(
+            func=typed_ast3.Attribute(value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()),
+                                      attr=name, ctx=typed_ast3.Load()),
+            args=call.args, keywords=call.keywords)
+
     _intrinsics_converters = {
         # Fortran 77
         'abs': _intrinsic_identity, # np.absolute
@@ -1007,7 +1039,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         'char': _intrinsic_converter_not_implemented,
         'cmplx': _intrinsic_converter_not_implemented,
         'conjg': _intrinsic_converter_not_implemented,
-        'cos': _intrinsic_converter_not_implemented,
+        'cos': _intrinsic_numpy_call,
         'cosh': _intrinsic_converter_not_implemented,
         'dble': _intrinsic_converter_not_implemented,
         'dim': _intrinsic_converter_not_implemented,
@@ -1023,15 +1055,15 @@ class FortranAstGeneralizer(AstGeneralizer):
         'llt': _intrinsic_converter_not_implemented,
         'log': _intrinsic_converter_not_implemented,
         'log10': _intrinsic_converter_not_implemented,
-        'max': _intrinsic_converter_not_implemented,
-        'min': _intrinsic_converter_not_implemented,
+        'max': functools.partial(_intrinsic_numpy_call, name='maximum'),
+        'min': functools.partial(_intrinsic_numpy_call, name='minimum'),
         'mod': _intrinsic_converter_not_implemented,
         'nint': _intrinsic_converter_not_implemented,
         'real': _intrinsic_converter_not_implemented,
         'sign': _intrinsic_converter_not_implemented,
-        'sin': _intrinsic_converter_not_implemented,
+        'sin': _intrinsic_numpy_call,
         'sinh': _intrinsic_converter_not_implemented,
-        'sqrt': _intrinsic_converter_not_implemented,
+        'sqrt': _intrinsic_numpy_call,
         'tan': _intrinsic_converter_not_implemented,
         'tanh': _intrinsic_converter_not_implemented,
         # non-standard Fortran 77
@@ -1075,14 +1107,8 @@ class FortranAstGeneralizer(AstGeneralizer):
         'product': _intrinsic_converter_not_implemented,
         'sum': _intrinsic_identity,
         # Array location functions
-        'maxloc': lambda self, call: typed_ast3.Call(
-            func=typed_ast3.Attribute(value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()),
-                                      attr='argmax', ctx=typed_ast3.Load()),
-            args=call.args, keywords=call.keywords),
-        'minloc':  lambda self, call: typed_ast3.Call(
-            func=typed_ast3.Attribute(value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()),
-                                      attr='argmin', ctx=typed_ast3.Load()),
-            args=call.args, keywords=call.keywords),
+        'maxloc': functools.partial(_intrinsic_numpy_call, name='argmax'),
+        'minloc':  functools.partial(_intrinsic_numpy_call, name='argmin'),
         # Fortran 95
         'cpu_time': _intrinsic_converter_not_implemented,
         'present': _intrinsic_converter_not_implemented,

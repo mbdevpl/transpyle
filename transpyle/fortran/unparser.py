@@ -23,8 +23,22 @@ class Fortran77Unparser(horast.unparser.Unparser):
             unparsed = '"""{}"""'.format(typed_astunparse.unparse(tree).strip())
         except AttributeError:
             pass
+        self.fill('unsupported_syntax')
+        return
         raise SyntaxError('unparsing {} like """{}""" ({} in Python) is unsupported for {}'.format(
             tree.__class__.__name__, typed_ast3.dump(tree), unparsed, self.lang_name))
+
+    def dispatch_for_iter(self, for_iter):
+        if not isinstance(for_iter, typed_ast3.Call) \
+                or not isinstance(for_iter.func, typed_ast3.Name) or for_iter.func.id != 'range':
+            self._unsupported_syntax(for_iter)
+        first = True
+        for arg in for_iter.args:
+            if first:
+                first = False
+            else:
+                self.write(", ")
+            self.dispatch(arg)
 
     def _Import(self, t):
         if len(t.names) > 1:
@@ -52,7 +66,13 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.dispatch(t.value)
 
     def _AnnAssign(self, t):
-        raise NotImplementedError('not yet implemented')
+        self.fill()
+        self.dispatch(t.annotation)
+        self.write(' :: ')
+        self.dispatch(t.target)
+        if t.value:
+            self.write(" = ")
+            self.dispatch(t.value)
 
     #def _Return(self, t):
     #    self.fill("return")
@@ -119,13 +139,31 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _For(self, t):
-        raise NotImplementedError('not yet implemented')
+        if hasattr(t, 'type_comment') and t.type_comment or t.orelse:
+            self._unsupported_syntax(t)
+
+        self.fill('do ')
+        self.dispatch(t.target)
+        self.write(" = ")
+        self.dispatch_for_iter(t.iter)
+        self.enter()
+        self.dispatch(t.body)
+        self.leave()
+        self.write('enddo')
 
     def _AsyncFor(self, t):
         self._unsupported_syntax(t)
 
     def _If(self, t):
-        raise NotImplementedError('not yet implemented')
+        if t.orelse:
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+
+        self.fill('if ')
+        self.dispatch(t.test)
+        self.write(' then')
+        self.enter()
+        self.dispatch(t.body)
+        self.leave()
 
     def _While(self, t):
         raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
@@ -153,8 +191,12 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.write(t.id)
 
     def _NameConstant(self, t):
-        self.write(repr(t.value))
-        raise NotImplementedError('not yet implemented')
+        if t.value is None:
+            _LOG.error('unparsing invalid Fortran from """%s"""', typed_astunparse.dump(t))
+        self.write({
+            None: '.none.',
+            False: '.false.',
+            True: '.true.'}[t.value])
 
     def _Repr(self, t):
         self._unsupported_syntax(t)
@@ -202,27 +244,27 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.write(")")
         raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
-    binop = { "Add":"+", "Sub":"-", "Mult":"*", "Div":"/", "Mod":"%",
-                    "LShift":"<<", "RShift":">>", "BitOr":"|", "BitXor":"^", "BitAnd":"&",
-                    "FloorDiv":"/", "Pow": "**"}
+    binop = {
+        'Add': '+', 'Sub': '-', 'Mult': '*', #'Div': '/', 'Mod': '%',
+        #'LShift': '<<', 'RShift': '>>', 'BitOr': '|', 'BitXor': '^', 'BitAnd': '&',
+        'FloorDiv': '/', 'Pow': '**'}
     def _BinOp(self, t):
-        self.write("(")
+        if t.op.__class__.__name__ not in self.binop:
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+        self.write('(')
         self.dispatch(t.left)
-        self.write(" " + self.binop[t.op.__class__.__name__] + " ")
+        self.write(' ' + self.binop[t.op.__class__.__name__] + ' ')
         self.dispatch(t.right)
-        self.write(")")
-        raise NotImplementedError('not yet implemented')
+        self.write(')')
 
-    cmpops = {"Eq":"==", "NotEq":"<>", "Lt":"<", "LtE":"<=", "Gt":">", "GtE":">=",
-                        "Is":"===", "IsNot":"is not"}
+    cmpops = {
+        'Eq': '==', 'NotEq': '<>', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
+        #'Is': '===', 'IsNot': 'is not'}
     def _Compare(self, t):
-        self.write("(")
-        self.dispatch(t.left)
-        for o, e in zip(t.ops, t.comparators):
-            self.write(" " + self.cmpops[o.__class__.__name__] + " ")
-            self.dispatch(e)
-        self.write(")")
-        raise NotImplementedError('not yet implemented')
+        if len(t.ops) > 1 or len(t.comparators) > 1 \
+                or any([o.__class__.__name__ not in self.cmpops for o in t.ops]):
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+        super()._Compare(t)
 
     boolops = {ast.And: '.and.', ast.Or: '.or.', typed_ast3.And: '.and.', typed_ast3.Or: '.or.'}
     def _BoolOp(self, t):
@@ -232,7 +274,13 @@ class Fortran77Unparser(horast.unparser.Unparser):
         self.write(")")
 
     def _Attribute(self,t):
-        self._unsupported_syntax(t)
+        code = typed_astunparse.unparse(t).strip()
+        if code == 't.IO':
+            self.write('integer')
+        elif code == 'Fortran.file_handles':
+            pass
+        else:
+            self._unsupported_syntax(t)
 
     #def _Call(self, t):
     #    self.dispatch(t.func)
@@ -290,76 +338,20 @@ class Fortran77Unparser(horast.unparser.Unparser):
 
     # argument
     def _arg(self, t):
-        self.write(t.arg)
-        raise NotImplementedError('not yet implemented')
         if t.annotation:
             self._unsupported_syntax(t)
+        self.write(t.arg)
 
     # others
     def _arguments(self, t):
-        raise NotImplementedError('not yet implemented')
-        first = True
-        # normal arguments
-        defaults = [None] * (len(t.args) - len(t.defaults)) + t.defaults
-        for a,d in zip(t.args, defaults):
-            if first:first = False
-            else: self.write(", ")
-            self.dispatch(a)
-            if d:
-                self.write("=")
-                self.dispatch(d)
-
-        # varargs, or bare '*' if no varargs but keyword-only arguments present
-        if t.vararg or getattr(t, "kwonlyargs", False):
-            if first: first = False
-            else: self.write(", ")
-            self.write("*")
-            if t.vararg:
-                if hasattr(t.vararg, 'arg'):
-                    self.write(t.vararg.arg)
-                    if t.vararg.annotation:
-                        self.write(": ")
-                        self.dispatch(t.vararg.annotation)
-                else:
-                    self.write(t.vararg)
-                    if getattr(t, 'varargannotation', None):
-                        self.write(": ")
-                        self.dispatch(t.varargannotation)
-
-        # keyword-only arguments
-        if getattr(t, "kwonlyargs", False):
-            for a, d in zip(t.kwonlyargs, t.kw_defaults):
-                if first:first = False
-                else: self.write(", ")
-                self.dispatch(a),
-                if d:
-                    self.write("=")
-                    self.dispatch(d)
-
-        # kwargs
-        if t.kwarg:
-            if first:first = False
-            else: self.write(", ")
-            if hasattr(t.kwarg, 'arg'):
-                self.write("**"+t.kwarg.arg)
-                if t.kwarg.annotation:
-                    self.write(": ")
-                    self.dispatch(t.kwarg.annotation)
-            else:
-                self.write("**"+t.kwarg)
-                if getattr(t, 'kwargannotation', None):
-                    self.write(": ")
-                    self.dispatch(t.kwargannotation)
+        if t.vararg or t.kwonlyargs or t.kw_defaults or t.kwarg or t.defaults:
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+        super()._arguments(t)
 
     def _keyword(self, t):
-        raise NotImplementedError('not yet implemented')
         if t.arg is None:
-            # starting from Python 3.5 this denotes a kwargs part of the invocation
-            self.write("**")
-        else:
-            self.write(t.arg)
-            self.write("=")
-        self.dispatch(t.value)
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+        super()._keyword(t)
 
     def _Lambda(self, t):
         self._unsupported_syntax(t)
