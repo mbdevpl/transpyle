@@ -25,6 +25,26 @@ def flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
             del sequence[i + len(elem)]
 
 
+FORTRAN_PYTHON_TYPE_PAIRS = {
+    ('logical', None): 'bool',
+    ('integer', None): 'int',
+    ('real', None): 'float',
+    ('character', t.Any): 'str',
+    ('integer', 1): 'np.int8',
+    ('integer', 2): 'np.int16',
+    ('integer', 4): 'np.int32',
+    ('integer', 8): 'np.int64',
+    ('real', 2): 'np.float16',
+    ('real', 4): 'np.float32',
+    ('real', 8): 'np.float64'}
+
+PYTHON_TYPE_ALIASES = {
+    'bool': ('np.bool_',),
+    'int': ('np.int_', 'np.intc', 'np.intp'),
+    'np.float32': ('np.single',),
+    'np.float64': ('np.double', 'np.float_',)}
+
+
 class FortranAstGeneralizer(AstGeneralizer):
 
     """Transform Fortran AST in XML format into typed Python AST.
@@ -68,7 +88,9 @@ class FortranAstGeneralizer(AstGeneralizer):
             if warn:
                 _LOG.warning('no transformer available for node "%s"', node.tag)
                 _LOG.debug('%s', ET.tostring(node).decode().rstrip())
-            return None
+            raise NotImplementedError(
+                'no transformer available for node "{}":\n{}'.format(
+                    node.tag, ET.tostring(node).decode().rstrip()))
         _transform = getattr(self, transform_name)
         return _transform(node)
 
@@ -337,13 +359,6 @@ class FortranAstGeneralizer(AstGeneralizer):
         return typed_ast3.ListComp(elt=elt, generators=[generator])
             #target=target, iter=iter_, body=body, orelse=[])
 
-    def _expression(self, node):
-        expression = self.transform_all_subnodes(node)
-        if len(expression) != 1:
-            raise NotImplementedError('exactly one output expected but {} found in:/n{}'.format(
-                len(expression), ET.tostring(node).decode().rstrip()))
-        return expression[0]
-
     def _loop_do_while(self, node: ET.Element) -> typed_ast3.While:
         header_node = node.find('./header')
         header = self.transform_all_subnodes(header_node, warn=False)
@@ -408,10 +423,25 @@ class FortranAstGeneralizer(AstGeneralizer):
 
         return typed_ast3.If(test=test, body=body, orelse=[])
 
+    def _expressions(self, node: ET.Element) -> t.List[typed_ast3.AST]:
+        return self.transform_all_subnodes(node, warn=False, ignored={
+            'allocate-object-list__begin', 'allocate-object-list',
+            'allocation-list__begin', 'allocation-list'
+            })
+
+    def _expression(self, node) -> typed_ast3.AST:
+        expression = self.transform_all_subnodes(node, warn=True, ignored={
+            'allocate-object',
+            'allocation'})
+        if len(expression) != 1:
+            raise NotImplementedError('exactly one output expected but {} found in:\n{}'.format(
+                len(expression), ET.tostring(node).decode().rstrip()))
+        return expression[0]
+
     def _statement(self, node: ET.Element):
         details = self.transform_all_subnodes(
             node, warn=False, ignored={
-                'format', 'allocate-stmt',
+                'format',
                 'action-stmt', 'executable-construct', 'execution-part-construct',
                 'execution-part'})
         flatten_sequence(details)
@@ -429,6 +459,28 @@ class FortranAstGeneralizer(AstGeneralizer):
             else typed_ast3.Expr(value=detail)
             for detail in details]
 
+    def _allocate(self, node: ET.Element) -> t.List[typed_ast3.Assign]:
+        expressions_node = node.find('./expressions')
+        expressions = self.transform(expressions_node, warn=False)
+        assignments = []
+        for expression in expressions:
+            assert isinstance(expression, typed_ast3.Subscript), type(expression)
+            var = expression.value
+            if isinstance(expression.slice, typed_ast3.Index):
+                sizes = [expression.slice.value]
+            elif isinstance(expression.slice, typed_ast3.ExtSlice):
+                sizes = expression.slice.dims
+            else:
+                raise NotImplementedError('unrecognized slice type: "{}"'.format(type(expression.slice)))
+            val = typed_ast3.Call(
+                func=typed_ast3.Attribute(
+                    value=typed_ast3.Name(id='np'), attr='zeros', ctx=typed_ast3.Load()),
+                args=[typed_ast3.Tuple(elts=sizes)], keywords=[typed_ast3.keyword(arg='dtype', value='t.Any')])
+            assignments.append(
+                typed_ast3.Assign(targets=[var], value=val, type_comment=None))
+        return assignments
+
+    '''
     def _allocations(self, node: ET.Element) -> typed_ast3.Assign:
         allocation_nodes = node.findall('./allocation')
         allocations = []
@@ -456,6 +508,23 @@ class FortranAstGeneralizer(AstGeneralizer):
             assignments.append(
                 typed_ast3.Assign(targets=[var], value=val, type_comment=None))
         return assignments
+    '''
+
+    def _deallocate(self, node: ET.Element) -> typed_ast3.Delete:
+        expressions_node = node.find('./expressions')
+        expressions = self.transform(expressions_node, warn=False)
+        targets = []
+        for expression in expressions:
+            assert isinstance(expression, typed_ast3.Name), type(expression)
+            #raise NotImplementedError('not handling:\n{}'.format(typed_astunparse.dump(expression)))
+            targets.append(expression)
+        return typed_ast3.Delete(targets=targets)
+
+    #def _allocate_objects(self, node: ET.Element) -> typed_ast3.Delete:
+    #    pass
+
+    #def _allocate_object(self, node: ET.Element) -> typed_ast3.Delete:
+    #    return self._expression(node)
 
     def _call(self, node: ET.Element) -> t.Union[typed_ast3.Call, typed_ast3.Assign]:
         called = self.transform_all_subnodes(node, warn=False, ignored={'call-stmt'})
@@ -542,7 +611,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         if len(node) == 0 and not node.attrib['argument-name']:
             return [] # TODO: TMP
         if len(io_control) != 1:
-            raise NotImplementedError('exactly one I/O control expected but {} found in:/n{}'.format(
+            raise NotImplementedError('exactly one I/O control expected but {} found in:\n{}'.format(
                 len(io_control), ET.tostring(node).decode().rstrip()))
         if node.attrib['argument-name']:
             return typed_ast3.keyword(arg=node.attrib['argument-name'], value=io_control[0])
@@ -556,7 +625,7 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _output(self, node):
         output = self.transform_all_subnodes(node)
         if len(output) != 1:
-            raise NotImplementedError('exactly one output expected but {} found in:/n{}'.format(
+            raise NotImplementedError('exactly one output expected but {} found in:\n{}'.format(
                 len(output), ET.tostring(node).decode().rstrip()))
         return output[0]
 
@@ -568,7 +637,7 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _input(self, node):
         input_ = self.transform_all_subnodes(node)
         if len(input_) != 1:
-            raise NotImplementedError('exactly one input expected but {} found in:/n{}'.format(
+            raise NotImplementedError('exactly one input expected but {} found in:\n{}'.format(
                 len(input_), ET.tostring(node).decode().rstrip()))
         return input_[0]
 
@@ -604,7 +673,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             target=file_handle, value=typed_ast3.Call(
                 func=typed_ast3.Name(id='open', ctx=typed_ast3.Load()),
                 args=[], keywords=kwargs),
-            annotation=typed_ast3.parse('t.IO[bytes]', mode='eval'), simple=1)
+            annotation=typed_ast3.parse('t.IO[bytes]', mode='eval').body, simple=1)
 
     def _close(self, node: ET.Element) -> typed_ast3.AnnAssign:
         file_handle = self._create_file_handle_var()
@@ -906,16 +975,6 @@ class FortranAstGeneralizer(AstGeneralizer):
                 'dimension type "{}" not supported in:\n{}'
                 .format(dim_type, ET.tostring(node).decode().rstrip()))
 
-    _basic_types = {
-        ('logical', None): 'bool',
-        ('integer', None): 'int',
-        ('real', None): 'float',
-        ('character', t.Any): 'str',
-        ('integer', 4): 'np.int32',
-        ('integer', 8): 'np.int64',
-        ('real', 4): 'np.float32',
-        ('real', 8): 'np.float64'}
-
     def _type(self, node: ET.Element) -> type:
         name = node.attrib['name'].lower()
         length = \
@@ -933,10 +992,10 @@ class FortranAstGeneralizer(AstGeneralizer):
                 _LOG.info(
                     'ignoring string length "%i" in:\n%s',
                     length, ET.tostring(node).decode().rstrip())
-            return typed_ast3.parse(self._basic_types[name, t.Any], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, t.Any], mode='eval')
         elif length is not None:
             self._ensure_top_level_import('numpy', 'np')
-            return typed_ast3.parse(self._basic_types[name, length], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, length], mode='eval')
         elif kind is not None:
             self._ensure_top_level_import('numpy', 'np')
             if isinstance(kind, typed_ast3.Num):
@@ -944,7 +1003,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             if not isinstance(kind, int):
                 #_LOG.warning('%s', ET.tostring(node).decode().rstrip())
                 #raise NotImplementedError('non-literal kinds are not supported')
-                python_type = typed_ast3.parse(self._basic_types[name, None], mode='eval')
+                python_type = typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
                 self._ensure_top_level_import('static_typing', 'st')
                 static_type = typed_ast3.Attribute(
                     value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
@@ -956,16 +1015,18 @@ class FortranAstGeneralizer(AstGeneralizer):
                 #    'real': lambda kind: 'st.float[0]'.format(kind)}[name](kind), mode='eval')
                 #custom_kind_type.
                 #return custom_kind_type
-            return typed_ast3.parse(self._basic_types[name, kind], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, kind], mode='eval')
         else:
-            return typed_ast3.parse(self._basic_types[name, None], mode='eval')
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _length(self, node):
         values = self.transform_all_subnodes(node, ignored={'char-length'})
         if len(values) == 1:
             return values[0]
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _kind(self, node):
         values = self.transform_all_subnodes(node, ignored={'kind-selector'})
@@ -973,7 +1034,8 @@ class FortranAstGeneralizer(AstGeneralizer):
             return values[0]
         if 'value' in node.attrib:
             return int(node.attrib['value'])
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _variable(self, node: ET.Element) -> t.Tuple[
             typed_ast3.Name, t.Any]:
@@ -1096,7 +1158,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         # Bit inquiry function
         'bit_size': _intrinsic_converter_not_implemented,
         # Vector- and matrix-multiplication functions
-        'dot_product': _intrinsic_converter_not_implemented,
+        'dot_product': functools.partial(_intrinsic_numpy_call, name='dot'),
         'matmul': _intrinsic_converter_not_implemented,
         # Array functions
         'all': _intrinsic_converter_not_implemented,

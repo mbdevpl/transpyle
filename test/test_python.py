@@ -1,8 +1,6 @@
 """Unit tests for transpyle.python package."""
 
 import ast
-#import logging
-import os
 import unittest
 
 import typed_ast.ast3
@@ -11,24 +9,7 @@ from transpyle.python.parser import \
     NativePythonParser, TypedPythonParser, TypedPythonParserWithComments
 from transpyle.python.unparser import \
     NativePythonUnparser, TypedPythonUnparser, TypedPythonUnparserWithComments
-
-_ROOT = os.getcwd()
-
-EXAMPLES_ORDINARY = [
-    """a = 1""",
-    """b = 2""",
-    """print('abc')"""]
-
-EXAMPLES_TYPE_COMMENTS = [
-    """a = 1 # type: int""",
-    """b = 2 # type: t.Optional[int]"""]
-
-EXAMPLES_COMMENTS = [
-    """print('abc')\n# printing abc"""]
-
-EXAMPLES = (
-    EXAMPLES_ORDINARY, EXAMPLES_ORDINARY + EXAMPLES_TYPE_COMMENTS,
-    EXAMPLES_TYPE_COMMENTS + EXAMPLES_TYPE_COMMENTS + EXAMPLES_COMMENTS)
+from .examples import EXAMPLES_PY3
 
 PARSER_CLASSES = (NativePythonParser, TypedPythonParser, TypedPythonParserWithComments)
 
@@ -44,7 +25,7 @@ class Tests(unittest.TestCase):
                 self.assertIsNotNone(parser)
 
     def test_parse(self):
-        for parser_class, examples in zip(PARSER_CLASSES, EXAMPLES):
+        for parser_class, examples in zip(PARSER_CLASSES, EXAMPLES_PY3):
             parser = parser_class()
             for example in examples:
                 with self.subTest(cls=parser_class, example=example):
@@ -71,7 +52,8 @@ class Tests(unittest.TestCase):
                 self.assertIsInstance(code, str)
 
     def test_parse_unparse(self):
-        for parser_class, unparser_class, examples in zip(PARSER_CLASSES, UNPARSER_CLASSES, EXAMPLES):
+        for parser_class, unparser_class, examples in zip(
+                PARSER_CLASSES, UNPARSER_CLASSES, EXAMPLES_PY3):
             parser = parser_class()
             unparser = unparser_class()
             for example in examples:
