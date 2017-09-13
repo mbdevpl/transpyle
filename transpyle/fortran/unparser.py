@@ -22,13 +22,18 @@ for name, aliases in PYTHON_TYPE_ALIASES.items():
         PYTHON_FORTRAN_TYPE_PAIRS[alias] = PYTHON_FORTRAN_TYPE_PAIRS[name]
 
 PYTHON_FORTRAN_INTRINSICS = {
-    'np.zeros': '0'
+    'np.zeros': '0',
+    'np.argmin': 'minloc',
+    'np.argmax': 'maxloc'
     }
 
 
 class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     lang_name = 'Fortran 77'
+
+    def enter(self):
+        self._indent += 1
 
     def _unsupported_syntax(self, tree):
         unparsed = 'invalid'
@@ -44,13 +49,17 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         code = horast.unparse(tree)
         stripped_code = code.strip()
         if stripped_code in PYTHON_FORTRAN_TYPE_PAIRS:
-            self.write(PYTHON_FORTRAN_TYPE_PAIRS[stripped_code])
+            type_name, precision = PYTHON_FORTRAN_TYPE_PAIRS[stripped_code]
+            self.write(type_name)
+            if precision is not None:
+                self.write('*')
+                self.write(precision)
         elif isinstance(tree, typed_ast3.Subscript):
             val = tree.value
             sli = tree.slice
             if isinstance(val, typed_ast3.Attribute) and isinstance(val.value, typed_ast3.Name) \
                     and val.value.id == 'st' and val.attr == 'ndarray':
-                assert isinstance(sli, typed_ast3.Index)
+                assert isinstance(sli, typed_ast3.Index), typed_astunparse.dump(tree)
                 assert isinstance(sli.value, typed_ast3.Tuple)
                 assert len(sli.value.elts) == 2
                 elts = sli.value.elts
@@ -205,7 +214,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.enter()
         self.dispatch(t.body)
         self.leave()
-        self.write('end do')
+        self.fill('end do')
 
     def _AsyncFor(self, t):
         self._unsupported_syntax(t)
@@ -220,6 +229,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.enter()
         self.dispatch(t.body)
         self.leave()
+        self.fill('end if')
 
     def _While(self, t):
         raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
@@ -344,7 +354,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         func_code = horast.unparse(t.func).strip()
         if func_code.startswith('np.'):
             if func_code not in PYTHON_FORTRAN_INTRINSICS:
-                raise NotImplementedError()
+                raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
             self.write(PYTHON_FORTRAN_INTRINSICS[func_code])
             return
         super()._Call(t)

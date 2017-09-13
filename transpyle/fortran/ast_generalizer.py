@@ -8,6 +8,7 @@ import typing as t
 import xml.etree.ElementTree as ET
 
 #import numpy as np
+import horast.nodes as horast_nodes
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
@@ -281,7 +282,9 @@ class FortranAstGeneralizer(AstGeneralizer):
                 value=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
                     attr='ndarray', ctx=typed_ast3.Load()),
-                slice=typed_ast3.ExtSlice(dims=[typed_ast3.Num(n=len(dimensions)), data_type]),
+                #slice=typed_ast3.ExtSlice(dims=[typed_ast3.Num(n=len(dimensions)), data_type]),
+                slice=typed_ast3.Index(value=typed_ast3.Tuple(
+                    elts=[typed_ast3.Num(n=len(dimensions)), data_type])),
                 ctx=typed_ast3.Load())
             if len(variables) > 1 and not all([_ is None for _ in value]):
                 raise NotImplementedError('not implemented handling of many initial values {}:\n{}'.format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
@@ -725,8 +728,12 @@ class FortranAstGeneralizer(AstGeneralizer):
                 arg_num = 1
             var = tree.args.pop(arg_num)
             tree = typed_ast3.Assign(targets=[var], value=tree, type_comment=None)
-        return [tree, typed_ast3.AnnAssign(
-            target=error_var, value=None, annotation=typed_ast3.Str(s='MPI error code'), simple=1)]
+        error_var_assignment = typed_ast3.AnnAssign(
+            target=error_var, value=None, annotation=typed_ast3.Str(s='MPI error code'), simple=1)
+        error_var_assignment = typed_ast3.AnnAssign(
+            target=error_var, value=None, annotation=typed_ast3.Name(id='int'), simple=1)
+        error_var_comment = horast_nodes.Comment(value=typed_ast3.Str(' MPI error code'), eol=False)
+        return [tree, error_var_assignment, error_var_comment]
 
     def _assignment(self, node: ET.Element):
         target = self.transform_all_subnodes(node.find('./target'))
@@ -746,7 +753,8 @@ class FortranAstGeneralizer(AstGeneralizer):
             return self._operation_multiary(node)
         if node.attrib['type'] == 'unary':
             return self._operation_unary(node)
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError(
+            f'not implemented handling of:\n{ET.tostring(node).decode().rstrip()}')
 
     def _operation_multiary(
             self, node: ET.Element) -> t.Union[
