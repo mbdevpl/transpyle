@@ -32,6 +32,22 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     lang_name = 'Fortran 77'
 
+    def __init__(self, *args, indent: int = 2, fixed_form: bool = True, **kwargs):
+        self._indent_level = indent
+        self._fixed_form = fixed_form
+        super().__init__(*args, **kwargs)
+
+    def fill(self, text=''):
+        if self._fixed_form:
+            pass
+        super().fill(text)
+        #self.f.write("\n"+"    "*self._indent + text)
+
+    def write(self, text):
+        if self._fixed_form:
+            pass
+        super().write(text)
+
     def enter(self):
         self._indent += 1
 
@@ -447,24 +463,22 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _Await(self, t):
         self._unsupported_syntax(t)
 
-    @classmethod
-    def unparse(cls, tree) -> str:
-        stream = io.StringIO()
-        cls(tree, file=stream)
-        return stream.getvalue()
 
 class Fortran77Unparser(Unparser):
 
     def __init__(self):
         super().__init__(Language.find('Fortran 77'))
 
-    def unparse(self, tree) -> str:
-        return Fortran77UnparserBackend.unparse(tree)
+    def unparse(self, tree, indent: int = 2, fixed_form: bool = True) -> str:
+        stream = io.StringIO()
+        Fortran77UnparserBackend(tree, file=stream, indent=indent, fixed_form=fixed_form)
+        return stream.getvalue()
+
 
 class Fortran2008Unparser(Unparser):
 
     def __init__(self):
         super().__init__(Language.find('Fortran 2008'))
 
-    def unparse(self, tree) -> str:
+    def unparse(self, tree, indent: int = 4, fixed_form: bool = False) -> str:
         raise NotImplementedError('not yet implemented')
