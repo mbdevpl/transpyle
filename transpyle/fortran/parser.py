@@ -12,5 +12,5 @@ class FortranParser(Parser):
         super().__init__(Language.find('Fortran 2008'))
 
     def parse(self, input_path: pathlib.Path, verbosity: int = 100) -> ET.Element:
-        _ = open_fortran_parser.execute_parser(input_path, pathlib.Path('/tmp', 'transpyle_' + input_path.name + '.xml'), verbosity)
+        #_ = open_fortran_parser.execute_parser(input_path, pathlib.Path('/tmp', 'transpyle_' + input_path.name + '.xml'), verbosity)
         return open_fortran_parser.parse(input_path, verbosity, raise_on_error=True)
