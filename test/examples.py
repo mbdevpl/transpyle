@@ -35,6 +35,8 @@ APPS_RESULTS_ROOT.mkdir(exist_ok=True)
 
 def basic_check_code(case: unittest.TestCase, path, code, language, results=EXAMPLES_RESULTS_ROOT):
     case.assertIsInstance(code, str)
+    if results == EXAMPLES_RESULTS_ROOT:
+        results = results.joinpath(language)
     with open(results.joinpath(path.name + EXAMPLES_EXTENSIONS[language][0]), 'w') as result_file:
         result_file.write(code)
 
@@ -48,12 +50,16 @@ EXAMPLES_F95_FILES = EXAMPLES_FILES['f95']
 
 
 def basic_check_fortran_code(case: unittest.TestCase, path, code, results=EXAMPLES_RESULTS_ROOT):
-    basic_check_code(case, path, code, 'f77', results=EXAMPLES_RESULTS_ROOT)
+    basic_check_code(case, path, code, 'f77', results=results)
 
 
 def basic_check_fortran_ast(
         case: unittest.TestCase, path, fortran_ast, results=EXAMPLES_RESULTS_ROOT):
     case.assertIsInstance(fortran_ast, ET.Element)
+    if results == EXAMPLES_RESULTS_ROOT:
+        results = results.joinpath(path.parent.name)
+        if not results.is_dir():
+            results.mkdir()
     with open(results.joinpath(path.name + '.xml'), 'w') as result_file:
         result_file.write(ET.tostring(fortran_ast).decode().rstrip())
 
@@ -78,10 +84,14 @@ EXAMPLES_PY3 = (
 
 
 def basic_check_python_code(case: unittest.TestCase, path, code, results=EXAMPLES_RESULTS_ROOT):
-    basic_check_code(case, path, code, 'python3', results=EXAMPLES_RESULTS_ROOT)
+    basic_check_code(case, path, code, 'python3', results=results)
 
 
 def basic_check_python_ast(case: unittest.TestCase, path, tree, results=EXAMPLES_RESULTS_ROOT):
     case.assertIsInstance(tree, typed_ast.ast3.AST)
+    if results == EXAMPLES_RESULTS_ROOT:
+        results = results.joinpath(path.parent.name)
+        if not results.is_dir():
+            results.mkdir()
     with open(results.joinpath(path.name + '-ast.py'), 'w') as result_file:
         result_file.write(typed_astunparse.dump(tree))

@@ -21,7 +21,7 @@ class Tests(unittest.TestCase):
     def test_roundrtip_miranda_io(self):
         results_path = pathlib.Path(APPS_RESULTS_ROOT, 'miranda_io')
         results_path.mkdir(exist_ok=True)
-        path = pathlib.Path('~/Projects/fortran/miranda_io/src/miranda_io.f90').expanduser()
+        path = pathlib.Path('../miranda_io/miranda_io.f90').expanduser()
         if not path.is_file():
             self.skipTest('miranda_io file not present')
         fortran_parser = FortranParser()
@@ -34,11 +34,11 @@ class Tests(unittest.TestCase):
         tree = fortran_generalizer.generalize(fortran_ast)
         basic_check_python_ast(self, path, tree, results=results_path)
         python_code = python_unparser.unparse(tree)
-        basic_check_python_code(python_code, results=results_path)
+        basic_check_python_code(self, path, python_code, results=results_path)
         tree = python_parser.parse(python_code)
         basic_check_python_ast(self, path, tree, results=results_path)
         fortran_code = fortran_unparser.unparse(tree)
-        basic_check_fortran_code(fortran_code, results=results_path)
+        basic_check_fortran_code(self, path, fortran_code, results=results_path)
 
     def test_roundtrip_flash(self):
         results_path = pathlib.Path(APPS_RESULTS_ROOT, 'flash')
@@ -59,7 +59,7 @@ class Tests(unittest.TestCase):
                 tree = generalizer.generalize(fortran_ast)
                 basic_check_python_ast(self, path, tree, results=results_path)
                 fortran_code = unparser.unparse(tree)
-                basic_check_fortran_code(fortran_code, results=results_path)
+                basic_check_fortran_code(self, path, fortran_code, results=results_path)
 
     def test_migrate_ffb_mini_to_python(self):
         """From https://github.com/fiber-miniapp/ffb-mini"""
