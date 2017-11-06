@@ -7,7 +7,6 @@ import logging
 import typing as t
 import xml.etree.ElementTree as ET
 
-#import numpy as np
 import horast.nodes as horast_nodes
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
@@ -69,18 +68,27 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _ensure_top_level_import(self, canonical_name: str, alias: t.Optional[str]=None):
         if (canonical_name, alias) not in self._top_level_imports:
-            if canonical_name in ('mpif.h', '?'): # TODO: other ways to include MPI?
+            if canonical_name in ('mpif.h', '?'):  # TODO: other ways to include MPI?
                 self._ensure_mpi_import(canonical_name, alias)
             else:
                 self._top_level_imports[canonical_name, alias] = [typed_ast3.Import(
                     names=[typed_ast3.alias(name=canonical_name, asname=alias)])]
 
+    # TODO: WIP
+    def _get_node(self, node: ET.Element, xpath: str) -> ET.Element:
+        header_node = node.find('./header')
+        if header_node is None:
+            raise SyntaxError(
+                'no "header" found in "subroutine":\n{}'
+                .format(ET.tostring(node).decode().rstrip()))
+        # TODO: WIP
+
     def _ensure_mpi_import(self, canonical_name, alias):
-        #if ('mpi4py', None) not in self._top_level_imports:
+        # if ('mpi4py', None) not in self._top_level_imports:
         self._top_level_imports[canonical_name, alias] = [
             typed_ast3.ImportFrom(
                 module='mpi4py', names=[typed_ast3.alias(name='MPI', asname=None)], level=0),
-            #typed_ast3.parse('mpi4py.config = no_auto_init', mode='eval') # TODO: may be needed
+            # typed_ast3.parse('mpi4py.config = no_auto_init', mode='eval') # TODO: may be needed
             ]
 
     def transform(self, node: ET.Element, warn: bool = True):
@@ -225,7 +233,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _declaration(self, node: ET.Element) -> typed_ast3.AnnAssign:
         if 'type' not in node.attrib:
-            return [] # TODO: TMP
+            return []  # TODO: TMP
             raise SyntaxError(
                 '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
         if node.attrib['type'] == 'implicit':
@@ -384,7 +392,10 @@ class FortranAstGeneralizer(AstGeneralizer):
                 continue
             inner_loop.body = [typed_ast3.For(target=target, iter=iter_, body=[], orelse=[])]
             inner_loop = inner_loop.body[0]
-        inner_loop.body = self.transform_all_subnodes(node.find('./body'), warn=False)
+        body = node.find('./body')
+        if body is None:
+            raise
+        inner_loop.body = self.transform_all_subnodes(body, warn=False)
         return outer_loop
 
     def _index_variable(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, typed_ast3.Call]:
@@ -738,7 +749,7 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _assignment(self, node: ET.Element):
         target = self.transform_all_subnodes(node.find('./target'))
         value = self.transform_all_subnodes(node.find('./value'))
-        if len(target) != 1: 
+        if len(target) != 1:
             raise SyntaxError(
                 'exactly 1 target expected but {} given {} in:\n{}'
                 .format(len(target), target, ET.tostring(node).decode().rstrip()))
@@ -1259,7 +1270,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             return subscripts[0]
         elif len(subscripts) > 1:
             return typed_ast3.ExtSlice(dims=subscripts)
-        return [] # TODO: TMP
+        return []  # TODO: TMP
         raise SyntaxError(
             'subscripts node must contain at least one "subscript" node:\n{}'
             .format(ET.tostring(node).decode().rstrip()))
