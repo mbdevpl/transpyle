@@ -66,7 +66,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         file_node = root_node[0]
         return self.transform(file_node)
 
-    def _ensure_top_level_import(self, canonical_name: str, alias: t.Optional[str]=None):
+    def _ensure_top_level_import(self, canonical_name: str, alias: t.Optional[str] = None):
         if (canonical_name, alias) not in self._top_level_imports:
             if canonical_name in ('mpif.h', '?'):  # TODO: other ways to include MPI?
                 self._ensure_mpi_import(canonical_name, alias)
@@ -74,14 +74,12 @@ class FortranAstGeneralizer(AstGeneralizer):
                 self._top_level_imports[canonical_name, alias] = [typed_ast3.Import(
                     names=[typed_ast3.alias(name=canonical_name, asname=alias)])]
 
-    # TODO: WIP
     def _get_node(self, node: ET.Element, xpath: str) -> ET.Element:
-        header_node = node.find('./header')
-        if header_node is None:
-            raise SyntaxError(
-                'no "header" found in "subroutine":\n{}'
-                .format(ET.tostring(node).decode().rstrip()))
-        # TODO: WIP
+        found = node.find(xpath)
+        if found is None:
+            raise SyntaxError('no "{}" found in "{}":\n{}'
+                              .format(xpath, node.tag, ET.tostring(node).decode().rstrip()))
+        return found
 
     def _ensure_mpi_import(self, canonical_name, alias):
         # if ('mpi4py', None) not in self._top_level_imports:
@@ -145,19 +143,21 @@ class FortranAstGeneralizer(AstGeneralizer):
         return typed_ast3.Module(body=body, type_ignores=[])
 
     def _module(self, node: ET.Element):
-        module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
+        _ = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
         body = self.transform_all_subnodes(node.find('./body'))
-        conditional = module.body[0]
+        conditional = _.body[0]
         conditional.body = body
         members_node = node.find('./members')
         if members_node is None:
             return conditional
         members = self.transform_all_subnodes(members_node)
-        #if not members:
-        _LOG.warning('%s', ET.tostring(node).decode().rstrip())
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
-        conditional.body = body + members
-        return module
+        if not members:
+            members = [typed_ast3.Pass()]
+        clsdef = typed_ast3.ClassDef(
+            name=node.attrib['name'], bases=[], keywords=[], body=members, decorator_list=[])
+        return [conditional, clsdef]
+        # _LOG.warning('%s', ET.tostring(node).decode().rstrip())
+        # raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _function(self, node: ET.Element):
         arguments = self.transform(node.find('./header/names'))
@@ -295,9 +295,12 @@ class FortranAstGeneralizer(AstGeneralizer):
                     elts=[typed_ast3.Num(n=len(dimensions)), data_type])),
                 ctx=typed_ast3.Load())
             if len(variables) > 1 and not all([_ is None for _ in value]):
-                raise NotImplementedError('not implemented handling of many initial values {}:\n{}'.format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
+                raise NotImplementedError(
+                    'not implemented handling of many initial values {}:\n{}'
+                    .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
             elif value is not None:
-                #raise NotImplementedError('not implemented handling of initial value {}:\n{}'.format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
+                # raise NotImplementedError('not implemented handling of initial value {}:\n{}'
+                # .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
                 pass
             else:
                 self._ensure_top_level_import('numpy', 'np')
@@ -336,7 +339,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         if node.attrib['type'] == 'do':
             return self._loop_do(node)
         elif node.attrib['type'] == 'implied-do':
-            return self._loop_do_while(node)
+            return self._loop_implied_do(node)
         elif node.attrib['type'] == 'do-while':
             return self._loop_do_while(node)
         elif node.attrib['type'] == 'forall':
@@ -364,11 +367,11 @@ class FortranAstGeneralizer(AstGeneralizer):
         comp_target, comp_iter = self._index_variable(index_variable)
         expressions = self.transform_all_subnodes(body_node, warn=False, ignored={})
         assert len(expressions) > 0
-        elt = expressions[0] if len(expressions == 1) else typed_ast3.Tuple(elts=expressions)
+        elt = expressions[0] if len(expressions) == 1 else typed_ast3.Tuple(elts=expressions)
         generator = typed_ast3.comprehension(
             target=comp_target, iter=comp_iter, ifs=[], is_async=0)
         return typed_ast3.ListComp(elt=elt, generators=[generator])
-            #target=target, iter=iter_, body=body, orelse=[])
+        # target=target, iter=iter_, body=body, orelse=[])
 
     def _loop_do_while(self, node: ET.Element) -> typed_ast3.While:
         header_node = node.find('./header')
@@ -392,10 +395,8 @@ class FortranAstGeneralizer(AstGeneralizer):
                 continue
             inner_loop.body = [typed_ast3.For(target=target, iter=iter_, body=[], orelse=[])]
             inner_loop = inner_loop.body[0]
-        body = node.find('./body')
-        if body is None:
-            raise
-        inner_loop.body = self.transform_all_subnodes(body, warn=False)
+        #inner_loop.body = [self.transform(self._get_node(node, './assignmet'))]
+        inner_loop.body = self.transform_all_subnodes(self._get_node(node, './body'), warn=False)
         return outer_loop
 
     def _index_variable(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, typed_ast3.Call]:
@@ -422,14 +423,21 @@ class FortranAstGeneralizer(AstGeneralizer):
             args=range_args, keywords=[])
         return target, iter_
 
+    def _cycle(self, node: ET.Element) -> typed_ast3.Continue:
+        return typed_ast3.Continue()
+
+    def _exit(self, node: ET.Element) -> typed_ast3.Break:
+        return typed_ast3.Break()
+
     def _if(self, node: ET.Element):
         header = self.transform_all_subnodes(
             node.find('./header'), warn=False,
             ignored={'executable-construct', 'execution-part-construct'})
         if len(header) != 1:
             _LOG.error('parsed results: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
-            raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
-        #if len(header) == 0:
+            raise NotImplementedError('not implemented handling of:\n{}'
+                                      .format(ET.tostring(node).decode().rstrip()))
+        # if len(header) == 0:
         #    test = typed_ast3.NameConstant(True)
         test = header[0]
 
@@ -485,11 +493,15 @@ class FortranAstGeneralizer(AstGeneralizer):
             elif isinstance(expression.slice, typed_ast3.ExtSlice):
                 sizes = expression.slice.dims
             else:
-                raise NotImplementedError('unrecognized slice type: "{}"'.format(type(expression.slice)))
+                raise NotImplementedError('unrecognized slice type: "{}"'
+                                          .format(type(expression.slice)))
             val = typed_ast3.Call(
                 func=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='np'), attr='zeros', ctx=typed_ast3.Load()),
-                args=[typed_ast3.Tuple(elts=sizes)], keywords=[typed_ast3.keyword(arg='dtype', value='t.Any')])
+                args=[typed_ast3.Tuple(elts=sizes)],
+                keywords=[typed_ast3.keyword(arg='dtype', value=typed_ast3.Attribute(
+                    value=typed_ast3.Name(id='t', ctx=typed_ast3.Load()), attr='Any',
+                    ctx=typed_ast3.Load()))])
             assignments.append(
                 typed_ast3.Assign(targets=[var], value=val, type_comment=None))
         return assignments
@@ -622,13 +634,17 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _io_control(self, node) -> typed_ast3.AST:
         io_control = self.transform_all_subnodes(node)
-        if len(node) == 0 and not node.attrib['argument-name']:
+        arg_name = node.attrib['argument-name']
+        if len(node) == 0 and not arg_name:
             return [] # TODO: TMP
+        if len(io_control) == 0:
+            assert arg_name == ''
+            return typed_ast3.Ellipsis()  # TODO: TMP
         if len(io_control) != 1:
             raise NotImplementedError('exactly one I/O control expected but {} found in:\n{}'.format(
                 len(io_control), ET.tostring(node).decode().rstrip()))
         if node.attrib['argument-name']:
-            return typed_ast3.keyword(arg=node.attrib['argument-name'], value=io_control[0])
+            return typed_ast3.keyword(arg=arg_name, value=io_control[0])
         return io_control[0]
 
     def _outputs(self, node: ET.Element):
