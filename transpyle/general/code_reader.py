@@ -11,7 +11,7 @@ class CodeReader:
 
     """Read whole source code files."""
 
-    def __init__(self, extensions: t.Optional[t.Iterable[str]]=None):
+    def __init__(self, extensions: t.Optional[t.Iterable[str]] = None):
         """Initialize new instance of CodeReader.
 
         :param extensions: if provided, any files with extensions different than given ones will be
@@ -44,7 +44,7 @@ class CodeReader:
         return contents
 
     def read_folder(
-            self, root_path: pathlib.Path, recursive: bool=True) -> t.Dict[pathlib.Path, str]:
+            self, root_path: pathlib.Path, recursive: bool = True) -> t.Dict[pathlib.Path, str]:
         """Read all relevant files in a given directory."""
         assert isinstance(root_path, pathlib.Path), type(root_path)
         assert isinstance(recursive, bool), type(recursive)

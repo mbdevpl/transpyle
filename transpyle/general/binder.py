@@ -2,6 +2,7 @@
 
 from .registry import Registry
 
+
 class Binder(Registry):
     """Interface between compiled binary in different language and Python."""
 
