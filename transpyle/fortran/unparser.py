@@ -1,6 +1,8 @@
 """Fortran unparsing."""
 
 import ast
+import collections.abc
+import copy
 import io
 import logging
 
@@ -17,14 +19,18 @@ _LOG = logging.getLogger(__name__)
 
 PYTHON_FORTRAN_TYPE_PAIRS = {value: key for key, value in FORTRAN_PYTHON_TYPE_PAIRS.items()}
 
-for name, aliases in PYTHON_TYPE_ALIASES.items():
-    for alias in aliases:
-        PYTHON_FORTRAN_TYPE_PAIRS[alias] = PYTHON_FORTRAN_TYPE_PAIRS[name]
+for _name, _aliases in PYTHON_TYPE_ALIASES.items():
+    for _alias in _aliases:
+        PYTHON_FORTRAN_TYPE_PAIRS[_alias] = PYTHON_FORTRAN_TYPE_PAIRS[_name]
 
 PYTHON_FORTRAN_INTRINSICS = {
-    'np.zeros': '0',
     'np.argmin': 'minloc',
-    'np.argmax': 'maxloc'
+    'np.argmax': 'maxloc',
+    'np.dot': 'dot_product',
+    'np.maximum': 'max',
+    'np.minimum': 'min',
+    'np.sqrt': 'sqrt',
+    'np.zeros': lambda _: typed_ast3.Num(n=0),
     }
 
 
@@ -35,18 +41,30 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def __init__(self, *args, indent: int = 2, fixed_form: bool = True, **kwargs):
         self._indent_level = indent
         self._fixed_form = fixed_form
+        self._line_len = 0
+        self._max_line_len = 80
         super().__init__(*args, **kwargs)
 
-    def fill(self, text=''):
+    def fill(self, text='', continuation: bool = False):
+        self.write('\n')
         if self._fixed_form:
-            pass
-        super().fill(text)
-        #self.f.write("\n"+"    "*self._indent + text)
+            self.write('      ')
+            self.write('+' if continuation else ' ')
+        self.write(' ' * (self._indent_level * self._indent))
+        self.write(text)
 
     def write(self, text):
+        if text == '\n':
+            self._line_len = 0
+        elif '\n' in text:
+            raise NotImplementedError('long text printing not yet implemented')
+        if not self._fixed_form:
+            raise NotImplementedError('free-form not yet implemented')
         if self._fixed_form:
-            pass
+            if self._line_len + len(text) > self._max_line_len:
+                self.fill('', continuation=True)
         super().write(text)
+        self._line_len += len(text)
 
     def enter(self):
         self._indent += 1
@@ -69,7 +87,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(type_name)
             if precision is not None:
                 self.write('*')
-                self.write(precision)
+                self.write(str(precision))
         elif isinstance(tree, typed_ast3.Subscript):
             val = tree.value
             sli = tree.slice
@@ -90,15 +108,28 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def dispatch_for_iter(self, tree):
         if not isinstance(tree, typed_ast3.Call) \
-                or not isinstance(tree.func, typed_ast3.Name) or tree.func.id != 'range':
+                or not isinstance(tree.func, typed_ast3.Name) or tree.func.id != 'range' \
+                or len(tree.args) not in (1, 2, 3):
             self._unsupported_syntax(tree)
-        first = True
-        for arg in tree.args:
-            if first:
-                first = False
-            else:
-                self.write(", ")
-            self.dispatch(arg)
+        if len(tree.args) == 1:
+            lower = typed_ast3.Num(n=0)
+            upper = tree.args[0]
+            step = None
+        else:
+            lower, upper, step, *_ = tree.args + [None, None]
+        self.dispatch(lower)
+        self.write(', ')
+        if upper is None:
+            import pdb; pdb.set_trace()
+        if isinstance(upper, typed_ast3.BinOp) and isinstance(upper.op, typed_ast3.Add) \
+                and isinstance(upper.right, typed_ast3.Num) and upper.right.n == 1:
+            self.dispatch(upper.left)
+        else:
+            self.dispatch(typed_ast3.BinOp(left=upper, op=typed_ast3.Sub(),
+                                           right=typed_ast3.Num(n=1)))
+        if step is not None:
+            self.write(', ')
+            self.dispatch(step)
 
     def _Import(self, t):
         if len(t.names) > 1:
@@ -148,17 +179,18 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     #        self.dispatch(t.value)
 
     def _Pass(self, t):
-        self.fill("continue")
+        self.fill('continue')
 
     def _Break(self, t):
-        self.fill("exit")
+        self.fill('exit')
 
     def _Continue(self, t):
-        self.fill("cycle")
+        self.fill('cycle')
 
     def _Delete(self, t):
-        self.fill("del ")
-        interleave(lambda: self.write(", "), self.dispatch, t.targets)
+        self.fill('deallocate (')
+        interleave(lambda: self.write(', '), self.dispatch, t.targets)
+        self.write(')')
 
     def _Assert(self, t):
         raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
@@ -239,9 +271,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if t.orelse:
             raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
-        self.fill('if ')
+        self.fill('if (')
         self.dispatch(t.test)
-        self.write(' then')
+        self.write(') then')
         self.enter()
         self.dispatch(t.body)
         self.leave()
@@ -293,7 +325,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(' /')
 
     def _ListComp(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        self.write('(')
+        self.dispatch(t.elt)
+        self.write(', ')
+        for gen in t.generators:
+            self.dispatch(gen)
+        self.write(')')
+        # raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
 
     def _GeneratorExp(self, t):
         self._unsupported_syntax(t)
@@ -305,7 +343,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _comprehension(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        if getattr(t, 'is_async', False) or t.ifs:
+            self._unsupported_syntax(t)
+        self.dispatch(t.target)
+        self.write(' = ')
+        self.dispatch_for_iter(t.iter)
+        # raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
 
     def _IfExp(self, t):
         raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
@@ -319,19 +362,21 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _Tuple(self, t):
         interleave(lambda: self.write(', '), self.dispatch, t.elts)
 
-    unop = {"Invert":"~", "Not": ".not.", "UAdd":"+", "USub":"-"}
+    unop = {'Invert': '~', 'Not': '.not.', 'UAdd': '+', 'USub': '-'}
+
     def _UnaryOp(self, t):
-        self.write("(")
+        self.write('(')
         self.write(self.unop[t.op.__class__.__name__])
-        self.write(" ")
+        self.write(' ')
         self.dispatch(t.operand)
-        self.write(")")
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        self.write(')')
+        # raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
 
     binop = {
-        'Add': '+', 'Sub': '-', 'Mult': '*', #'Div': '/', 'Mod': '%',
-        #'LShift': '<<', 'RShift': '>>', 'BitOr': '|', 'BitXor': '^', 'BitAnd': '&',
+        'Add': '+', 'Sub': '-', 'Mult': '*', 'Div': '/',  # 'Mod': '%',
+        # 'LShift': '<<', 'RShift': '>>', 'BitOr': '|', 'BitXor': '^', 'BitAnd': '&',
         'FloorDiv': '/', 'Pow': '**'}
+
     def _BinOp(self, t):
         if t.op.__class__.__name__ not in self.binop:
             raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
@@ -371,8 +416,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if func_code.startswith('np.'):
             if func_code not in PYTHON_FORTRAN_INTRINSICS:
                 raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
-            self.write(PYTHON_FORTRAN_INTRINSICS[func_code])
-            return
+            new_func = PYTHON_FORTRAN_INTRINSICS[func_code]
+            if isinstance(new_func, collections.abc.Callable):
+                self.dispatch(new_func(t))
+                return
+            t = copy.copy(t)
+            t.func = typed_ast3.Name(id=new_func)
         super()._Call(t)
     #    self.dispatch(t.func)
     #    self.write("(")

@@ -636,13 +636,13 @@ class FortranAstGeneralizer(AstGeneralizer):
         io_control = self.transform_all_subnodes(node)
         arg_name = node.attrib['argument-name']
         if len(node) == 0 and not arg_name:
-            return [] # TODO: TMP
+            return []  # TODO: TMP
         if len(io_control) == 0:
             assert arg_name == ''
             return typed_ast3.Ellipsis()  # TODO: TMP
         if len(io_control) != 1:
-            raise NotImplementedError('exactly one I/O control expected but {} found in:\n{}'.format(
-                len(io_control), ET.tostring(node).decode().rstrip()))
+            raise NotImplementedError('exactly one I/O control expected but {} found in:\n{}'.
+                                      format(len(io_control), ET.tostring(node).decode().rstrip()))
         if node.attrib['argument-name']:
             return typed_ast3.keyword(arg=arg_name, value=io_control[0])
         return io_control[0]
@@ -650,10 +650,10 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _outputs(self, node: ET.Element):
         return self.transform_all_subnodes(
             node, warn=False, skip_empty=True,
-            ignored={'output-item-list__begin', 'output-item', 'output-item-list'})
+            ignored={'output-item-list__begin', 'output-item-list'})
 
     def _output(self, node):
-        output = self.transform_all_subnodes(node)
+        output = self.transform_all_subnodes(node, warn=False, ignored={'output-item'})
         if len(output) != 1:
             raise NotImplementedError('exactly one output expected but {} found in:\n{}'.format(
                 len(output), ET.tostring(node).decode().rstrip()))
@@ -788,8 +788,9 @@ class FortranAstGeneralizer(AstGeneralizer):
                 typed_ast3.BinOp, typed_ast3.BoolOp, typed_ast3.Compare]:
         operators_and_operands = self.transform_all_subnodes(
             node, skip_empty=True, ignored={
-                'add-operand__add-op', 'add-operand', 'mult-operand__mult-op', 'mult-operand',
-                'primary', 'level-3-expr'})
+                'add-operand', 'mult-operand', 'parenthesized_expr',
+                # 'add-operand__add-op', 'mult-operand__mult-op',
+                'primary', 'level-2-expr', 'level-3-expr'})
         assert isinstance(operators_and_operands, list), operators_and_operands
         assert len(operators_and_operands) % 2 == 1, operators_and_operands
 
@@ -880,7 +881,9 @@ class FortranAstGeneralizer(AstGeneralizer):
         return operation_type(op=operator_type(), operand=operand)
 
     def _operand(self, node: ET.Element) -> t.Any:
-        operand = self.transform_all_subnodes(node) #, ignored={'power-operand'})
+        operand = self.transform_all_subnodes(node, ignored={
+            'add-operand__add-op', 'mult-operand__mult-op',  # 'power-operand'
+            })
         if len(operand) != 1:
             _LOG.warning('%s', ET.tostring(node).decode().rstrip())
             #_LOG.error("%s", operand)
