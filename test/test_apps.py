@@ -48,6 +48,7 @@ class Tests(unittest.TestCase):
             'FLASH4.4/source/physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90']
         parser = FortranParser()
         generalizer = FortranAstGeneralizer()
+        python_unparser = TypedPythonUnparserWithComments()
         unparser = Fortran77Unparser()
         for path in paths:
             path = pathlib.Path(root_path, path)
@@ -61,6 +62,8 @@ class Tests(unittest.TestCase):
                 basic_check_fortran_ast(self, path, fortran_ast, results=results_path)
                 tree = generalizer.generalize(fortran_ast)
                 basic_check_python_ast(self, path, tree, results=results_path)
+                python_code = python_unparser.unparse(tree)
+                basic_check_python_code(self, path, python_code, results=results_path)
                 fortran_code = unparser.unparse(tree)
                 basic_check_fortran_code(self, path, fortran_code, results=results_path)
 

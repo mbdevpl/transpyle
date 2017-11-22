@@ -121,7 +121,7 @@ class FortranAstGeneralizer(AstGeneralizer):
                     continue
                 raise NotImplementedError(
                     'no transformer available for node "{}", a subnode of "{}":\n{}'.format(
-                        subnode.tag, node.tag, ET.tostring(node).decode().rstrip()))
+                        subnode.tag, node.tag, ET.tostring(subnode).decode().rstrip()))
             _transform = getattr(self, transform_name)
             transformed.append(_transform(subnode))
         return transformed
@@ -141,6 +141,16 @@ class FortranAstGeneralizer(AstGeneralizer):
                 args=[typed_ast3.Str(s='file'), typed_ast3.Str(s=node.attrib['path'])],
                 keywords=[]))
         return typed_ast3.Module(body=body, type_ignores=[])
+
+    def _comment(self, node: ET.Element) -> horast_nodes.Comment:
+        comment = node.attrib['text']
+        if len(comment) == 0 or comment[0] not in ('!', 'c', 'C'):
+            raise SyntaxError('comment token {} has unexpected prefix'.format(repr(comment)))
+        for prefix in ('!', 'c', 'C'):
+            if comment.startswith(prefix):
+                comment = comment[1:]
+                break
+        return horast_nodes.Comment(value=typed_ast3.Str(s=comment), eol=False)
 
     def _module(self, node: ET.Element):
         _ = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
@@ -334,6 +344,17 @@ class FortranAstGeneralizer(AstGeneralizer):
         path_attrib = file_node.attrib['path']
         self._ensure_top_level_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
+
+    def _use(self, node: ET.Element):
+        name = node.attrib['name']
+        only_node = node.find('./only')
+        if only_node is None:
+            return typed_ast3.Import(names=[typed_ast3.alias(name=name, asname=None)])
+        uses = self.transform_all_subnodes(only_node,
+                                           ignored={'only-list__begin', 'only', 'only-list'})
+        return typed_ast3.ImportFrom(
+            module=name, names=[typed_ast3.alias(name=use.id, asname=None) for use in uses],
+            level=0)
 
     def _loop(self, node: ET.Element):
         if node.attrib['type'] == 'do':
@@ -1020,7 +1041,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         kind = self.transform(node.find('./kind')) if node.attrib['hasKind'] == 'true' else None
         if length is not None and kind is not None:
             raise SyntaxError(
-                'only  one of "length" and "kind" can be provided, but both were given'
+                'only one of "length" and "kind" can be provided, but both were given'
                 ' ("{}" and "{}" respectively) in:\n{}'
                 .format(length, kind, ET.tostring(node).decode().rstrip()))
         if name == 'character':

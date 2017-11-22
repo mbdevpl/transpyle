@@ -119,8 +119,6 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             lower, upper, step, *_ = tree.args + [None, None]
         self.dispatch(lower)
         self.write(', ')
-        if upper is None:
-            import pdb; pdb.set_trace()
         if isinstance(upper, typed_ast3.BinOp) and isinstance(upper.op, typed_ast3.Add) \
                 and isinstance(upper.right, typed_ast3.Num) and upper.right.n == 1:
             self.dispatch(upper.left)
@@ -132,16 +130,21 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.dispatch(step)
 
     def _Import(self, t):
-        if len(t.names) > 1:
-            self._unsupported_syntax(t)
-        name = t.names[0]
-        if name.name in ('numpy', 'typing'):
+        names = [name for name in t.names
+                 if name.name not in ('numpy', 'static_typing', 'typing')]
+        if not names:
             return
-        self.fill("use ")
-        interleave(lambda: self.write(", "), self.dispatch, t.names)
+        self.fill('use ')
+        #print([typed_astunparse.unparse(_) for _ in names])
+        interleave(lambda: self.write(', '), self.dispatch, names)
 
     def _ImportFrom(self, t):
-        self._unsupported_syntax(t)
+        if t.level > 0:
+            self._unsupported_syntax(t)
+        self.fill('use ')
+        self.write(t.module)
+        self.write(', only : ')
+        interleave(lambda: self.write(', '), self.dispatch, t.names)
 
     #def _Assign(self, t):
     #    self.fill()
@@ -504,13 +507,23 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _alias(self, t):
-        self._unsupported_syntax(t)
+        if t.asname:
+            self._unsupported_syntax(t)
+            return
+        self.write(t.name)
 
     def _withitem(self, t):
         self._unsupported_syntax(t)
 
     def _Await(self, t):
         self._unsupported_syntax(t)
+
+    def _Comment(self, node):
+        if node.eol:
+            self.write('  !')
+        else:
+            self.fill('!')
+        self.write(node.value.s)
 
 
 class Fortran77Unparser(Unparser):
