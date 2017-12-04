@@ -300,18 +300,25 @@ class FortranAstGeneralizer(AstGeneralizer):
                 value=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
                     attr='ndarray', ctx=typed_ast3.Load()),
-                #slice=typed_ast3.ExtSlice(dims=[typed_ast3.Num(n=len(dimensions)), data_type]),
+                # slice=typed_ast3.ExtSlice(dims=[typed_ast3.Num(n=len(dimensions)), data_type]),
                 slice=typed_ast3.Index(value=typed_ast3.Tuple(
-                    elts=[typed_ast3.Num(n=len(dimensions)), data_type])),
+                    elts=[typed_ast3.Num(n=len(dimensions)), data_type,
+                          typed_ast3.Tuple(elts=[_ for _ in dimensions])])),
                 ctx=typed_ast3.Load())
             if len(variables) > 1 and not all([_ is None for _ in value]):
                 raise NotImplementedError(
-                    'not implemented handling of many initial values {}:\n{}'
-                    .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
-            elif value is not None:
-                # raise NotImplementedError('not implemented handling of initial value {}:\n{}'
-                # .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
-                pass
+                    'not implemented handling of many initial values {}:\n{}'.format(
+                        [typed_ast3.dump(_) for _ in value],
+                        ET.tostring(node).decode().rstrip()))
+            elif len(variables) == 1 and value is not None:
+                value = typed_ast3.Call(
+                    func=typed_ast3.Attribute(
+                        value=typed_ast3.Name(id='np'), attr='array', ctx=typed_ast3.Load()),
+                    args=[value],
+                    keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
+                # raise NotImplementedError(
+                #    'not implemented handling of initial value {}:\n{}'
+                #    .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
             else:
                 self._ensure_top_level_import('numpy', 'np')
                 for i, (var, val) in enumerate(variables):
@@ -321,12 +328,25 @@ class FortranAstGeneralizer(AstGeneralizer):
                         args=[typed_ast3.Tuple(elts=dimensions)],
                         keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
                     variables[i] = (var, val)
-                #value = [ for _ in variables]
+                # value = [ for _ in variables]
                 value = [val for _, val in variables]
 
+        metadata = {}
+        intent_node = node.find('./intent')
+        if intent_node is not None:
+            metadata['intent'] = intent_node.attrib['type']
+
+        pointer_node = node.find('./pointer')
+        if pointer_node is not None:
+            metadata['is_pointer'] = True
+
+        if metadata:
+            metadata_node = horast_nodes.Comment(
+                value=typed_ast3.Str(s=' Fortran metadata: {}'.format(repr(metadata))), eol=False)
+
         if len(variables) == 1:
-            return typed_ast3.AnnAssign(
-                target=target, annotation=annotation, value=value, simple=True)
+            assignments = [typed_ast3.AnnAssign(
+                target=target, annotation=annotation, value=value, simple=True)]
         else:
             assert len(variables) == len(value)
             if not self._split_declarations:
@@ -334,10 +354,26 @@ class FortranAstGeneralizer(AstGeneralizer):
                     elts=[typed_ast3.NameConstant(value=None) if v is None else v for v in value])
                 type_comment = typed_astunparse.unparse(
                     typed_ast3.Tuple(elts=[annotation for _ in range(len(variables))])).strip()
-                return typed_ast3.Assign(targets=[target], value=value, type_comment=type_comment)
-            return [
+                assignments = [typed_ast3.Assign(
+                    argets=[target], value=value, type_comment=type_comment)]
+            assignments = [
                 typed_ast3.AnnAssign(target=var, annotation=annotation, value=val, simple=True)
                 for var, val in variables]
+        if not metadata:
+            if len(assignments) == 1:
+                return assignments[0]
+        else:
+            for assignment in assignments:
+                assignment.fortran_metadata = metadata
+            if self._split_declarations:
+                new_assignments = []
+                for assignment in assignments:
+                    new_assignments.append(assignment)
+                    new_assignments.append(metadata_node)
+                assignments = new_assignments
+            else:
+                assignments.append(metadata_node)
+        return assignments
 
     def _declaration_include(self, node: ET.Element):
         file_node = node.find('./file')
@@ -1015,10 +1051,13 @@ class FortranAstGeneralizer(AstGeneralizer):
         if dim_type == 'simple':
             values = self.transform_all_subnodes(node, ignored={'array-spec-element'})
             if len(values) != 1:
-                _LOG.error('simple dimension should have exactly one value, but it has %i', len(values))
+                _LOG.error('simple dimension should have exactly one value, but it has %i',
+                           len(values))
             return typed_ast3.Index(value=values[0])
         elif dim_type == 'range':
-            return self._range(node)
+            ranges = self.transform_all_subnodes(node, warn=False, ignored={'array-spec-element'})
+            assert len(ranges) == 1, ranges
+            return ranges[0]
         elif dim_type == 'assumed-shape':
             return typed_ast3.Slice(lower=None, upper=None, step=None)
         elif dim_type == 'upper-bound-assumed-shape':
@@ -1104,7 +1143,13 @@ class FortranAstGeneralizer(AstGeneralizer):
             values = self.transform_all_subnodes(value_node, warn=False, ignored={'initialization'})
             assert len(values) == 1, values
             value = values[0]
-        return typed_ast3.Name(id=node.attrib['name']), value
+        variable = typed_ast3.Name(id=node.attrib['name'])
+        dimensions_node = node.find('./dimensions')
+        metadata = blah
+        if dimensions_node is not None:
+            dimensions_data = self.transform(dimensions_node, warn=False)
+            me
+        return variable, value
 
     def _names(self, node: ET.Element) -> typed_ast3.arguments:
         return self._arguments(node)

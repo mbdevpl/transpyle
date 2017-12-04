@@ -26,6 +26,7 @@ for _name, _aliases in PYTHON_TYPE_ALIASES.items():
 PYTHON_FORTRAN_INTRINSICS = {
     'np.argmin': 'minloc',
     'np.argmax': 'maxloc',
+    'np.array': lambda _: _.args[0],
     'np.dot': 'dot_product',
     'np.maximum': 'max',
     'np.minimum': 'min',
@@ -34,7 +35,24 @@ PYTHON_FORTRAN_INTRINSICS = {
     }
 
 
+def _match_subscripted_attributed_name(tree, name: str, attr: str) -> bool:
+    return isinstance(tree, typed_ast3.Subscript) \
+        and isinstance(tree.value, typed_ast3.Attribute) \
+        and isinstance(tree.value.value, typed_ast3.Name) \
+        and tree.value.value.id == name and tree.value.attr == attr
+
+
+def _match_array(tree) -> bool:
+    return _match_subscripted_attributed_name(tree, 'st', 'ndarray')
+
+
+def _match_io(tree) -> bool:
+    return _match_subscripted_attributed_name(tree, 't', 'IO')
+
+
 class Fortran77UnparserBackend(horast.unparser.Unparser):
+
+    """Implementation of Fortran 77 unparser."""
 
     lang_name = 'Fortran 77'
 
@@ -76,8 +94,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         except AttributeError:
             pass
         self.fill('unsupported_syntax')
-        #raise SyntaxError('unparsing {} like """{}""" ({} in Python) is unsupported for {}'.format(
-        #    tree.__class__.__name__, typed_ast3.dump(tree), unparsed, self.lang_name))
+        raise SyntaxError('unparsing {} like """{}""" ({} in Python) is unsupported for {}'.format(
+            tree.__class__.__name__, typed_ast3.dump(tree), unparsed, self.lang_name))
 
     def dispatch_var_type(self, tree):
         code = horast.unparse(tree)
@@ -88,19 +106,19 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             if precision is not None:
                 self.write('*')
                 self.write(str(precision))
-        elif isinstance(tree, typed_ast3.Subscript):
-            val = tree.value
+        elif _match_array(tree):
             sli = tree.slice
-            if isinstance(val, typed_ast3.Attribute) and isinstance(val.value, typed_ast3.Name) \
-                    and val.value.id == 'st' and val.attr == 'ndarray':
-                assert isinstance(sli, typed_ast3.Index), typed_astunparse.dump(tree)
-                assert isinstance(sli.value, typed_ast3.Tuple)
-                assert len(sli.value.elts) == 2
-                elts = sli.value.elts
-                self.write('dimension(')
-                self.dispatch(elts[0])
-                self.write('), ')
-                self.dispatch_var_type(elts[1])
+            assert isinstance(sli, typed_ast3.Index), typed_astunparse.dump(tree)
+            assert isinstance(sli.value, typed_ast3.Tuple)
+            assert len(sli.value.elts) == 3
+            elts = sli.value.elts
+            self.dispatch_var_type(elts[1])
+            self.write(', ')
+            self.write('dimension(')
+            self.dispatch(elts[2])
+            self.write(')')
+        elif _match_io(tree):
+            self.write('integer')
         else:
             raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(tree)}')
             #self._unsupported_syntax(tree)
@@ -169,6 +187,16 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             return
         self.fill()
         self.dispatch_var_type(t.annotation)
+        metadata = getattr(t, 'fortran_metadata', {})
+        for key, value in metadata.items():
+            self.write(', ')
+            if value is True:
+                self.write(key[3:])
+            else:
+                self.write(key)
+                self.write('(')
+                self.write(value)
+                self.write(')')
         self.write(' :: ')
         self.dispatch(t.target)
         if t.value:
@@ -468,7 +496,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     # slice
     def _Ellipsis(self, t):
-        self._unsupported_syntax(t)
+        #self._unsupported_syntax(t)
+        _LOG.warning('special usage of Ellipsis')
+        self.write('*')
 
     def _Index(self, t):
         self.dispatch(t.value)
@@ -519,6 +549,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _Comment(self, node):
+        if node.value.s.startswith(' Fortran metadata:'):
+            return
         if node.eol:
             self.write('  !')
         else:
