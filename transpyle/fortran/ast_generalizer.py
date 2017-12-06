@@ -291,8 +291,19 @@ class FortranAstGeneralizer(AstGeneralizer):
 
         dimensions_node = node.find('./dimensions')
         dimensions = None
+        if hasattr(variables[0][0], 'fortran_metadata'):
+            print(variables[0][0].fortran_metadata)
+        if any(['dimensions' in getattr(var, 'fortran_metadata', {}) for var, _ in variables]):
+            print('blah!')
+            if dimensions_node is not None:
+                raise SyntaxError('many dimensions definitions for single variable')
+            if len(variables) > 1:
+                raise NotImplementedError('conflicting dimensions information')
+            dimensions_node = 'found in variable'
+            dimensions = variables[0][0].fortran_metadata['dimensions']
         if dimensions_node is not None:
-            dimensions = self.transform_all_subnodes(dimensions_node, ignored={'array-spec'})
+            if dimensions is None:
+                dimensions = self.transform(dimensions_node)
             assert len(dimensions) >= 1
             data_type = annotation
             self._ensure_top_level_import('static_typing', 'st')
@@ -1046,6 +1057,9 @@ class FortranAstGeneralizer(AstGeneralizer):
             step = args[0]
         return typed_ast3.Slice(lower=lower_bound, upper=upper_bound, step=step)
 
+    def _dimensions(self, node: ET.Element) -> t.List[typed_ast3.AST]:
+        return self.transform_all_subnodes(node, warn=False, ignored={'array-spec'})
+
     def _dimension(self, node: ET.Element) -> t.Union[typed_ast3.Index, typed_ast3.Slice]:
         dim_type = node.attrib['type']
         if dim_type == 'simple':
@@ -1144,11 +1158,12 @@ class FortranAstGeneralizer(AstGeneralizer):
             assert len(values) == 1, values
             value = values[0]
         variable = typed_ast3.Name(id=node.attrib['name'])
+        metadata = {}
         dimensions_node = node.find('./dimensions')
-        metadata = blah
         if dimensions_node is not None:
-            dimensions_data = self.transform(dimensions_node, warn=False)
-            me
+            metadata['dimensions'] = self.transform(dimensions_node, warn=False)
+        if metadata:
+            variable.fortran_metadata = metadata
         return variable, value
 
     def _names(self, node: ET.Element) -> typed_ast3.arguments:
