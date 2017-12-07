@@ -23,6 +23,21 @@ for _name, _aliases in PYTHON_TYPE_ALIASES.items():
     for _alias in _aliases:
         PYTHON_FORTRAN_TYPE_PAIRS[_alias] = PYTHON_FORTRAN_TYPE_PAIRS[_name]
 
+
+def _transform_print_call(call):
+    if not hasattr(call, 'fortran_metadata'):
+        call.fortran_metadata = {}
+    call.fortran_metadata['is_transformed'] = True
+    if len(call.args) == 1:
+        arg = call.args[0]
+        if isinstance(arg, typed_ast3.Call) and isinstance(arg.func, typed_ast3.Attribute):
+            label = int(arg.func.value.id.replace('format_label_', ''))
+            call.args = [typed_ast3.Num(n=label)] + arg.args
+            return call
+    call.args.insert(0, typed_ast3.Ellipsis())
+    return call
+
+
 PYTHON_FORTRAN_INTRINSICS = {
     'np.argmin': 'minloc',
     'np.argmax': 'maxloc',
@@ -32,6 +47,7 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.minimum': 'min',
     'np.sqrt': 'sqrt',
     'np.zeros': lambda _: typed_ast3.Num(n=0),
+    'print': _transform_print_call
     }
 
 
@@ -443,16 +459,18 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self._unsupported_syntax(t)
 
     def _Call(self, t):
-        func_code = horast.unparse(t.func).strip()
-        if func_code.startswith('np.'):
-            if func_code not in PYTHON_FORTRAN_INTRINSICS:
-                raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
-            new_func = PYTHON_FORTRAN_INTRINSICS[func_code]
+        if getattr(t, 'fortran_metadata', {}).get('is_procedure_call', False):
+            self.write('call ')
+        func_name = horast.unparse(t.func).strip()
+        if func_name in PYTHON_FORTRAN_INTRINSICS and not getattr(t, 'fortran_metadata', {}).get('is_transformed', False):
+            new_func = PYTHON_FORTRAN_INTRINSICS[func_name]
             if isinstance(new_func, collections.abc.Callable):
                 self.dispatch(new_func(t))
                 return
             t = copy.copy(t)
             t.func = typed_ast3.Name(id=new_func)
+        elif func_name.startswith('np.'):
+            raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
         super()._Call(t)
     #    self.dispatch(t.func)
     #    self.write("(")

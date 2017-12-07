@@ -243,7 +243,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _declaration(self, node: ET.Element) -> typed_ast3.AnnAssign:
         if 'type' not in node.attrib:
-            return []  # TODO: TMP
+            #return []  # TODO: TMP
             raise SyntaxError(
                 '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
         if node.attrib['type'] == 'implicit':
@@ -291,10 +291,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
         dimensions_node = node.find('./dimensions')
         dimensions = None
-        if hasattr(variables[0][0], 'fortran_metadata'):
-            print(variables[0][0].fortran_metadata)
         if any(['dimensions' in getattr(var, 'fortran_metadata', {}) for var, _ in variables]):
-            print('blah!')
             if dimensions_node is not None:
                 raise SyntaxError('many dimensions definitions for single variable')
             if len(variables) > 1:
@@ -687,13 +684,33 @@ class FortranAstGeneralizer(AstGeneralizer):
             for input_ in inputs]
 
     def _print(self, node):
+        format_node = node.find('./print-format')
+        format_ = None
+        #if format_node is not None:
+        if format_node.attrib['type'] == 'label':
+            format_ = self.transform(format_node, warn=False)
         outputs_node = node.find('./outputs')
         args = []
         if outputs_node is not None:
             args = self.transform(outputs_node, warn=False)
+            if format_ is not None:
+                args = [typed_ast3.Call(
+                    func=typed_ast3.Attribute(
+                        value=typed_ast3.Name(id='format_label_{}'.format(format_.n),
+                                              ctx=typed_ast3.Load()),
+                        attr='format', ctx=typed_ast3.Load()),
+                    args=args, keywords=[])]
         return typed_ast3.Expr(value=typed_ast3.Call(
             func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
             args=args, keywords=[]))
+
+    def _print_format(self, node: ET.Element) -> t.Optional[typed_ast3.Num]:
+        fmt = self.transform_all_subnodes(node, warn=False, ignored={'format'})
+        if not fmt:
+            return None
+        assert len(fmt) == 1
+        assert isinstance(fmt[0], typed_ast3.Num)
+        return fmt[0]
 
     def _io_controls(self, node: ET.Element):
         return self.transform_all_subnodes(
