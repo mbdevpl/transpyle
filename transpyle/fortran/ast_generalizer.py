@@ -126,6 +126,9 @@ class FortranAstGeneralizer(AstGeneralizer):
                 raise NotImplementedError(
                     'no transformer available for node "{}", a subnode of "{}":\n{}'.format(
                         subnode.tag, node.tag, ET.tostring(subnode).decode().rstrip()))
+            if ignored and subnode.tag in ignored:
+                _LOG.warning('ignoring existing transformer for %s', subnode.tag)
+                continue
             _transform = getattr(self, transform_name)
             transformed.append(_transform(subnode))
         return transformed
@@ -246,11 +249,14 @@ class FortranAstGeneralizer(AstGeneralizer):
         return declarations
 
     def _declaration(self, node: ET.Element) -> typed_ast3.AnnAssign:
-        if 'type' not in node.attrib:
-            # return []  # TODO: TMP
-            raise SyntaxError(
-                '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
-        if node.attrib['type'] == 'implicit':
+        #if 'type' not in node.attrib:
+        #    # return []  # TODO: TMP
+        #    raise SyntaxError(
+        #        '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        declaration_type = node.attrib.get('type', None)
+        if declaration_type is None:
+            pass
+        elif declaration_type == 'implicit':
             # TODO: generate comment here maybe?
             if node.attrib['subtype'].lower() == 'none':
                 annotation = typed_ast3.NameConstant(value=None)
@@ -259,18 +265,21 @@ class FortranAstGeneralizer(AstGeneralizer):
             return typed_ast3.AnnAssign(
                 target=typed_ast3.Name(id='implicit'), annotation=annotation, value=None,
                 simple=True)
-        elif node.attrib['type'] == 'variable':
+        elif declaration_type == 'variable':
             return self._declaration_variable(node)
-        elif node.attrib['type'] == 'include':
+        elif declaration_type == 'parameter':
+            return self._declaration_parameter(node)
+        elif declaration_type == 'include':
             return self._declaration_include(node)
-        elif node.attrib['type'] == 'format':
-            return self._declaration_format(node)
+        details = self.transform_all_subnodes(node, warn=False, ignored={})
+        flatten_sequence(details)
+        return details
         # return typed_ast3.Expr(value=typed_ast3.Call(
         #    func=typed_ast3.Name(id='print'),
         #    args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
         #    keywords=[]))
-        raise NotImplementedError(
-            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        # raise NotImplementedError(
+        #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _declaration_variable(
             self, node: ET.Element) -> t.Union[
@@ -391,19 +400,34 @@ class FortranAstGeneralizer(AstGeneralizer):
                 assignments.append(metadata_node)
         return assignments
 
+    def _declaration_parameter(self, node: ET.Element):
+        constants_node = node.find('./constants')
+        constants = self.transform_all_subnodes(
+            constants_node, warn=False, skip_empty=True,
+            ignored={'named-constant-def-list__begin', 'named-constant-def-list'})
+
+    def _constant(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, t.Any]:
+        values = self.transform_all_subnodes(node, warn=False, ignored={'named-constant-def'})
+        assert len(values) == 1
+        value = values[0]
+        name = typed_ast3.Name(id=node.attrib['name'], ctx=typed_ast3.Load())
+        return name, value
+
     def _declaration_include(self, node: ET.Element) -> typed_ast3.Import:
         file_node = node.find('./file')
         path_attrib = file_node.attrib['path']
         self._ensure_top_level_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
 
-    def _declaration_format(self, node) -> typed_ast3.AnnAssign:
+    def _format(self, node: ET.Element) -> t.Union[typed_ast3.AnnAssign, typed_ast3.JoinedStr]:
+        format_items_node = node.find('./format-items')
+        value = self.transform(format_items_node, warn=False)
         label_node = node.find('./label')
+        if label_node is None:
+            return value
         label = int(label_node.attrib['lbl'])
         var = typed_ast3.Name(id='format_label_{}'.format(label), ctx=typed_ast3.Store())
         annotation = typed_ast3.Str('Fortran label')
-        format_items_node = node.find('./format/format-items')
-        value = self.transform(format_items_node, warn=False)
         format_ = typed_ast3.AnnAssign(target=var, annotation=annotation, value=value, simple=True)
         format_.fortran_metadata = {'is_format': True}
         return format_
@@ -586,7 +610,6 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _statement(self, node: ET.Element):
         details = self.transform_all_subnodes(
             node, warn=False, ignored={
-                'format',
                 'action-stmt', 'executable-construct', 'execution-part-construct',
                 'execution-part'})
         flatten_sequence(details)
@@ -1227,8 +1250,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         raise NotImplementedError(
             'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
-    def _variable(self, node: ET.Element) -> t.Tuple[
-            typed_ast3.Name, t.Any]:
+    def _variable(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, t.Any]:
         value_node = node.find('./initial-value')
         value = None
         if value_node is not None:

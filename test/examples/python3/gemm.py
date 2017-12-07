@@ -1,8 +1,10 @@
+"""General Matrix-Matrix."""
 
 import numpy as np
 import static_typing as st
 
-def dgemm(a: st.ndarray[2, np.double], b: st.ndarray[2, np.double]) -> st.ndarray[2, np.double]:
+def dgemm(a: st.ndarray[2, np.double, (100, 100)],
+          b: st.ndarray[2, np.double, (100, 100)]) -> st.ndarray[2, np.double, (100, 100)]:
 
     y_max: np.int32 = a.shape(0)
     i_max: np.int32 = a.shape(1)
