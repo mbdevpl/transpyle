@@ -76,7 +76,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._indent_level = indent
         self._fixed_form = fixed_form
         self._line_len = 0
-        self._max_line_len = 80
+        self._max_line_len = 72
         super().__init__(*args, **kwargs)
 
     def fill(self, text='', continuation: bool = False):
@@ -95,7 +95,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if not self._fixed_form:
             raise NotImplementedError('free-form not yet implemented')
         if self._fixed_form:
-            if self._line_len + len(text) > self._max_line_len:
+            if self._max_line_len is not None and self._line_len + len(text) > self._max_line_len:
                 self.fill('', continuation=True)
         super().write(text)
         self._line_len += len(text)
@@ -180,12 +180,22 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(', only : ')
         interleave(lambda: self.write(', '), self.dispatch, t.names)
 
-    #def _Assign(self, t):
-    #    self.fill()
-    #    for target in t.targets:
-    #        self.dispatch(target)
-    #        self.write(" = ")
-    #    self.dispatch(t.value)
+    def _Assign(self, t):
+        metadata = getattr(t, 'fortran_metadata', {})
+        if not metadata:
+            return super()._Assign(t)
+        if metadata.get('is_allocation', False):
+            self.fill('allocate(')
+            for i, target in enumerate(t.targets):
+                if i > 0:
+                    self.write(', ')
+                self.dispatch(target)
+                self.write('(')
+                self.dispatch(t.value.args[0])
+                self.write(')')
+            self.write(')')
+            return
+        raise NotImplementedError('Assign with Fortran metadata')
 
     def _AugAssign(self, t):
         self.fill()
@@ -202,8 +212,15 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write('implicit none')
             return
         self.fill()
-        self.dispatch_var_type(t.annotation)
         metadata = getattr(t, 'fortran_metadata', {})
+        if metadata.get('is_format', False):
+            self.write(t.target.id.replace('format_label_', ''))
+            self.write(' ')
+            self.dispatch(t.value)
+            return
+        if metadata.get('is_allocation', False):
+            raise NotImplementedError('allocation')
+        self.dispatch_var_type(t.annotation)
         for key, value in metadata.items():
             self.write(', ')
             if value is True:
@@ -315,15 +332,23 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _If(self, t):
-        if t.orelse:
-            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+        return self._generic_If(t)
 
-        self.fill('if (')
+    def _generic_If(self, t, prefix='if'):
+        self.fill('{} ('.format(prefix))
         self.dispatch(t.test)
         self.write(') then')
         self.enter()
         self.dispatch(t.body)
         self.leave()
+        if t.orelse:
+            if len(t.orelse) == 1 and isinstance(t.orelse[0], typed_ast3.If):
+                return self._generic_If(t.orelse[0], 'else if')
+            else:
+                self.fill('else')
+                self.enter()
+                self.dispatch(t.orelse)
+                self.leave()
         self.fill('end if')
 
     def _While(self, t):
@@ -343,10 +368,14 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(repr(tree.s))
 
     def _FormattedValue(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        if t.conversion != -1 or t.format_spec != None:
+            self._unsupported_syntax(t)
+        self.dispatch(t.value)
 
     def _JoinedStr(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        self.write('format(')
+        interleave(lambda: self.write(', '), self.dispatch, t.values)
+        self.write(')')
 
     def _Name(self, t):
         self.write(t.id)
@@ -569,11 +598,14 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _Comment(self, node):
         if node.value.s.startswith(' Fortran metadata:'):
             return
+        _max_line_len = self._max_line_len
+        self._max_line_len = None
         if node.eol:
             self.write('  !')
         else:
             self.fill('!')
         self.write(node.value.s)
+        self._max_line_len = _max_line_len
 
 
 class Fortran77Unparser(Unparser):

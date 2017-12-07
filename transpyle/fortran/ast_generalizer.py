@@ -44,6 +44,10 @@ PYTHON_TYPE_ALIASES = {
     'np.float32': ('np.single',),
     'np.float64': ('np.double', 'np.float_',)}
 
+FORTRAN_PYTHON_FORMAT_SPEC = {
+    'A': str,
+    'I': int}
+
 
 class FortranAstGeneralizer(AstGeneralizer):
 
@@ -243,7 +247,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _declaration(self, node: ET.Element) -> typed_ast3.AnnAssign:
         if 'type' not in node.attrib:
-            #return []  # TODO: TMP
+            # return []  # TODO: TMP
             raise SyntaxError(
                 '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
         if node.attrib['type'] == 'implicit':
@@ -259,10 +263,14 @@ class FortranAstGeneralizer(AstGeneralizer):
             return self._declaration_variable(node)
         elif node.attrib['type'] == 'include':
             return self._declaration_include(node)
-        return typed_ast3.Expr(value=typed_ast3.Call(
-            func=typed_ast3.Name(id='print'),
-            args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
-            keywords=[]))
+        elif node.attrib['type'] == 'format':
+            return self._declaration_format(node)
+        # return typed_ast3.Expr(value=typed_ast3.Call(
+        #    func=typed_ast3.Name(id='print'),
+        #    args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
+        #    keywords=[]))
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _declaration_variable(
             self, node: ET.Element) -> t.Union[
@@ -383,11 +391,38 @@ class FortranAstGeneralizer(AstGeneralizer):
                 assignments.append(metadata_node)
         return assignments
 
-    def _declaration_include(self, node: ET.Element):
+    def _declaration_include(self, node: ET.Element) -> typed_ast3.Import:
         file_node = node.find('./file')
         path_attrib = file_node.attrib['path']
         self._ensure_top_level_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
+
+    def _declaration_format(self, node) -> typed_ast3.AnnAssign:
+        label_node = node.find('./label')
+        label = int(label_node.attrib['lbl'])
+        var = typed_ast3.Name(id='format_label_{}'.format(label), ctx=typed_ast3.Store())
+        annotation = typed_ast3.Str('Fortran label')
+        format_items_node = node.find('./format/format-items')
+        value = self.transform(format_items_node, warn=False)
+        format_ = typed_ast3.AnnAssign(target=var, annotation=annotation, value=value, simple=True)
+        format_.fortran_metadata = {'is_format': True}
+        return format_
+
+    def _format_items(self, node) -> typed_ast3.JoinedStr:
+        items = self.transform_all_subnodes(
+            node, warn=False, ignored={'format-item-list__begin', 'format-item-list'})
+        return typed_ast3.JoinedStr(values=items)
+
+    def _format_item(self, node) -> t.Union[typed_ast3.Str, typed_ast3.FormattedValue]:
+        raw_item = node.attrib['descOrDigit']
+        if raw_item[0] in ('"', "'"):
+            return typed_ast3.Str(s=raw_item[1:-1])
+        if raw_item[0] in FORTRAN_PYTHON_FORMAT_SPEC:
+            assert len(raw_item) == 2, raw_item
+            item = typed_ast3.Name(id=raw_item, ctx=typed_ast3.Load())
+            return typed_ast3.FormattedValue(value=item, conversion=-1, format_spec=None)
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _use(self, node: ET.Element):
         name = node.attrib['name']
@@ -495,20 +530,43 @@ class FortranAstGeneralizer(AstGeneralizer):
         return typed_ast3.Break()
 
     def _if(self, node: ET.Element):
+        headers = node.findall('./header')
+        bodies = node.findall('./body')
+        outermost_if = None
+        current_if = None
+        for header, body in itertools.zip_longest(headers, bodies):
+            if outermost_if is None:
+                outermost_if = self._if_if(header, body)
+                current_if = outermost_if
+                continue
+            new_if = self._if_else(body) if header is None \
+                else self._if_elif(header, body)
+            current_if.orelse.append(new_if)
+            current_if = current_if.orelse[-1]
+        return outermost_if
+
+    def _if_if(self, header_node: ET.Element, body_node: ET.Element) -> typed_ast3.If:
         header = self.transform_all_subnodes(
-            node.find('./header'), warn=False,
-            ignored={'executable-construct', 'execution-part-construct'})
+            header_node, warn=False, ignored={'executable-construct', 'execution-part-construct'})
         if len(header) != 1:
             _LOG.error('parsed results: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
             raise NotImplementedError('not implemented handling of:\n{}'
-                                      .format(ET.tostring(node).decode().rstrip()))
-        # if len(header) == 0:
-        #    test = typed_ast3.NameConstant(True)
-        test = header[0]
+                                      .format(ET.tostring(header_node).decode().rstrip()))
+        body = self._if_body(body_node)
+        if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
+        return if_
 
-        body = self.transform_all_subnodes(node.find('./body'), skip_empty=True, ignored={'block'})
+    def _if_body(self, body_node: ET.Element) -> typed_ast3.If:
+        return self.transform_all_subnodes(body_node, skip_empty=True, ignored={'block'})
 
-        return typed_ast3.If(test=test, body=body, orelse=[])
+    def _if_elif(self, header_node: ET.Element, body_node: ET.Element) -> typed_ast3.If:
+        assert header_node.attrib['type'] == 'else-if'
+        assert body_node.attrib['type'] == 'else-if'
+        return self._if_if(header_node, body_node)
+
+    def _if_else(self, body_node: ET.Element):
+        assert body_node.attrib['type'] == 'else'
+        return self._if_body(body_node)
 
     def _expressions(self, node: ET.Element) -> t.List[typed_ast3.AST]:
         return self.transform_all_subnodes(node, warn=False, ignored={
@@ -567,8 +625,11 @@ class FortranAstGeneralizer(AstGeneralizer):
                 keywords=[typed_ast3.keyword(arg='dtype', value=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='t', ctx=typed_ast3.Load()), attr='Any',
                     ctx=typed_ast3.Load()))])
-            assignments.append(
-                typed_ast3.Assign(targets=[var], value=val, type_comment=None))
+            assignment = typed_ast3.Assign(targets=[var], value=val, type_comment=None)
+            assignment.fortran_metadata = {'is_allocation': True}
+            assignments.append(assignment)
+            assignments.append(horast_nodes.Comment(typed_ast3.Str(
+                s=' Fortran metadata: {}'.format(repr(assignment.fortran_metadata))), eol=True))
         return assignments
 
     '''
