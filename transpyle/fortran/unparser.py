@@ -598,12 +598,19 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _Comment(self, node):
         if node.value.s.startswith(' Fortran metadata:'):
             return
+        metadata = getattr(node, 'fortran_metadata', {})
         _max_line_len = self._max_line_len
         self._max_line_len = None
-        if node.eol:
-            self.write('  !')
+        if metadata.get('is_directive', False):
+            _indent = self._indent
+            self._indent = 0
+            super().fill('#')
+            self._indent = _indent
         else:
-            self.fill('!')
+            if node.eol:
+                self.write('  !')
+            else:
+                self.fill('!')
         self.write(node.value.s)
         self._max_line_len = _max_line_len
 

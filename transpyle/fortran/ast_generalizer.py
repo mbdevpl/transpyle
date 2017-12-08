@@ -159,6 +159,15 @@ class FortranAstGeneralizer(AstGeneralizer):
                 break
         return horast_nodes.Comment(value=typed_ast3.Str(s=comment), eol=False)
 
+    def _directive(self, node) -> horast_nodes.Comment:
+        directive = node.attrib['text']
+        if len(directive) == 0 or directive[0] not in ('#'):
+            raise SyntaxError('directive token {} has unexpected prefix'.format(repr(comment)))
+        directive = directive[1:]
+        directive_ = horast_nodes.Comment(value=typed_ast3.Str(s=directive), eol=False)
+        directive_.fortran_metadata = {'is_directive': True}
+        return directive_
+
     def _module(self, node: ET.Element):
         _ = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
         body = self.transform_all_subnodes(node.find('./body'))
