@@ -6,7 +6,7 @@ import unittest
 
 from transpyle.fortran.parser import FortranParser
 from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
-from transpyle.fortran.unparser import Fortran77Unparser
+from transpyle.fortran.unparser import Fortran77Unparser, Fortran2008Unparser
 from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
 from .examples import \
@@ -49,7 +49,7 @@ class Tests(unittest.TestCase):
         parser = FortranParser()
         generalizer = FortranAstGeneralizer()
         python_unparser = TypedPythonUnparserWithComments()
-        unparser = Fortran77Unparser()
+        unparser = Fortran2008Unparser()
         for path in paths:
             path = pathlib.Path(root_path, path)
             if not path.is_file():

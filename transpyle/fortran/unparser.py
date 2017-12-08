@@ -72,11 +72,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     lang_name = 'Fortran 77'
 
-    def __init__(self, *args, indent: int = 2, fixed_form: bool = True, **kwargs):
+    def __init__(
+            self, *args, indent: int = 2, fixed_form: bool = True, max_line_len: int = 72,
+            **kwargs):
         self._indent_level = indent
         self._fixed_form = fixed_form
         self._line_len = 0
-        self._max_line_len = 72
+        self._max_line_len = max_line_len
         super().__init__(*args, **kwargs)
 
     def fill(self, text='', continuation: bool = False):
@@ -93,7 +95,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         elif '\n' in text:
             raise NotImplementedError('long text printing not yet implemented')
         if not self._fixed_form:
-            raise NotImplementedError('free-form not yet implemented')
+            if self._max_line_len is not None and self._line_len + len(text) > self._max_line_len:
+                super().write(' &')
+                self.fill('')
         if self._fixed_form:
             if self._max_line_len is not None and self._line_len + len(text) > self._max_line_len:
                 self.fill('', continuation=True)
@@ -626,10 +630,25 @@ class Fortran77Unparser(Unparser):
         return stream.getvalue()
 
 
+class Fortran2008UnparserBackend(Fortran77UnparserBackend):
+
+    """Implementation of Fortran 2008 unparser."""
+
+    lang_name = 'Fortran 2008'
+
+    def __init__(
+            self, *args, indent: int = 2, fixed_form: bool = False, max_line_len: int = 100,
+            **kwargs):
+        super().__init__(*args, indent=indent, fixed_form=fixed_form, max_line_len=max_line_len,
+                         **kwargs)
+
+
 class Fortran2008Unparser(Unparser):
 
     def __init__(self):
         super().__init__(Language.find('Fortran 2008'))
 
-    def unparse(self, tree, indent: int = 4, fixed_form: bool = False) -> str:
-        raise NotImplementedError('not yet implemented')
+    def unparse(self, tree, indent: int = 2, fixed_form: bool = False) -> str:
+        stream = io.StringIO()
+        Fortran77UnparserBackend(tree, file=stream, indent=indent, fixed_form=fixed_form)
+        return stream.getvalue()

@@ -153,10 +153,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         comment = node.attrib['text']
         if len(comment) == 0 or comment[0] not in ('!', 'c', 'C'):
             raise SyntaxError('comment token {} has unexpected prefix'.format(repr(comment)))
-        for prefix in ('!', 'c', 'C'):
-            if comment.startswith(prefix):
-                comment = comment[1:]
-                break
+        comment = comment[1:]
         return horast_nodes.Comment(value=typed_ast3.Str(s=comment), eol=False)
 
     def _directive(self, node) -> horast_nodes.Comment:
