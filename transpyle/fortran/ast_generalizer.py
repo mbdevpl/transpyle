@@ -277,13 +277,14 @@ class FortranAstGeneralizer(AstGeneralizer):
             return self._declaration_parameter(node)
         elif declaration_type == 'include':
             return self._declaration_include(node)
+        elif declaration_type in ('data', 'external'):
+            return typed_ast3.Expr(value=typed_ast3.Call(
+                func=typed_ast3.Name(id='print'),
+                args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
+                keywords=[]))
         details = self.transform_all_subnodes(node, warn=False, ignored={})
         flatten_sequence(details)
         return details
-        # return typed_ast3.Expr(value=typed_ast3.Call(
-        #    func=typed_ast3.Name(id='print'),
-        #    args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
-        #    keywords=[]))
         # raise NotImplementedError(
         #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
@@ -411,6 +412,12 @@ class FortranAstGeneralizer(AstGeneralizer):
         constants = self.transform_all_subnodes(
             constants_node, warn=False, skip_empty=True,
             ignored={'named-constant-def-list__begin', 'named-constant-def-list'})
+        assignments = []
+        for constant, value in constants:
+            assignment = typed_ast3.Assign(targets=[constant], value=value, type_comment=None)
+            assignment.fortran_metadata = {'is_constant': True}
+            assignments.append(assignment)
+        return assignments
 
     def _constant(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, t.Any]:
         values = self.transform_all_subnodes(node, warn=False, ignored={'named-constant-def'})
@@ -784,22 +791,26 @@ class FortranAstGeneralizer(AstGeneralizer):
         if outputs_node is not None:
             args = self.transform(outputs_node, warn=False)
             if format_ is not None:
+                if isinstance(format_, typed_ast3.Num):
+                    name = 'format_label_{}'.format(format_.n)
+                    value = typed_ast3.Name(id=name, ctx=typed_ast3.Load())
+                elif isinstance(format_, typed_ast3.Str):
+                    value = format_
+                else:
+                    raise NotImplementedError()
                 args = [typed_ast3.Call(
-                    func=typed_ast3.Attribute(
-                        value=typed_ast3.Name(id='format_label_{}'.format(format_.n),
-                                              ctx=typed_ast3.Load()),
-                        attr='format', ctx=typed_ast3.Load()),
+                    func=typed_ast3.Attribute(value=value, attr='format', ctx=typed_ast3.Load()),
                     args=args, keywords=[])]
         return typed_ast3.Expr(value=typed_ast3.Call(
             func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
             args=args, keywords=[]))
 
-    def _print_format(self, node: ET.Element) -> t.Optional[typed_ast3.Num]:
+    def _print_format(self, node: ET.Element) -> t.Union[None, typed_ast3.Num, typed_ast3.Str]:
         fmt = self.transform_all_subnodes(node, warn=False, ignored={'format'})
         if not fmt:
             return None
-        assert len(fmt) == 1
-        assert isinstance(fmt[0], typed_ast3.Num)
+        assert len(fmt) == 1, (len(fmt), fmt)
+        assert isinstance(fmt[0], (typed_ast3.Num, typed_ast3.Str)), type(fmt[0])
         return fmt[0]
 
     def _io_controls(self, node: ET.Element):
