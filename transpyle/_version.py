@@ -1,5 +1,5 @@
 """Version of transpyle package."""
 
-import version_query
+from version_query import predict_version_str
 
-VERSION = version_query.generate_version_str()
+VERSION = predict_version_str()

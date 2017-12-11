@@ -1,5 +1,5 @@
 cython
 nuitka
 numpy
-pyopencl
+#pyopencl
 -rrequirements.txt
