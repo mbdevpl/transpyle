@@ -726,11 +726,15 @@ class FortranAstGeneralizer(AstGeneralizer):
             name_node = node.find('./name')
             is_intrinsic = name_node.attrib['id'] in self._intrinsics_converters if name_node is not None else False
             if is_intrinsic:
+                if isinstance(call, typed_ast3.Call):
+                    call.fortran_metadata = {'is_procedure_call': True}
                 return call
             _LOG.warning('called an ambiguous node:\n%s', ET.tostring(node).decode().rstrip())
             call = typed_ast3.Call(func=call, args=[], keywords=[])
         if isinstance(call.func, typed_ast3.Name) and call.func.id.startswith('MPI_'):
             call = self._transform_mpi_call(call)
+        if isinstance(call, typed_ast3.Call):
+            call.fortran_metadata = {'is_procedure_call': True}
         return call
 
     def _write(self, node) -> t.Union[typed_ast3.Expr, typed_ast3.Assign]:

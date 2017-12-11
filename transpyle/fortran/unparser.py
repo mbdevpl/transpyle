@@ -97,7 +97,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if not self._fixed_form:
             if self._max_line_len is not None and self._line_len + len(text) > self._max_line_len:
                 super().write(' &')
-                self.fill('')
+                self.fill(' ' * self._indent_level)
         if self._fixed_form:
             if self._max_line_len is not None and self._line_len + len(text) > self._max_line_len:
                 self.fill('', continuation=True)
@@ -400,9 +400,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(repr_n.replace("inf", INFSTR))
 
     def _List(self, t):
-        self.write('/ ')
+        self.write('(/ ')
         interleave(lambda: self.write(", "), self.dispatch, t.elts)
-        self.write(' /')
+        self.write(' /)')
 
     def _ListComp(self, t):
         self.write('(')
@@ -504,30 +504,21 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             t.func = typed_ast3.Name(id=new_func)
         elif func_name.startswith('np.'):
             raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
-        super()._Call(t)
-    #    self.dispatch(t.func)
-    #    self.write("(")
-    #    comma = False
-    #    for e in t.args:
-    #        if comma: self.write(", ")
-    #        else: comma = True
-    #        self.dispatch(e)
-    #    for e in t.keywords:
-    #        if comma: self.write(", ")
-    #        else: comma = True
-    #        self.dispatch(e)
-    #    if sys.version_info[:2] < (3, 5):
-    #        if t.starargs:
-    #            if comma: self.write(", ")
-    #            else: comma = True
-    #            self.write("*")
-    #            self.dispatch(t.starargs)
-    #        if t.kwargs:
-    #            if comma: self.write(", ")
-    #            else: comma = True
-    #            self.write("**")
-    #            self.dispatch(t.kwargs)
-    #    self.write(")")
+        if func_name not in ('print',):
+            super()._Call(t)
+            return
+
+        self.dispatch(t.func)
+        self.write(' ')
+        comma = False
+        for e in t.args:
+            if comma: self.write(", ")
+            else: comma = True
+            self.dispatch(e)
+        for e in t.keywords:
+            if comma: self.write(", ")
+            else: comma = True
+            self.dispatch(e)
 
     def _Subscript(self, t):
         self.dispatch(t.value)
