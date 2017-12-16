@@ -1,5 +1,6 @@
 cython
 nuitka
 numpy
+open-fortran-parser
 #pyopencl
 -rrequirements.txt

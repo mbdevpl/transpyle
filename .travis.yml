@@ -4,29 +4,31 @@ os: linux
 python:
   - "3.5"
   - "3.6"
-  - "3.6-dev"
   - "3.7-dev"
 matrix:
   allow_failures:
-    - python: "3.6-dev"
+    - python: "3.5"
     - python: "3.7-dev"
 
 env:
-  - JDK=oraclejdk8
+  #- JDK=oraclejdk8
   - JDK=openjdk8
 
-before_install:
+before_install: |
+  set -e
+  if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+    brew update
+    brew install pyenv || brew upgrade pyenv
+    pyenv install --list
+    pyenv install "${TRAVIS_PYTHON_VERSION}"
+    export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
+  fi
+  set +e
+
+install:
   - jdk_switcher use $JDK
   - pip install -U pip
-  # Open Fortran Parser XML
-  - git clone "https://github.com/mbdevpl/open-fortran-parser-xml" "../open-fortran-parser-xml"
-  - cd "../open-fortran-parser-xml"
-  - python open_fortran_parser/dev_dependencies.py
-  - export CLASSPATH="${CLASSPATH}:$(pwd)/lib/*"
-  - ant
-  - export CLASSPATH="${CLASSPATH}:$(pwd)/dist/*"
-  - pip install .
-  - cd -
+  - pip install -U -r dev_requirements.txt
   # Open Fortran Compiler
   - git clone "https://github.com/codethinklabs/ofc" "../open-fortran-compiler"
   - cd "../open-fortran-compiler" && make && cd -
@@ -34,15 +36,12 @@ before_install:
   # FFB-MINI app
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini" --branch ofp_tests
 
-install:
-  - pip install -U -r dev_requirements.txt
-
 script:
   - TEST_PACKAGING=1 python -m coverage run --branch --source . -m unittest discover --verbose
 
 after_success:
   - python -m coverage report --show-missing
-  - coveralls
+  - codecov
   - python -m pylint --load-plugins=pylint.extensions.mccabe --docstring-min-length 5 --no-docstring-rgx "^(test)?_|.*Tests$" --unsafe-load-any-extension y --output-format colorized  --reports y $(find . -name "*.py")
 
 notifications:

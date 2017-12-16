@@ -5,4 +5,4 @@ static-typing
 typed_ast
 typed-astunparse
 #typing >= 3.5; python_version < '3.5'
-version_query
+version-query

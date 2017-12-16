@@ -1,5 +1,5 @@
+codecov
 coverage
-coveralls
 pip >= 9.0
 pylint
 setuptools >= 20.5
