@@ -1,3 +1,6 @@
+.. role:: bash(code)
+    :language: bash
+
 .. role:: python(code)
     :language: python
 
@@ -16,7 +19,8 @@ transpyle
 Human-oriented and high-performing transpiler for Python.
 
 The main aim of transpyle is to let everyone who can code well enough in Python,
-benefit from modern high-performing computer hardware.
+benefit from modern high-performing computer hardware without need to reimplement their application
+in one of traditional efficient languages such as C or Fortran.
 
 
 framework design
@@ -76,49 +80,40 @@ For each language pair and direction of translation, the set of supported featur
 C++ to Python AST
 ~~~~~~~~~~~~~~~~~
 
-TODO.
+Not implemented yet.
 
 
 Python AST to C++
 ~~~~~~~~~~~~~~~~~
 
-TODO.
+Not implemented yet.
 
 
 Fortran to Python AST
 ~~~~~~~~~~~~~~~~~~~~~
 
-TODO.
-
-Dependencies:
-
-*   Open Fortran Parser
-
-*   Open Fortran Parser XML
-
-*   open_fortran_parser (Python package)
+Fortran-specific AST is created via Open Fortran Parser, then that AST is translated
+into Python AST.
 
 
 Python AST to Fortran
 ~~~~~~~~~~~~~~~~~~~~~
 
-TODO.
-
-Dependencies:
-
-*   f2py
+Currently, the Fortran unparser uses special attribute :python:`fortran_metadata` attached
+to selected Python AST nodes, and therefore unparsing raw Python AST created directly from ordinary
+Python file might not work as expected.
 
 
 OpenCL to Python AST
 ~~~~~~~~~~~~~~~~~~~~
 
-TODO.
+Not implemented yet.
 
 
 Python AST to OpenCL
 ~~~~~~~~~~~~~~~~~~~~
 
-TODO.
+Not implemented yet.
 
 
 Python to Python AST
@@ -127,26 +122,12 @@ Python to Python AST
 Python 3.6 with whole-line comments outside expressions is fully supported.
 Presence of end-of-line comments or comments in expressions might result in errors.
 
-Dependencies:
-
-*   inspect
-
-*   typed_ast
-
-*   horast
-
 
 Python AST to Python
 ~~~~~~~~~~~~~~~~~~~~
 
 Python 3.6 with whole-line comments outside expressions is fully supported.
 Presence of end-of-line comments or comments in expressions might result in errors.
-
-Dependencies:
-
-*   typed_astunparse
-
-*   horast
 
 
 requirements
@@ -157,3 +138,24 @@ Python >= 3.5.
 Python libraries as specified in `<requirements.txt>`_.
 
 Building and running tests additionally requires packages listed in `<dev_requirements.txt>`_.
+
+Optional dependencies that enable support for transpilation from/to specific language are listed
+in `<extras_requirements.json>`_ and can be installed using the pip extras installation formula
+:bash:`pip3 install transpyle[extras]` where those :bash:`extras` can be one or more
+of the following:
+
+*   All supported languages: :bash:`all`
+
+*   C: :bash:`c`
+
+*   C++: :bash:`cpp`
+
+*   Cython: :bash:`cython`
+
+*   Fortran: :bash:`fortran`
+
+*   OpenCL: :bash:`opencl`
+
+Therefore to enable support for all languages, execute :bash:`pip3 install transpyle[all]`.
+Alternatively, to enable support for C++ and Fortran only, execute
+:bash:`pip3 install transpyle[cpp,fortran]`.

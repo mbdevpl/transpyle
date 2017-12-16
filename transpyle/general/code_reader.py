@@ -20,7 +20,7 @@ class CodeReader:
         """
         if extensions is None:
             extensions = []
-        assert isinstance(extensions, collections.abc.Iterable)
+        assert isinstance(extensions, collections.abc.Iterable), type(extensions)
         if __debug__:
             for extension in extensions:
                 assert isinstance(extension, str), (type(extension), extension, extensions)
@@ -60,7 +60,8 @@ class CodeReader:
                 break
         return files
 
-    def read_function(self, function: collections.abc.Callable) -> str:
+    @staticmethod
+    def read_function(function: collections.abc.Callable) -> str:
         assert isinstance(function, collections.abc.Callable), type(function)
         return inspect.getsource(function)
 

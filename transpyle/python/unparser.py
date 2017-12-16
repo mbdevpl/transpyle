@@ -54,10 +54,10 @@ def postprocess_python_code(code: str) -> str:
 
 class NativePythonUnparser(Unparser):
 
-    """Generate Python 3.5 source code from native AST using astunparse package."""
+    """Generate Python 3 source code from native AST using astunparse package."""
 
     def __init__(self):
-        super().__init__(Language.find('Python 3.6'))
+        super().__init__(Language.find('Python 3'))
 
     def unparse(self, tree: ast.AST) -> str:
         code = astunparse.unparse(tree)

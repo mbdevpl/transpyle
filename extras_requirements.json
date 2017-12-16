@@ -1,0 +1,8 @@
+{
+  "all": ["cython", "nuitka", "open_fortran_parser", "pyopencl"],
+  "c": ["cython"],
+  "cpp": ["nuitka"],
+  "cython": ["cython"],
+  "fortran": ["open_fortran_parser"],
+  "opencl": ["pyopencl"]
+}

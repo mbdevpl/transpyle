@@ -1,25 +1,21 @@
+"""Python support for transpyle package."""
 
 import inspect
 
-from ..general import Language
+from ..general import Language, Parser, AstGeneralizer, Unparser
+from .parser import TypedPythonParserWithComments
+from .ast_generalizer import PythonAstGeneralizer
+from .unparser import TypedPythonUnparserWithComments
 
-_PYTHON = Language(['Python', 'Py'], ['.py'])
 
-Language.register(_PYTHON, ['Python', 'Py'])
+Language.register(Language(['Python 3.5'], ['.py']), ['Python 3.5'])
+Language.register(Language(['Python 3.6'], ['.py']), ['Python 3.6', 'Python 3', 'Python'])
 
+Parser.register(TypedPythonParserWithComments,
+                (Language.find('Python 3.5'), Language.find('Python 3.6')))
 
-def transpile(function, to_language, *args, **kwargs):
-    """Meant to be used as decorator."""
+AstGeneralizer.register(PythonAstGeneralizer,
+                        (Language.find('Python 3.5'), Language.find('Python 3.6')))
 
-    #translator = Translator('Python 3.6', to_language, *args, **kwargs)
-    from_code = inspect.getsource(function)
-    #python_ast = 
-    to_code = translator.translate(from_code)
-
-    compiler = Compiler(to_language, *args, **kwargs)
-    compiled = compiler.compile(to_code)
-
-    binder = Binder(to_language)
-    binding = binder.bind(compiled)
-
-    return binding
+Unparser.register(TypedPythonUnparserWithComments,
+                  (Language.find('Python 3.5'), Language.find('Python 3.6')))

@@ -1,3 +1,4 @@
+"""Entry point for transpyle package."""
 
 from .main import main
 

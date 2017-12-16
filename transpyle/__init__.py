@@ -1,11 +1,32 @@
-"""transpyle package."""
+"""The transpyle package."""
 
-import pathlib
-import sys
+import logging
+
+_LOG = logging.getLogger()
 
 try:
-    import static_typing
+    from .c import *
 except ImportError:
-    path = pathlib.Path('~', 'Projects', 'python', 'static-typing').expanduser()
-    sys.path.append(str(path))
-    import static_typing
+    _LOG.warning("C unavailable")
+
+try:
+    from .cpp import *
+except ImportError:
+    _LOG.warning("C++ unavailable")
+
+try:
+    from .cython import *
+except ImportError:
+    _LOG.warning("Cython unavailable")
+
+try:
+    from .fortran import *
+except ImportError:
+    _LOG.warning("Fortran unavailable")
+
+try:
+    from .opencl import *
+except ImportError:
+    _LOG.warning("OpenCL unavailable")
+
+from .python import *

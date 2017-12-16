@@ -8,7 +8,7 @@ class CodeWriter:
     """Output source code to files."""
 
     def __init__(self, extension: str):
-        assert isinstance(extension, str)
+        assert isinstance(extension, str), type(extension)
         assert len(extension) > 1 and extension[0] == '.', extension
         self._extension = extension
 

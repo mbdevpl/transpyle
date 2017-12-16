@@ -1,5 +1,6 @@
 """Setup script for transpyle package."""
 
+import json
 import setup_boilerplate
 
 
@@ -28,16 +29,12 @@ class Package(setup_boilerplate.Package):
         'Topic :: Software Development :: Pre-processors',
         'Topic :: Utilities']
     keywords = ['compiler', 'just-in-time', 'source-to-source', 'transpilation', 'transpiler']
-    extras_require = {
-        'all': ['cython', 'nuitka', 'numpy'],
-        'c': ['cython'],
-        'cpp': ['nuitka'],
-        'cython': ['cython'],
-        'fortran': ['numpy'],
-        'opencl': ['pyopencl']}
+    extras_require = {}
     entry_points = {
         'console_scripts': ['transpyle = transpyle.__main__:main']}
 
 
 if __name__ == '__main__':
+    with open('extras_requirements.json') as json_file:
+        Package.extras_require = json.load(json_file)
     Package.setup()

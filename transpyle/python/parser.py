@@ -149,7 +149,7 @@ def postprocess_typed_ast(tree) -> int:
 
 
 class NativePythonParser(Parser):
-    """Python 3.6 two-in-one lexer and parser based on a built-in Python modules.
+    """Python 3 two-in-one lexer and parser based on a built-in Python modules.
 
     It uses built-in function compile().
 
@@ -166,7 +166,7 @@ class NativePythonParser(Parser):
     """
 
     def __init__(self, default_mode: t.Optional[str] = None, *args, **kwargs):
-        super().__init__(Language.find('Python 3.6'), *args, **kwargs)
+        super().__init__(Language.find('Python 3'), *args, **kwargs)
 
         assert default_mode is None or \
             isinstance(default_mode, str) and default_mode in PARSER_MODES_SET

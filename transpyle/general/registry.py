@@ -5,6 +5,8 @@ import typing as t
 
 class Registry:
 
+    """General-purpose registry of objects."""
+
     registered = None
 
     @classmethod
