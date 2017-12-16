@@ -58,7 +58,7 @@ class Tests(unittest.TestCase):
                 basic_check_fortran_code(self, path, original_file.read(), results=results_path,
                                          append_suffix=False)
             with self.subTest(path=path):
-                fortran_ast = parser.parse(path, verbosity=100)
+                fortran_ast = parser.parse(None, path)
                 basic_check_fortran_ast(self, path, fortran_ast, results=results_path)
                 tree = generalizer.generalize(fortran_ast)
                 basic_check_python_ast(self, path, tree, results=results_path)

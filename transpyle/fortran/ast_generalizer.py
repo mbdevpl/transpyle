@@ -337,31 +337,38 @@ class FortranAstGeneralizer(AstGeneralizer):
                     elts=[typed_ast3.Num(n=len(dimensions)), data_type,
                           typed_ast3.Tuple(elts=[_ for _ in dimensions])])),
                 ctx=typed_ast3.Load())
-            if len(variables) > 1 and not all([_ is None for _ in value]):
-                raise NotImplementedError(
-                    'not implemented handling of many initial values {}:\n{}'.format(
-                        [typed_ast3.dump(_) for _ in value],
-                        ET.tostring(node).decode().rstrip()))
-            elif len(variables) == 1 and value is not None:
-                value = typed_ast3.Call(
-                    func=typed_ast3.Attribute(
-                        value=typed_ast3.Name(id='np'), attr='array', ctx=typed_ast3.Load()),
-                    args=[value],
-                    keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
-                # raise NotImplementedError(
-                #    'not implemented handling of initial value {}:\n{}'
-                #    .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
-            else:
-                self._ensure_top_level_import('numpy', 'np')
-                for i, (var, val) in enumerate(variables):
-                    val = typed_ast3.Call(
+            if len(variables) > 1:
+                if all([_ is None for _ in value]):
+                    self._ensure_top_level_import('numpy', 'np')
+                    for i, (var, _) in enumerate(variables):
+                        # val = typed_ast3.Call(
+                        #    func=typed_ast3.Attribute(value=typed_ast3.Name(id='np'),
+                        #                              attr='zeros', ctx=typed_ast3.Load()),
+                        #    args=[typed_ast3.Tuple(elts=dimensions)],
+                        #    keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
+                        # variables[i] = (var, val)
+                        variables[i] = (var, None)
+                    # value = [ for _ in variables]
+                    value = [val for _, val in variables]
+                else:
+                    raise NotImplementedError(
+                        'not implemented handling of many initial values {}:\n{}'.format(
+                            [typed_ast3.dump(_) for _ in value],
+                            ET.tostring(node).decode().rstrip()))
+            elif len(variables) == 1:
+                if value is not None:
+                    value = typed_ast3.Call(
                         func=typed_ast3.Attribute(
-                            value=typed_ast3.Name(id='np'), attr='zeros', ctx=typed_ast3.Load()),
-                        args=[typed_ast3.Tuple(elts=dimensions)],
+                            value=typed_ast3.Name(id='np'), attr='array', ctx=typed_ast3.Load()),
+                        args=[value],
                         keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
-                    variables[i] = (var, val)
-                # value = [ for _ in variables]
-                value = [val for _, val in variables]
+                    # raise NotImplementedError(
+                    #    'not implemented handling of initial value {}:\n{}'
+                    #    .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
+                else:
+                    pass
+            else:
+                raise ValueError(len(variables))
 
         metadata = {}
         intent_node = node.find('./intent')
