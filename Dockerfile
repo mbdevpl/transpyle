@@ -52,7 +52,8 @@ RUN git clone https://github.com/mbdevpl/miranda_io
 # transpyle
 #
 
-COPY --chown=user:user . /home/user/Projects/transpyle
+COPY . /home/user/Projects/transpyle
+RUN sudo chown -R user:user /home/user/Projects/transpyle
 
 WORKDIR /home/user/Projects/transpyle
 
