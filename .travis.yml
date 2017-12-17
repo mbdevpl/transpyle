@@ -1,4 +1,4 @@
-sudo: false
+sudo: required
 language: python
 os: linux
 python:
@@ -11,30 +11,38 @@ matrix:
     - python: "3.7-dev"
 
 env:
-  #- JDK=oraclejdk8
-  - JDK=openjdk8
+  #- TRAVIS_JDK_VERSION=oraclejdk8
+  - TRAVIS_JDK_VERSION=oraclejdk9
+  #- TRAVIS_JDK_VERSION=openjdk8
 
-before_install: |
-  set -e
-  if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-    brew update
-    brew install pyenv || brew upgrade pyenv
-    pyenv install --list
-    pyenv install "${TRAVIS_PYTHON_VERSION}"
-    export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
-  fi
-  set +e
-
-install:
-  - jdk_switcher use $JDK
-  - pip install -U pip
-  - pip install -U -r dev_requirements.txt
+before_install:
+  - |
+    set -e
+    if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+      brew update
+      brew install pyenv || brew upgrade pyenv
+      pyenv install "${TRAVIS_PYTHON_VERSION}"
+      export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
+    fi
+    set +e
+  - |
+    set -e
+    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+      jdk_switcher use $TRAVIS_JDK_VERSION
+    fi
+    set +e
   # Open Fortran Compiler
   - git clone "https://github.com/codethinklabs/ofc" "../open-fortran-compiler"
   - cd "../open-fortran-compiler" && make && cd -
   - export PATH="${PATH}:$(pwd)/../open-fortran-compiler"
   # FFB-MINI app
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini" --branch ofp_tests
+  # miranda_io app
+  - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
+
+install:
+  - pip install -U pip
+  - pip install -U -r dev_requirements.txt
 
 script:
   - TEST_PACKAGING=1 python -m coverage run --branch --source . -m unittest discover --verbose

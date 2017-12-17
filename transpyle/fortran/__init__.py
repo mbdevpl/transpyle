@@ -8,6 +8,7 @@ from .unparser import Fortran77Unparser, Fortran2008Unparser
 
 Language.register(Language(['Fortran 77'], ['.f']), ['Fortran 77'])
 Language.register(Language(['Fortran 95'], ['.f90', '.f', '.for', '.f95']), ['Fortran 95'])
+# Language.register(Language(['Fortran 2003'], ['.f90', '.f', '.for', '.f95']), ['Fortran 2003'])
 Language.register(Language(['Fortran 2008'], ['.f90', '.f', '.for', '.f95']),
                   ['Fortran 2008', 'Fortran'])
 
