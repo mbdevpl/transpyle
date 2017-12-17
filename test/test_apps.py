@@ -18,6 +18,7 @@ from .examples import \
 
 class Tests(unittest.TestCase):
 
+    @unittest.skip('not ready yet')
     def test_roundrtip_miranda_io(self):
         results_path = pathlib.Path(APPS_RESULTS_ROOT, 'miranda_io')
         results_path.mkdir(exist_ok=True)
