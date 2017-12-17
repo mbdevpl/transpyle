@@ -5,3 +5,4 @@ include dev_requirements.txt
 include extras_requirements.json
 include LICENSE
 include NOTICE
+recursive-include ./test/examples *.*
