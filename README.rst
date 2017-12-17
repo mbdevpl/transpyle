@@ -12,6 +12,14 @@ transpyle
     :target: https://pypi.python.org/pypi/transpyle
     :alt: package version from PyPI
 
+.. image:: https://travis-ci.org/mbdevpl/transpyle.svg?branch=master
+    :target: https://travis-ci.org/mbdevpl/transpyle
+    :alt: build status from Travis CI
+
+.. image:: https://codecov.io/gh/mbdevpl/transpyle/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/mbdevpl/transpyle
+    :alt: test coverage from Codecov
+
 .. image:: https://img.shields.io/pypi/l/transpyle.svg
     :target: https://github.com/mbdevpl/transpyle/blob/master/NOTICE
     :alt: license
