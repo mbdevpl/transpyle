@@ -14,6 +14,7 @@ class Tests(unittest.TestCase):
     def test_numpy(self):
         import numpy as np
 
+    @unittest.skip('not ready yet')
     def test_pyopencl(self):
         import pyopencl
 
