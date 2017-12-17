@@ -914,8 +914,9 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _keyword_arguments(self, node: ET.Element):
         kwargs = self.transform_all_subnodes(
             node, warn=False, skip_empty=True, ignored={
-                'connect-spec-list__begin', 'equiv-op', 'connect-spec-list',
-                'close-spec-list__begin', 'close-spec-list'})
+                'connect-spec-list__begin', 'connect-spec', 'connect-spec-list',
+                'close-spec-list__begin', 'close-spec', 'close-spec-list'})
+        # TODO: can these really be ignored in all cases?
         return kwargs
 
     def _keyword_argument(self, node: ET.Element):

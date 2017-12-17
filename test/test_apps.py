@@ -29,7 +29,7 @@ class Tests(unittest.TestCase):
         python_unparser = TypedPythonUnparserWithComments()
         python_parser = TypedPythonParserWithComments()
         fortran_unparser = Fortran77Unparser()
-        fortran_ast = fortran_parser.parse(path)
+        fortran_ast = fortran_parser.parse('', path)
         basic_check_fortran_ast(self, path, fortran_ast, results=results_path)
         tree = fortran_generalizer.generalize(fortran_ast)
         basic_check_python_ast(self, path, tree, results=results_path)
@@ -67,6 +67,7 @@ class Tests(unittest.TestCase):
                 fortran_code = unparser.unparse(tree)
                 basic_check_fortran_code(self, path, fortran_code, results=results_path)
 
+    @unittest.skip('not ready yet')
     def test_migrate_ffb_mini_to_python(self):
         """From https://github.com/fiber-miniapp/ffb-mini"""
         results_path = pathlib.Path(APPS_RESULTS_ROOT, 'ffb-mini')
@@ -84,7 +85,7 @@ class Tests(unittest.TestCase):
             with self.subTest(path=path):
                 #logger_level = logging.getLogger('open_fortran_parser.parser_wrapper').level
                 #logging.getLogger('open_fortran_parser.parser_wrapper').setLevel(logging.CRITICAL)
-                fortran_ast = parser.parse(path)
+                fortran_ast = parser.parse('', path)
                 basic_check_fortran_ast(self, path, fortran_ast, results=results_path)
                 tree = generalizer.generalize(fortran_ast)
                 basic_check_python_ast(self, path, tree, results=results_path)

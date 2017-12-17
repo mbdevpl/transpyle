@@ -25,11 +25,12 @@ class Tests(unittest.TestCase):
             unparser = TypedPythonUnparserWithComments()
             writer = CodeWriter('.py')
             with self.subTest(input_path=input_path):
-                fortran_ast = parser.parse(input_path, verbosity=100)
+                fortran_ast = parser.parse('', input_path)
                 tree = generalizer.generalize(fortran_ast)
                 python_code = unparser.unparse(tree)
                 writer.write_file(python_code, pathlib.Path('/tmp', input_path.name + '.py'))
 
+    @unittest.skip('not ready yet')
     def test_python_to_fortran(self):
         for input_path in EXAMPLES_PY3_FILES:
             reader = CodeReader()
@@ -50,7 +51,7 @@ class Tests(unittest.TestCase):
             python_parser = TypedPythonParserWithComments()
             writer = CodeWriter('.f')
             with self.subTest(input_path=input_path):
-                fortran_ast = parser.parse(input_path, verbosity=100)
+                fortran_ast = parser.parse('', input_path)
                 tree = generalizer.generalize(fortran_ast)
                 python_code = unparser.unparse(tree)
                 tree = python_parser.parse(python_code, '<in-memory>', mode='exec')

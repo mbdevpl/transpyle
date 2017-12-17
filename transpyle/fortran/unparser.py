@@ -199,7 +199,23 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.write(')')
             self.write(')')
             return
-        raise NotImplementedError('Assign with Fortran metadata')
+        if t.type_comment:
+            self.dispatch_var_type(t.type_comment)
+        for key, value in metadata.items():
+            self.write(', ')
+            if value is True:
+                self.write(key[3:])
+            else:
+                self.write(key)
+                self.write('(')
+                self.write(value)
+                self.write(')')
+        # raise NotImplementedError('Assign with Fortran metadata: {}'.format(metadata))
+        self.write(' :: ')
+        self.dispatch(t.target)
+        if t.value:
+            self.write(" = ")
+            self.dispatch(t.value)
 
     def _AugAssign(self, t):
         self.fill()
@@ -209,7 +225,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def _AnnAssign(self, t):
         if isinstance(t.annotation, typed_ast3.NameConstant):
-            assert t.annotation.value == None
+            assert t.annotation.value is None
             assert isinstance(t.target, typed_ast3.Name)
             assert t.target.id == 'implicit'
             self.fill()
