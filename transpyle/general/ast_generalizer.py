@@ -14,3 +14,11 @@ class AstGeneralizer(Registry):
     def generalize(self, tree):
         """Generalize a language-specific AST into a general one."""
         raise NotImplementedError()
+
+
+class IdentityAstGeneralizer(AstGeneralizer):
+
+    """Do nothing with the AST."""
+
+    def generalize(self, tree):
+        return tree

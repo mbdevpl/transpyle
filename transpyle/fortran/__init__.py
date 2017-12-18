@@ -20,4 +20,4 @@ AstGeneralizer.register(FortranAstGeneralizer,
                          Language.find('Fortran 2008')))
 
 Unparser.register(Fortran77Unparser, (Language.find('Fortran 77'),))
-Unparser.register(Fortran2008Unparser, (Language.find('Fortran 2008'),))
+Unparser.register(Fortran2008Unparser, (Language.find('Fortran 95'), Language.find('Fortran 2008')))

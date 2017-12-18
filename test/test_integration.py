@@ -1,10 +1,17 @@
 """Integration tests for transpiling between different languages."""
 
+import itertools
 import pathlib
 import unittest
 
 from transpyle.general.code_reader import CodeReader
 from transpyle.general.code_writer import CodeWriter
+from transpyle.general.language import Language
+from transpyle.general.parser import Parser
+from transpyle.general.ast_generalizer import AstGeneralizer
+from transpyle.general.unparser import Unparser
+from transpyle.general.translator import Translator, AutoTranslator
+# from transpyle.general.transpiler import AutoTranspiler
 
 from transpyle.fortran.parser import FortranParser
 from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
@@ -13,10 +20,61 @@ from transpyle.fortran.unparser import Fortran77Unparser
 from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
 
-from .examples import EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES
+from .examples import EXAMPLES_LANGS_NAMES, EXAMPLES_FILES, EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES
+
+
+SKIPPED_LANGS = ('C11', 'C++14', 'Cython')
 
 
 class Tests(unittest.TestCase):
+
+    def test_class_finding(self):
+        for language_codename, language_name in EXAMPLES_LANGS_NAMES.items():
+            if language_name in SKIPPED_LANGS:
+                continue
+            with self.subTest(language_codename=language_codename, language_name=language_name):
+                language = Language.find(language_name)
+                self.assertIsInstance(language, Language)
+                parser = Parser.find(language)()
+                self.assertIsInstance(parser, Parser)
+                ast_generalizer = AstGeneralizer.find(language)()
+                self.assertIsInstance(ast_generalizer, AstGeneralizer)
+                unparser = Unparser.find(language)()
+                self.assertIsInstance(unparser, Unparser)
+
+    def test_auto_translator_initialization(self):
+        for (_, language_from_name), (_, language_to_name) \
+                in itertools.product(EXAMPLES_LANGS_NAMES.items(), EXAMPLES_LANGS_NAMES.items()):
+            if language_from_name in SKIPPED_LANGS or language_to_name in SKIPPED_LANGS:
+                continue
+            with self.subTest(language_from_name=language_from_name,
+                              language_to_name=language_to_name):
+                language_from = Language.find(language_from_name)
+                self.assertIsInstance(language_from, Language)
+                language_to = Language.find(language_from_name)
+                self.assertIsInstance(language_to, Language)
+                translator = AutoTranslator(language_from, language_to)
+                self.assertIsInstance(translator, Translator)
+                # transpiler = AutoTranspiler(language_from, language_to)
+
+    def test_auto_processing(self):
+        for language_codename, paths in EXAMPLES_FILES.items():
+            language_name = EXAMPLES_LANGS_NAMES[language_codename]
+            if language_name in ('C11', 'C++14', 'Cython'):
+                continue
+            language_from = Language.find(language_name)
+            self.assertIsInstance(language_from, Language, msg=(language_codename, language_name))
+            reader = CodeReader()
+            for path in paths:
+                code = reader.read_file(path)
+                with self.subTest(language_name=language_name, language_from=language_from):
+                    parser = Parser.find(language_from)()
+                    specific_ast = parser.parse(code, path)
+                    ast_generalizer = AstGeneralizer.find(language_from)()
+                    general_ast = ast_generalizer.generalize(specific_ast)
+
+    def test_language_deduction(self):
+        self.skipTest('not ready yet')
 
     def test_fortran_to_python(self):
         for input_path in EXAMPLES_F77_FILES:

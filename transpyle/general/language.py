@@ -62,3 +62,6 @@ class Language(Registry):
         assert isinstance(path, pathlib.Path), type(path)
         _, file_extension = path.splitext(path)
         return self.has_extension(file_extension)
+
+    def __repr__(self):
+        return '<{} language object>'.format(self.default_name)

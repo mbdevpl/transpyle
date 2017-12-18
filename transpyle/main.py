@@ -3,7 +3,7 @@
 import argparse
 import pathlib
 
-from .general import Language, CodeReader, CodeWriter, Translator
+from .general import Language, CodeReader, CodeWriter, AutoTranslator
 
 
 def main(args=None, namespace=None):
@@ -32,7 +32,7 @@ def main(args=None, namespace=None):
     to_language = Language.find(args.to_language)
 
     reader = CodeReader(from_language.file_extensions)
-    translator = Translator(from_language, to_language)
+    translator = AutoTranslator(from_language, to_language)
     writer = CodeWriter(to_language.default_file_extension)
 
     from_path = pathlib.Path(args.source)

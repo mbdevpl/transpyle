@@ -1,32 +1,37 @@
 """Transpilation of source code."""
 
-import inspect
+import pathlib
 
-# from .registry import Registry
+from .registry import Registry
 from .language import Language
 from .compiler import Compiler
 from .binder import Binder
-from .translator import Translator
+from .translator import Translator, AutoTranslator
 
 
-class Transpiler:
+class Transpiler(Registry):
 
     """Translate a function to another language, compile and create binding for the result."""
 
-    def __init__(self, to_language: Language, *args, **kwargs):
-        self.to_language = to_language
-        self.translator = Translator(Language.find('Python 3'), to_language)
-        self.compiler = Compiler(to_language, *args, **kwargs)
-        self.binder = Binder.find(to_language)
+    def __init__(self, translator: Translator, compiler: Compiler, binder: Binder):
+        self.translator = translator
+        self.compiler = compiler
+        self.binder = binder
 
-    def transpile(self, function):
-        from_code = inspect.getsource(function)
-        to_code = self.translator.translate(from_code)
-        compiled = self.compiler.compile(to_code)
+    def transpile(self, code: str, path: pathlib.Path = None):
+        """Transpile given"""
+        translated_code = self.translator.translate(code, path)
+        compiled = self.compiler.compile(translated_code)
         binding = self.binder.bind(compiled)
         return binding
 
 
-def transpile(function, to_language: Language, *args, **kwargs):
-    """Meant to be used as decorator."""
-    raise NotImplementedError()
+class AutoTranspiler(Transpiler):
+
+    """Translate a function to another language, compile and create binding for the result."""
+
+    def __init__(self, from_language: Language, to_language: Language):
+        super().__init__(AutoTranslator(from_language, to_language),
+                         Compiler.find(to_language)(),
+                         Binder.find(to_language)())
+        self.to_language = to_language

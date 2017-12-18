@@ -14,6 +14,9 @@ RESULTS_ROOT.mkdir(exist_ok=True)
 
 EXAMPLES_LANGS = ('c11', 'cpp14', 'cython', 'f77', 'f95', 'python3')
 
+EXAMPLES_LANGS_NAMES = {'c11': 'C11', 'cpp14': 'C++14', 'cython': 'Cython', 'f77': 'Fortran 77',
+                        'f95': 'Fortran 95', 'python3': 'Python 3'}
+
 EXAMPLES_EXTENSIONS = {
     'c11': ['.c', '.h'],
     'cpp14': ['.cpp', '.hpp'],
@@ -56,7 +59,6 @@ def basic_check_ast(
             results.mkdir()
     with open(results.joinpath(path.name + suffix), 'w') as result_file:
         result_file.write(formatter(tree))
-
 
 
 EXAMPLES_C11_FILES = EXAMPLES_FILES['c11']
