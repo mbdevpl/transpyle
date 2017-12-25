@@ -80,9 +80,22 @@ languages, is the extended Python AST.
 language support
 ----------------
 
-Transpyle intends to support selected subsets of: C++, Fortran, OpenCL, Python.
+Transpyle intends to support selected subsets of: C, C++, Cython, Fortran, OpenCL and Python.
 
 For each language pair and direction of translation, the set of supported features may differ.
+
+
+C to Python AST
+~~~~~~~~~~~~~~~
+
+C-specific AST is created via pycparse, and some of elementary C syntax is transformed into
+Python AST.
+
+
+Python AST to C
+~~~~~~~~~~~~~~~
+
+Not implemented yet.
 
 
 C++ to Python AST
@@ -93,6 +106,18 @@ Not implemented yet.
 
 Python AST to C++
 ~~~~~~~~~~~~~~~~~
+
+Not implemented yet.
+
+
+Cython to Python AST
+~~~~~~~~~~~~~~~~~~~~
+
+Not implemented yet.
+
+
+Python AST to Cython
+~~~~~~~~~~~~~~~~~~~~
 
 Not implemented yet.
 

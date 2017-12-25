@@ -1,9 +1,11 @@
 """Examples for transpyle tests."""
 
+import io
 import pathlib
 import unittest
 import xml.etree.ElementTree as ET
 
+import pycparser.c_ast
 import typed_ast.ast3
 import typed_astunparse
 
@@ -39,6 +41,7 @@ APPS_RESULTS_ROOT.mkdir(exist_ok=True)
 def basic_check_code(
         case: unittest.TestCase, path, code, language,
         results: pathlib.Path = EXAMPLES_RESULTS_ROOT, append_suffix: bool = True):
+    """Check basic properties of given source code and dump it to file."""
     case.assertIsInstance(code, str)
     if results == EXAMPLES_RESULTS_ROOT:
         results = results.joinpath(language)
@@ -52,6 +55,7 @@ def basic_check_code(
 def basic_check_ast(
         case: unittest.TestCase, path, tree, tree_type: type, suffix: str, formatter=str,
         results: pathlib.Path = EXAMPLES_RESULTS_ROOT):
+    """Check basic properties of given AST and dump it to file."""
     case.assertIsInstance(tree, tree_type)
     if results == EXAMPLES_RESULTS_ROOT:
         results = results.joinpath(path.parent.name)
@@ -62,6 +66,18 @@ def basic_check_ast(
 
 
 EXAMPLES_C11_FILES = EXAMPLES_FILES['c11']
+
+
+def c_ast_dump(node: pycparser.c_ast.Node) -> str:
+    io_ = io.StringIO()
+    node.show(io_, attrnames=True, nodenames=True, showcoord=True)
+    return io_.getvalue()
+
+
+def basic_check_c_ast(case: unittest.TestCase, path, c_tree, **kwargs):
+    basic_check_ast(case, path, c_tree, pycparser.c_ast.FileAST, '.yaml', c_ast_dump, **kwargs)
+
+
 EXAMPLES_CPP14_FILES = EXAMPLES_FILES['cpp14']
 EXAMPLES_CYTHON_FILES = EXAMPLES_FILES['cython']
 

@@ -1,10 +1,10 @@
 """Tests for Fortran language support."""
 
-#import logging
+# import logging
 import unittest
 
 import typed_ast.ast3
-#import typed_astunparse
+# import typed_astunparse
 
 from transpyle.fortran.parser import FortranParser
 from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
@@ -13,7 +13,7 @@ from .examples import \
     EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, basic_check_fortran_code, basic_check_fortran_ast, \
     basic_check_python_ast
 
-#_LOG = logging.getLogger(__name__)
+# _LOG = logging.getLogger(__name__)
 
 
 class Tests(unittest.TestCase):
@@ -59,6 +59,6 @@ class Tests(unittest.TestCase):
         for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
             with self.subTest(input_path=input_path):
                 tree = generalizer.generalize(parser.parse('', input_path))
-                #_LOG.debug('generalized Fortran tree %s', typed_astunparse.dump(tree))
+                # _LOG.debug('generalized Fortran tree %s', typed_astunparse.dump(tree))
                 code = unparser.unparse(tree)
                 basic_check_fortran_code(self, input_path, code)
