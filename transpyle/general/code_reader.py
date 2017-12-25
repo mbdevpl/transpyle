@@ -36,9 +36,9 @@ class CodeReader:
         assert isinstance(path, pathlib.Path), type(path)
 
         if not path.is_file():
-            raise ValueError(f'given path {path} does not lead to a file')
+            raise ValueError('given path {} does not lead to a file'.format(path))
         if self._extensions and path.suffix not in self._extensions:
-            raise ValueError(f'incompatible path {path} given to {self}')
+            raise ValueError('incompatible path {} given to {}'.format(path, self))
         with open(path, 'r') as source_file:
             contents = source_file.read()
         return contents
@@ -49,7 +49,7 @@ class CodeReader:
         assert isinstance(root_path, pathlib.Path), type(root_path)
         assert isinstance(recursive, bool), type(recursive)
         if not root_path.is_dir():
-            raise ValueError(f'given path {root_path} does not lead to a folder')
+            raise ValueError('given path {} does not lead to a folder'.format(root_path))
         files = {}
         for folder_path, _, file_names in os.walk(root_path, topdown=True):
             for file_name in file_names:
@@ -66,4 +66,4 @@ class CodeReader:
         return inspect.getsource(function)
 
     def __str__(self):
-        return f'{type(self).__qualname__}(extensions={self._extensions})'
+        return '{}(extensions={})'.format(type(self).__qualname__, self._extensions)

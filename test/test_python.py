@@ -63,7 +63,7 @@ class Tests(unittest.TestCase):
                     try:
                         new_tree = parser.parse(new_code, filename='<test>', mode=None)
                     except Exception as err:
-                        raise AssertionError(
-                            f'failed to re-parse the unparsed code """{new_code}"""') from err
+                        raise AssertionError('failed to re-parse the unparsed code """{}"""'
+                                             .format(new_code)) from err
                     self.assertEqual(unparser.dump(tree), unparser.dump(new_tree))
                     self.assertEqual(example, new_code)

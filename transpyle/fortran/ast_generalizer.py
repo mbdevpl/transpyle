@@ -979,7 +979,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         if node.attrib['type'] == 'unary':
             return self._operation_unary(node)
         raise NotImplementedError(
-            f'not implemented handling of:\n{ET.tostring(node).decode().rstrip()}')
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _operation_multiary(
             self, node: ET.Element) -> t.Union[
@@ -1465,7 +1465,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _args(self, node: ET.Element, arg_node_name: str = 'subscript') -> t.List[typed_ast3.AST]:
         args = []
-        for arg_node in node.findall(f'./{arg_node_name}'):
+        for arg_node in node.findall('./{}'.format(arg_node_name)):
             new_args = self.transform_all_subnodes(arg_node, warn=False, skip_empty=True)
             if not new_args:
                 continue

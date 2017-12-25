@@ -34,4 +34,4 @@ class CodeWriter:
         return path
 
     def __str__(self):
-        return f'{type(self).__qualname__}(extension={self._extension})'
+        return '{}(extension={})'.format(type(self).__qualname__, self._extension)

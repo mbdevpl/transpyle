@@ -140,7 +140,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         elif _match_io(tree):
             self.write('integer')
         else:
-            raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(tree)}')
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(tree)))
             #self._unsupported_syntax(tree)
             #self.dispatch(tree)
 
@@ -277,10 +277,10 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(')')
 
     def _Assert(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Exec(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Print(self, t):
         raise NotImplementedError('old Python AST is not supported')
@@ -427,7 +427,6 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         for gen in t.generators:
             self.dispatch(gen)
         self.write(')')
-        # raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
 
     def _GeneratorExp(self, t):
         self._unsupported_syntax(t)
@@ -444,10 +443,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.target)
         self.write(' = ')
         self.dispatch_for_iter(t.iter)
-        # raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
 
     def _IfExp(self, t):
-        raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
 
     def _Set(self, t):
         self._unsupported_syntax(t)
@@ -466,7 +464,6 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(' ')
         self.dispatch(t.operand)
         self.write(')')
-        # raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
 
     binop = {
         'Add': '+', 'Sub': '-', 'Mult': '*', 'Div': '/',  # 'Mod': '%',
@@ -475,7 +472,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def _BinOp(self, t):
         if t.op.__class__.__name__ not in self.binop:
-            raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         self.write('(')
         self.dispatch(t.left)
         self.write(' ' + self.binop[t.op.__class__.__name__] + ' ')
@@ -519,7 +516,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             t = copy.copy(t)
             t.func = typed_ast3.Name(id=new_func)
         elif func_name.startswith('np.'):
-            raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         if func_name not in ('print',):
             super()._Call(t)
             return
@@ -542,9 +539,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.slice)
         #if isinstance(t.slice, typed_ast3.Index):
         #elif isinstance(t.slice, typed_ast3.Slice):
-        #    raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        #    raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         #elif isinstance(t.slice, typed_ast3.ExtSlice):
-        #    raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+        #    raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         #else:
         #    raise ValueError()
         self.write(")")
@@ -583,12 +580,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     # others
     def _arguments(self, t):
         if t.vararg or t.kwonlyargs or t.kw_defaults or t.kwarg or t.defaults:
-            raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         super()._arguments(t)
 
     def _keyword(self, t):
         if t.arg is None:
-            raise NotImplementedError(f'not yet implemented: {typed_astunparse.dump(t)}')
+            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         super()._keyword(t)
 
     def _Lambda(self, t):
