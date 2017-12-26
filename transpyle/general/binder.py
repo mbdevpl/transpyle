@@ -1,10 +1,14 @@
 """Binding creator."""
 
 import collections.abc
+import logging
 import pathlib
 import sys
 
 from .registry import Registry
+
+
+_LOG = logging.getLogger(__name__)
 
 
 class Binder(Registry):
@@ -24,9 +28,9 @@ class Binder(Registry):
         module_name = path.name
         sys.path.insert(0, dir_)
         try:
-            print(sys.path)
+            _LOG.debug('%s', sys.path)
             module = self.bind_module(module_name)
-        except ModuleNotFoundError:
+        except ImportError:
             sys.path.remove(dir_)
             raise
         else:
