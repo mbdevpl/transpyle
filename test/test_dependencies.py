@@ -18,6 +18,10 @@ class Tests(unittest.TestCase):
     def test_pyopencl(self):
         import pyopencl
 
+    def test_gfortran(self):
+        gfortran_path = shutil.which('gfortran')
+        self.assertIsNotNone(gfortran_path)
+
     def test_swig(self):
         shutil.which('swig')
 

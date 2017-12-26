@@ -1,6 +1,10 @@
 sudo: required
 language: python
 os: linux
+addons:
+  apt:
+    packages:
+      - gfortran-6
 python:
   - "3.5"
   - "3.6"
@@ -15,6 +19,7 @@ env:
   #- TRAVIS_JDK_VERSION=openjdk8
 
 before_install:
+  #- sudo ln -s "$(which gfortran-6)" "$(which gfortran-6 | sed 's|-6||')"
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
