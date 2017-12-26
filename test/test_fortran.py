@@ -1,6 +1,7 @@
 """Tests for Fortran language support."""
 
 # import logging
+import pathlib
 import unittest
 
 import typed_ast.ast3
@@ -9,9 +10,11 @@ import typed_ast.ast3
 from transpyle.fortran.parser import FortranParser
 from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
 from transpyle.fortran.unparser import Fortran77Unparser
+from transpyle.fortran.compiler import F2PyCompiler
+from transpyle.fortran.binder import F2PyBinder
 from .examples import \
-    EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, basic_check_fortran_code, basic_check_fortran_ast, \
-    basic_check_python_ast
+    EXAMPLES_RESULTS_ROOT, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, basic_check_fortran_code, \
+    basic_check_fortran_ast, basic_check_python_ast
 
 # _LOG = logging.getLogger(__name__)
 
@@ -62,3 +65,24 @@ class Tests(unittest.TestCase):
                 # _LOG.debug('generalized Fortran tree %s', typed_astunparse.dump(tree))
                 code = unparser.unparse(tree)
                 basic_check_fortran_code(self, input_path, code)
+
+    def test_compile(self):
+        compiler = F2PyCompiler()
+        for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
+            output_dir = EXAMPLES_RESULTS_ROOT.joinpath(input_path.parent.name, 'f2py_tmp')
+            if not output_dir.is_dir():
+                output_dir.mkdir()
+            with open(str(input_path)) as input_file:
+                code = input_file.read()
+            with self.subTest(input_path=input_path):
+                output_path = compiler.compile(code, input_path, output_dir)
+                self.assertIsInstance(output_path, pathlib.Path)
+                output_path.unlink()
+                output_dir.rmdir()
+
+    def test_bind(self):
+        compiler = F2PyCompiler()
+        binder = F2PyBinder()
+        for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
+            with self.subTest(input_path=input_path):
+                pass
