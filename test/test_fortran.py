@@ -1,5 +1,7 @@
 """Tests for Fortran language support."""
 
+import collections.abc
+import datetime
 # import logging
 import pathlib
 import unittest
@@ -69,7 +71,9 @@ class Tests(unittest.TestCase):
     def test_compile(self):
         compiler = F2PyCompiler()
         for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
-            output_dir = EXAMPLES_RESULTS_ROOT.joinpath(input_path.parent.name, 'f2py_tmp')
+            output_dir = pathlib.Path(
+                EXAMPLES_RESULTS_ROOT, input_path.parent.name,
+                'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
             if not output_dir.is_dir():
                 output_dir.mkdir()
             with open(str(input_path)) as input_file:
@@ -84,5 +88,16 @@ class Tests(unittest.TestCase):
         compiler = F2PyCompiler()
         binder = F2PyBinder()
         for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
+            output_dir = pathlib.Path(
+                EXAMPLES_RESULTS_ROOT, input_path.parent.name,
+                'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+            if not output_dir.is_dir():
+                output_dir.mkdir()
+            with open(str(input_path)) as input_file:
+                code = input_file.read()
             with self.subTest(input_path=input_path):
-                pass
+                output_path = compiler.compile(code, input_path, output_dir)
+                binding = binder.bind(output_path)
+                self.assertIsInstance(binding, collections.abc.Callable)
+                output_path.unlink()
+                output_dir.rmdir()

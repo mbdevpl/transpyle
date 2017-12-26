@@ -33,6 +33,8 @@ EXAMPLES_FILES = {lang: list(EXAMPLES_ROOTS[lang].glob('**/*.*')) for lang in EX
 
 EXAMPLES_RESULTS_ROOT = pathlib.Path(RESULTS_ROOT, 'examples')
 EXAMPLES_RESULTS_ROOT.mkdir(exist_ok=True)
+for _language_codename in EXAMPLES_LANGS:
+    pathlib.Path(EXAMPLES_RESULTS_ROOT, _language_codename).mkdir(exist_ok=True)
 
 APPS_RESULTS_ROOT = pathlib.Path(RESULTS_ROOT, 'apps')
 APPS_RESULTS_ROOT.mkdir(exist_ok=True)
