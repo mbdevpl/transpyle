@@ -51,7 +51,7 @@ class CodeReader:
         if not root_path.is_dir():
             raise ValueError('given path {} does not lead to a folder'.format(root_path))
         files = {}
-        for folder_path, _, file_names in os.walk(root_path, topdown=True):
+        for folder_path, _, file_names in os.walk(str(root_path), topdown=True):
             for file_name in file_names:
                 file_path = pathlib.Path(folder_path, file_name)
                 if not self._extensions or file_path.suffix in self._extensions:
