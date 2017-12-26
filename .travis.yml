@@ -4,7 +4,7 @@ os: linux
 addons:
   apt:
     packages:
-      - gfortran-6
+      - gfortran
 python:
   - "3.5"
   - "3.6"
