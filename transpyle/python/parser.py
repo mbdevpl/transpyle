@@ -1,18 +1,13 @@
-'''
-Created on 11 May 2016
-
-@author: mb
-'''
+"""Parsing Python."""
 
 import ast
-#import inspect
 import logging
+import pathlib
 import re
 import typing as t
 
 import horast
 import typed_ast.ast3
-#import static_typing as st
 
 from ..general import Language, Parser
 
@@ -173,15 +168,14 @@ class NativePythonParser(Parser):
 
         self.default_mode = default_mode
 
-    def parse(self, code: str, filename: str='<string>', mode: t.Optional[str] = None) -> t.Any:
-
+    def parse(self, code: str, path: pathlib.Path = None, mode: t.Optional[str] = None) -> t.Any:
+        filename = '<string>' if path is None else str(path)
         if mode is None:
             mode = self.default_mode
 
         if mode is None:
             return self._parse_with_mode_inference(code, filename)
-        else:
-            return self._parse(code, filename, mode)
+        return self._parse(code, filename, mode)
 
     def _parse_with_mode_inference(self, code: str, filename: str) -> t.Any:
         excluded_modes = set()
