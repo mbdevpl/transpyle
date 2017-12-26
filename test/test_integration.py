@@ -2,6 +2,7 @@
 
 import itertools
 import pathlib
+import sys
 import unittest
 
 from transpyle.general.code_reader import CodeReader
@@ -119,6 +120,7 @@ class Tests(unittest.TestCase):
                 fortran_code = unparser.unparse(tree)
                 writer.write_file(fortran_code, pathlib.Path('/tmp', input_path.name + '.f'))
 
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'requires Python >= 3.6')
     def test_fortran_to_python_to_fortran(self):
         for input_path in EXAMPLES_F77_FILES:
             parser = FortranParser()
