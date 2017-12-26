@@ -22,7 +22,7 @@ class CodeWriter:
         assert isinstance(path, pathlib.Path), type(path)
         if path.suffix != self._extension:
             raise ValueError('incompatible path {} given to {}'.format(path, self))
-        with open(path, 'w') as target_file:
+        with open(str(path), 'w') as target_file:
             target_file.write(code)
 
     def write_module(self, code: str, module_name: str) -> pathlib.Path:

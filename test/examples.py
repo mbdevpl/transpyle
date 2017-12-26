@@ -48,7 +48,7 @@ def basic_check_code(
         if not results.is_dir():
             results.mkdir()
     filename = path.name + (EXAMPLES_EXTENSIONS[language][0] if append_suffix else '')
-    with open(results.joinpath(filename), 'w') as result_file:
+    with open(str(results.joinpath(filename)), 'w') as result_file:
         result_file.write(code)
 
 
@@ -61,7 +61,7 @@ def basic_check_ast(
         results = results.joinpath(path.parent.name)
         if not results.is_dir():
             results.mkdir()
-    with open(results.joinpath(path.name + suffix), 'w') as result_file:
+    with open(str(results.joinpath(path.name + suffix)), 'w') as result_file:
         result_file.write(formatter(tree))
 
 

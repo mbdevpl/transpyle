@@ -55,7 +55,7 @@ class Tests(unittest.TestCase):
             path = pathlib.Path(root_path, path)
             if not path.is_file():
                 continue
-            with open(path) as original_file:
+            with open(str(path)) as original_file:
                 basic_check_fortran_code(self, path, original_file.read(), results=results_path,
                                          append_suffix=False)
             with self.subTest(path=path):

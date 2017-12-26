@@ -39,7 +39,7 @@ class CodeReader:
             raise ValueError('given path {} does not lead to a file'.format(path))
         if self._extensions and path.suffix not in self._extensions:
             raise ValueError('incompatible path {} given to {}'.format(path, self))
-        with open(path, 'r') as source_file:
+        with open(str(path), 'r') as source_file:
             contents = source_file.read()
         return contents
 
