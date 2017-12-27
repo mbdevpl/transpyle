@@ -3,6 +3,7 @@
 import shutil
 import unittest
 
+
 class Tests(unittest.TestCase):
 
     def test_cython(self):
@@ -13,6 +14,7 @@ class Tests(unittest.TestCase):
 
     def test_numpy(self):
         import numpy as np
+        self.assertIsNotNone(np.zeros((10, 10), dtype=int))
 
     @unittest.skip('not ready yet')
     def test_pyopencl(self):
@@ -28,4 +30,4 @@ class Tests(unittest.TestCase):
 
     def test_typed_ast(self):
         from typed_ast import ast3
-        assert ast3.LATEST_MINOR_VERSION >= 6, ast3.LATEST_MINOR_VERSION
+        self.assertGreaterEqual(ast3.LATEST_MINOR_VERSION, 6)

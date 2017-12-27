@@ -43,11 +43,11 @@ class F2PyCompiler(Compiler):
         with contextlib.redirect_stdout(stdout):
             with contextlib.redirect_stderr(stderr):
                 returncode = numpy.f2py.compile(
-                    source=code, modulename=module_name, extra_args=extra_args, verbose=False,
-                    source_fn=str(path), extension=path.suffix)
-        result = subprocess.CompletedProcess(args='f2py ' + extra_args, returncode=returncode)
-        result.stdout = stdout.getvalue()
-        result.stderr = stderr.getvalue()
+                    source=code, modulename=module_name, extra_args=extra_args,
+                    verbose=False, source_fn=str(path), extension=path.suffix)
+        result = subprocess.CompletedProcess(
+            args='f2py -c -m {} {} {}'.format(module_name, extra_args, str(path)),
+            returncode=returncode, stdout=stdout.getvalue(), stderr=stderr.getvalue())
         return result
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
@@ -70,9 +70,17 @@ class F2PyCompiler(Compiler):
         # if 'debug' in extra_args or 'debug-capi' in extra_args:
         #    _LOG.warning('building f2py module in debug mode')
 
+        # args = (*args, '-v')
+        # kwargs['f90exec'] = 'gfortran'
+        # kwargs['f77flags'] = '-g0'
+        # kwargs['f90exec'] = 'gfortran'
+        # kwargs['f90flags'] = '-g0'
+        kwargs['opt'] = '-O3 -funroll-loops'
+        # kwargs['noopt'] = True
+
         _working_dir = pathlib.Path.cwd()
         os.chdir(str(output_path))
-        result = self.run_f2py(code, path, module_name)
+        result = self.run_f2py(code, path, module_name, *args, **kwargs)
         os.chdir(str(_working_dir))
 
         # if __debug__:
@@ -82,12 +90,15 @@ class F2PyCompiler(Compiler):
         #    _LOG.error(F2PY_ERROR_REPORT_FMT, result.returncode, result.stdout, result.stderr)
 
         if result.returncode != 0:
-            raise RuntimeError('f2py returned a non-zero status: {}\nstdout="""{}"""\nstderr={}'
-                               .format(result.returncode, result.stdout, result.stderr))
+            raise RuntimeError(
+                '{} returned a non-zero status: {}\nstdout="""{}"""\nstderr={}'
+                .format(result.args, result.returncode, result.stdout, result.stderr))
+        # print(result.args)
+        # print(result.returncode)
+        # print(result.stdout)
+        # print(result.stderr)
 
-        # if not self.keep_source_code_files and os.path.isfile(file_name):
-        #    os.remove(file_name)
-
-        found_results = list(output_path.glob('{}*'.format(module_name)))
-        assert len(found_results) == 1, found_results
-        return found_results[0]
+        results = [result for result in output_path.glob('{}*'.format(module_name))
+                   if result.is_file()]
+        assert len(results) == 1, results
+        return results[0]

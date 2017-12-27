@@ -16,7 +16,7 @@ _LOG = logging.getLogger(__name__)
 
 class Binder(Registry):
 
-    """Interface between compiled binary in different language and Python."""
+    """Simplify interfacing Python with extension modules."""
 
     def __init__(self):
         pass
@@ -28,6 +28,7 @@ class Binder(Registry):
 
     def bind_object(self, module_name_or_path: t.Union[pathlib.Path, str],
                     object_name: t.Optional[str] = None) -> collections.abc.Callable:
+        """Bind a single object (like a class or function) from an extension module."""
         if isinstance(module_name_or_path, pathlib.Path):
             module = self.bind(module_name_or_path)
         elif isinstance(module_name_or_path, str):

@@ -20,11 +20,16 @@ class Translator(Registry):
         self.unparser = unparser
 
     def translate(self, code: str, path: t.Optional[pathlib.Path] = None) -> str:
-        # import pdb; pdb.set_trace()
         specific_ast = self.parser.parse(code, path)
         general_ast = self.ast_generaliser.generalize(specific_ast)
         to_code = self.unparser.unparse(general_ast)
         return to_code
+
+    def translate_object(self, code_object):
+        assert isinstance(code_object, codeobject), type(code_object)
+        code = inspect.getsource(code_object)
+        path = inspect.getpath(code_object)
+        return self.translate(code, path)
 
 
 class AutoTranslator(Translator):

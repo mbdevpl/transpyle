@@ -83,7 +83,10 @@ class Tests(unittest.TestCase):
                 output_path = compiler.compile(code, input_path, output_dir)
                 self.assertIsInstance(output_path, pathlib.Path)
                 output_path.unlink()
+            try:
                 output_dir.rmdir()
+            except OSError:
+                pass
 
     def test_bind(self):
         compiler = F2PyCompiler()
@@ -101,4 +104,7 @@ class Tests(unittest.TestCase):
                 binding = binder.bind(output_path)
                 self.assertIsInstance(binding, types.ModuleType)
                 output_path.unlink()
+            try:
                 output_dir.rmdir()
+            except OSError:
+                pass
