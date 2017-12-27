@@ -5,6 +5,7 @@ addons:
   apt:
     packages:
       - gfortran
+      - swig
 python:
   - "3.5"
   - "3.6"

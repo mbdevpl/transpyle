@@ -23,7 +23,8 @@ class Tests(unittest.TestCase):
         self.assertIsNotNone(gfortran_path)
 
     def test_swig(self):
-        shutil.which('swig')
+        swig_path = shutil.which('swig')
+        self.assertIsNotNone(swig_path)
 
     def test_typed_ast(self):
         from typed_ast import ast3

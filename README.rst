@@ -172,10 +172,10 @@ Python libraries as specified in `<requirements.txt>`_.
 
 Building and running tests additionally requires packages listed in `<dev_requirements.txt>`_.
 
-Optional dependencies that enable support for transpilation from/to specific language are listed
-in `<extras_requirements.json>`_ and can be installed using the pip extras installation formula
-:bash:`pip3 install transpyle[extras]` where those :bash:`extras` can be one or more
-of the following:
+Support for transpilation from/to specific language requires additional Python packages
+specified in `<extras_requirements.json>`_, which can be installed using the pip extras
+installation formula :bash:`pip3 install transpyle[extras]` where those :bash:`extras`
+can be one or more of the following:
 
 *   All supported languages: :bash:`all`
 
@@ -192,3 +192,9 @@ of the following:
 Therefore to enable support for all languages, execute :bash:`pip3 install transpyle[all]`.
 Alternatively, to enable support for C++ and Fortran only, execute
 :bash:`pip3 install transpyle[cpp,fortran]`.
+
+Additionally, support for some languages requires the following software to be installed:
+
+*   C, C++: SWIG (Simplified Wrapper and Interface Generator) with executable `swig`
+
+*   Fortran: a modern Fortran compiler with executable `gfortran`
