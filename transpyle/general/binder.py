@@ -1,9 +1,12 @@
 """Binding creator."""
 
 import collections.abc
+import importlib
 import logging
 import pathlib
 import sys
+import types
+import typing as t
 
 from .registry import Registry
 
@@ -18,10 +21,29 @@ class Binder(Registry):
     def __init__(self):
         pass
 
-    def bind_module(self, module_name: str) -> collections.abc.Callable:
-        raise NotImplementedError()
+    def bind_module(self, module_name: str) -> types.ModuleType:
+        module = importlib.import_module(module_name)
+        _LOG.info('successfully imported module "%s"', module.__name__)
+        return module
 
-    def bind(self, path: pathlib.Path) -> collections.abc.Callable:
+    def bind_object(self, module_name_or_path: t.Union[pathlib.Path, str],
+                    object_name: t.Optional[str] = None) -> collections.abc.Callable:
+        if isinstance(module_name_or_path, pathlib.Path):
+            module = self.bind(module_name_or_path)
+        elif isinstance(module_name_or_path, str):
+            module = self.bind_module(module_name_or_path)
+        else:
+            raise TypeError('unsupported type {}'.format(type(module_name_or_path)))
+        object_names = [var for var in vars(module) if not var.startswith('__')]
+        _LOG.debug('interface: %s', ', '.join(object_names))
+        if object_name is None:
+            assert len(object_names) == 1, object_names
+            object_name = object_names[0]
+
+        interface = getattr(module, object_name)
+        assert callable(interface)
+
+    def bind(self, path: pathlib.Path) -> types.ModuleType:
         dir_ = str(path.parent)
         while path.suffix:
             path = path.with_suffix('')

@@ -1,9 +1,10 @@
 """Tests for Fortran language support."""
 
-import collections.abc
+# import collections.abc
 import datetime
 # import logging
 import pathlib
+import types
 import unittest
 
 import typed_ast.ast3
@@ -98,6 +99,6 @@ class Tests(unittest.TestCase):
             with self.subTest(input_path=input_path):
                 output_path = compiler.compile(code, input_path, output_dir)
                 binding = binder.bind(output_path)
-                self.assertIsInstance(binding, collections.abc.Callable)
+                self.assertIsInstance(binding, types.ModuleType)
                 output_path.unlink()
                 output_dir.rmdir()
