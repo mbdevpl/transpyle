@@ -12,6 +12,7 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
 from ..general import Language, AstGeneralizer
+from ..python import make_numpy_constructor, make_st_ndarray
 
 _LOG = logging.getLogger(__name__)
 
@@ -158,8 +159,8 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _directive(self, node) -> horast_nodes.Comment:
         directive = node.attrib['text']
-        if len(directive) == 0 or directive[0] not in ('#'):
-            raise SyntaxError('directive token {} has unexpected prefix'.format(repr(comment)))
+        if len(directive) == 0 or directive[0] not in ('#',):
+            raise SyntaxError('directive token {} has unexpected prefix'.format(repr(directive)))
         directive = directive[1:]
         directive_ = horast_nodes.Comment(value=typed_ast3.Str(s=directive), eol=False)
         directive_.fortran_metadata = {'is_directive': True}
@@ -292,83 +293,61 @@ class FortranAstGeneralizer(AstGeneralizer):
             self, node: ET.Element) -> t.Union[
                 typed_ast3.Assign, typed_ast3.AnnAssign, t.List[typed_ast3.Assign],
                 t.List[typed_ast3.AnnAssign]]:
+        """Reorganize data from multi-variable declaration into sequence of anotated assignments."""
+
+        # variable names
         variables_node = node.find('./variables')
         if variables_node is None:
             _LOG.error('%s', ET.tostring(node).decode().rstrip())
             raise SyntaxError('"variables" node not present')
-        variables = self.transform_all_subnodes(
+        variables_and_values = self.transform_all_subnodes(
             variables_node, warn=False, skip_empty=True,
             ignored={'entity-decl-list__begin', 'entity-decl-list'})
-        if not variables:
+        if not variables_and_values:
             _LOG.error('%s', ET.tostring(node).decode().rstrip())
             raise SyntaxError('at least one variable expected in variables list')
-        if len(variables) == 1:
-            target, value = variables[0]
-        else:
-            target = typed_ast3.Tuple(elts=[var for var, _ in variables])
-            value = [val for _, val in variables]
+        variables = [var for var, _ in variables_and_values]
 
-        type_node = node.find('./type')
-        if type_node is None:
+        # base type of variables
+        base_type_node = node.find('./type')
+        if base_type_node is None:
             raise SyntaxError('"type" node not present in\n{}', ET.tostring(node).decode().rstrip())
-        annotation = self.transform(type_node)
+        base_type = self.transform(base_type_node)
 
+        # dimensionality information (only for array types)
         dimensions_node = node.find('./dimensions')
-        dimensions = None
-        if any(['dimensions' in getattr(var, 'fortran_metadata', {}) for var, _ in variables]):
-            if dimensions_node is not None:
-                raise SyntaxError('many dimensions definitions for single variable')
-            if len(variables) > 1:
-                raise NotImplementedError('conflicting dimensions information')
-            dimensions_node = 'found in variable'
-            dimensions = variables[0][0].fortran_metadata['dimensions']
+        variable_dimensions = [getattr(var, 'fortran_metadata', {}).get('dimensions', None)
+                               for var in variables]
+        has_variable_dimensions = any([_ is not None for _ in variable_dimensions])
+        if has_variable_dimensions and not self._split_declarations:
+            raise NotImplementedError('inline dimensions not implemented yet')
+        if dimensions_node is not None and has_variable_dimensions:
+            raise SyntaxError(
+                'declaration dimension data as well as per-variable dimension data present')
         if dimensions_node is not None:
-            if dimensions is None:
-                dimensions = self.transform(dimensions_node)
+            dimensions = self.transform(dimensions_node)
             assert len(dimensions) >= 1
-            data_type = annotation
             self._ensure_top_level_import('static_typing', 'st')
-            annotation = typed_ast3.Subscript(
-                value=typed_ast3.Attribute(
-                    value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
-                    attr='ndarray', ctx=typed_ast3.Load()),
-                # slice=typed_ast3.ExtSlice(dims=[typed_ast3.Num(n=len(dimensions)), data_type]),
-                slice=typed_ast3.Index(value=typed_ast3.Tuple(
-                    elts=[typed_ast3.Num(n=len(dimensions)), data_type,
-                          typed_ast3.Tuple(elts=[_ for _ in dimensions])])),
-                ctx=typed_ast3.Load())
-            if len(variables) > 1:
-                if all([_ is None for _ in value]):
-                    self._ensure_top_level_import('numpy', 'np')
-                    for i, (var, _) in enumerate(variables):
-                        # val = typed_ast3.Call(
-                        #    func=typed_ast3.Attribute(value=typed_ast3.Name(id='np'),
-                        #                              attr='zeros', ctx=typed_ast3.Load()),
-                        #    args=[typed_ast3.Tuple(elts=dimensions)],
-                        #    keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
-                        # variables[i] = (var, val)
-                        variables[i] = (var, None)
-                    # value = [ for _ in variables]
-                    value = [val for _, val in variables]
-                else:
-                    raise NotImplementedError(
-                        'not implemented handling of many initial values {}:\n{}'.format(
-                            [typed_ast3.dump(_) for _ in value],
-                            ET.tostring(node).decode().rstrip()))
-            elif len(variables) == 1:
-                if value is not None:
-                    value = typed_ast3.Call(
-                        func=typed_ast3.Attribute(
-                            value=typed_ast3.Name(id='np'), attr='array', ctx=typed_ast3.Load()),
-                        args=[value],
-                        keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
-                    # raise NotImplementedError(
-                    #    'not implemented handling of initial value {}:\n{}'
-                    #    .format(typed_ast3.dump(value), ET.tostring(node).decode().rstrip()))
-                else:
-                    pass
-            else:
-                raise ValueError(len(variables))
+            annotation = make_st_ndarray(base_type, dimensions)
+            annotations = [annotation for _ in variables]
+        elif has_variable_dimensions:
+            self._ensure_top_level_import('static_typing', 'st')
+            annotations = [_ if _ is None else make_st_ndarray(base_type, _)
+                           for _ in variable_dimensions]
+        else:
+            annotations = [base_type for _ in variables]
+
+        # initial values
+        if dimensions_node is not None:
+            values = [None if val is None else make_numpy_constructor('array', val, base_type)
+                      for _, val in variables_and_values]
+        elif has_variable_dimensions:
+            assert len(variables_and_values) == len(variable_dimensions)
+            values = [None if val is None
+                      else (val if dim is None else make_numpy_constructor('array', val, base_type))
+                      for (_, val), dim in zip(variables_and_values, variable_dimensions)]
+        else:
+            values = [val for _, val in variables_and_values]
 
         metadata = {}
         intent_node = node.find('./intent')
@@ -383,6 +362,21 @@ class FortranAstGeneralizer(AstGeneralizer):
             metadata_node = horast_nodes.Comment(
                 value=typed_ast3.Str(s=' Fortran metadata: {}'.format(repr(metadata))), eol=False)
 
+        if not self._split_declarations:
+            raise NotImplementedError()
+        assignments = [typed_ast3.AnnAssign(target=var, annotation=ann, value=val, simple=True)
+                       for var, ann, val in zip(variables, annotations, values)]
+        if metadata:
+            new_assignments = []
+            for assignment in assignments:
+                assignment.fortran_metadata = metadata
+                new_assignments.append(assignment)
+                new_assignments.append(metadata_node)
+            assignments = new_assignments
+
+        return assignments
+
+        _ = '''
         if len(variables) == 1:
             assignments = [typed_ast3.AnnAssign(
                 target=target, annotation=annotation, value=value, simple=True)]
@@ -395,9 +389,10 @@ class FortranAstGeneralizer(AstGeneralizer):
                     typed_ast3.Tuple(elts=[annotation for _ in range(len(variables))])).strip()
                 assignments = [typed_ast3.Assign(
                     argets=[target], value=value, type_comment=type_comment)]
-            assignments = [
-                typed_ast3.AnnAssign(target=var, annotation=annotation, value=val, simple=True)
-                for var, val in variables]
+            else:
+                assignments = [
+                    typed_ast3.AnnAssign(target=var, annotation=annotation, value=val, simple=True)
+                    for var, val in variables]
         if not metadata:
             if len(assignments) == 1:
                 return assignments[0]
@@ -413,6 +408,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             else:
                 assignments.append(metadata_node)
         return assignments
+        '''
 
     def _declaration_parameter(self, node: ET.Element):
         constants_node = node.find('./constants')

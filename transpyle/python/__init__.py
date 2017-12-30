@@ -38,7 +38,7 @@ Translator.register(PythonTranslator, (Language.find('Python 3.5'), Language.fin
 
 def make_range_call(begin: t.Optional[typed_ast3.AST] = None, end: typed_ast3.AST = None,
                     step: t.Optional[typed_ast3.AST] = None) -> typed_ast3.Call:
-    """Create an typed_ast node equivalent to: range(begin, end, step)."""
+    """Create a typed_ast node equivalent to: range(begin, end, step)."""
     assert isinstance(end, typed_ast3.AST)
     if step is None:
         if begin is None:
@@ -51,6 +51,34 @@ def make_range_call(begin: t.Optional[typed_ast3.AST] = None, end: typed_ast3.AS
         args = [begin, end, step]
     return typed_ast3.Call(func=typed_ast3.Name(id='range', ctx=typed_ast3.Load()),
                            args=args, keywords=[])
+
+
+def make_numpy_constructor(function: str, arg: typed_ast3.AST,
+                           data_type: typed_ast3.AST) -> typed_ast3.Call:
+    return typed_ast3.Call(
+        func=typed_ast3.Attribute(
+            value=typed_ast3.Name(id='np'), attr=function, ctx=typed_ast3.Load()),
+        args=[arg],
+        keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
+
+
+def make_st_ndarray(data_type: typed_ast3.AST,
+                    dimensions_or_sizes: t.Union[int, list]) -> typed_ast3.Subscript:
+    """Create a typed_ast node equivalent to: st.ndarray[dimensions, data_type, sizes]."""
+    if isinstance(dimensions_or_sizes, int):
+        dimensions = dimensions_or_sizes
+        sizes = None
+    else:
+        dimensions = len(dimensions_or_sizes)
+        sizes = [_ for _ in dimensions_or_sizes]
+    return typed_ast3.Subscript(
+        value=typed_ast3.Attribute(
+            value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
+            attr='ndarray', ctx=typed_ast3.Load()),
+        slice=typed_ast3.Index(value=typed_ast3.Tuple(
+            elts=[typed_ast3.Num(n=dimensions), data_type] +
+            [typed_ast3.Tuple(elts=sizes)] if sizes else [])),
+        ctx=typed_ast3.Load())
 
 
 STANDALONE_EXPRESSION_TYPES = (
