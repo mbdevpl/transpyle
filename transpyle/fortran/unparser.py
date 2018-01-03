@@ -141,8 +141,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write('integer')
         else:
             raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(tree)))
-            #self._unsupported_syntax(tree)
-            #self.dispatch(tree)
+            # self._unsupported_syntax(tree)
+            # self.dispatch(tree)
 
     def dispatch_for_iter(self, tree):
         if not isinstance(tree, typed_ast3.Call) \
@@ -173,7 +173,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if not names:
             return
         self.fill('use ')
-        #print([typed_astunparse.unparse(_) for _ in names])
+        # print([typed_astunparse.unparse(_) for _ in names])
         interleave(lambda: self.write(', '), self.dispatch, names)
 
     def _ImportFrom(self, t):
@@ -211,8 +211,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.write(value)
                 self.write(')')
         # raise NotImplementedError('Assign with Fortran metadata: {}'.format(metadata))
+        assert len(t.targets) == 1
         self.write(' :: ')
-        self.dispatch(t.target)
+        self.dispatch(t.targets[0])
         if t.value:
             self.write(" = ")
             self.dispatch(t.value)
@@ -224,12 +225,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.value)
 
     def _AnnAssign(self, t):
-        if isinstance(t.annotation, typed_ast3.NameConstant):
-            assert t.annotation.value is None
-            assert isinstance(t.target, typed_ast3.Name)
-            assert t.target.id == 'implicit'
+        if isinstance(t.target, typed_ast3.Name) and t.target.id.lower() == 'implicit':
+            assert t.value is None
             self.fill()
-            self.write('implicit none')
+            self.dispatch(t.target)
+            self.write(' ')
+            self.dispatch(t.annotation)
             return
         self.fill()
         metadata = getattr(t, 'fortran_metadata', {})
@@ -256,7 +257,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(" = ")
             self.dispatch(t.value)
 
-    #def _Return(self, t):
+    # def _Return(self, t):
     #    self.fill("return")
     #    if t.value:
     #        self.write(" ")
@@ -324,9 +325,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(')')
         if t.returns:
             _LOG.warning('skipping return')
-            #raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
-            #self.write(' result ')
-            #self.dispatch(t.returns)
+            # raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+            # self.write(' result ')
+            # self.dispatch(t.returns)
         self.enter()
         self.dispatch(t.body)
         self.leave()
@@ -388,7 +389,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(repr(tree.s))
 
     def _FormattedValue(self, t):
-        if t.conversion != -1 or t.format_spec != None:
+        if t.conversion != -1 or t.format_spec is not None:
             self._unsupported_syntax(t)
         self.dispatch(t.value)
 
@@ -402,9 +403,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def _NameConstant(self, t):
         if t.value is None:
-            _LOG.error('unparsing invalid Fortran from """%s"""', typed_astunparse.dump(t))
+            _LOG.warning('possibly invalid Fortran in """%s"""', typed_astunparse.dump(t))
         self.write({
-            None: '.none.',
+            None: 'none',
             False: '.false.',
             True: '.true.'}[t.value])
 
@@ -481,7 +482,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     cmpops = {
         'Eq': '==', 'NotEq': '<>', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
-        #'Is': '===', 'IsNot': 'is not'}
+    #    'Is': '===', 'IsNot': 'is not'}
     def _Compare(self, t):
         if len(t.ops) > 1 or len(t.comparators) > 1 \
                 or any([o.__class__.__name__ not in self.cmpops for o in t.ops]):
@@ -495,7 +496,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         interleave(lambda: self.write(s), self.dispatch, t.values)
         self.write(")")
 
-    def _Attribute(self,t):
+    def _Attribute(self, t):
+        if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Fortran':
+            raise NotImplementedError('Fortran.{} can be handled only when subscripted.'
+                                      .format(t.attr))
+        self._unsupported_syntax(t)
+        '''
         code = typed_astunparse.unparse(t).strip()
         if code == 't.IO':
             self.write('integer')
@@ -503,6 +509,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             pass
         else:
             self._unsupported_syntax(t)
+        '''
 
     def _Call(self, t):
         if getattr(t, 'fortran_metadata', {}).get('is_procedure_call', False):
@@ -534,15 +541,33 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.dispatch(e)
 
     def _Subscript(self, t):
+        val = t.value
+        if isinstance(val, typed_ast3.Attribute) and isinstance(val.value, typed_ast3.Name) \
+                and val.value.id == 'Fortran':
+            attr = val.attr
+            if attr == 'file_handles':
+                self.dispatch(t.slice)
+            elif attr == 'TypeByNamePrefix':
+                base_type, letter_ranges = t.slice.value.elts
+                assert isinstance(letter_ranges, list), type(letter_ranges)
+                # _LOG.warning('%s', type(letter_ranges))
+                # assert False, (type(letter_ranges), letter_ranges)
+                self.dispatch_var_type(base_type)
+                self.write(' (')
+                interleave(lambda: self.write(', '), lambda _: _.s[1:-1], letter_ranges)
+                self.write(')')
+            else:
+                raise NotImplementedError('Fortran.{}[] cannot be handled yet.'.format(attr))
+            return
         self.dispatch(t.value)
         self.write("(")
         self.dispatch(t.slice)
-        #if isinstance(t.slice, typed_ast3.Index):
-        #elif isinstance(t.slice, typed_ast3.Slice):
+        # if isinstance(t.slice, typed_ast3.Index):
+        # elif isinstance(t.slice, typed_ast3.Slice):
         #    raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
-        #elif isinstance(t.slice, typed_ast3.ExtSlice):
+        # elif isinstance(t.slice, typed_ast3.ExtSlice):
         #    raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
-        #else:
+        # else:
         #    raise ValueError()
         self.write(")")
 
@@ -551,7 +576,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     # slice
     def _Ellipsis(self, t):
-        #self._unsupported_syntax(t)
+        # self._unsupported_syntax(t)
         _LOG.warning('special usage of Ellipsis')
         self.write('*')
 

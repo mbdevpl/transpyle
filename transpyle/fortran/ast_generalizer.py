@@ -4,6 +4,7 @@ import collections.abc
 import functools
 import itertools
 import logging
+import re
 import typing as t
 import xml.etree.ElementTree as ET
 
@@ -13,6 +14,7 @@ import typed_astunparse
 
 from ..general import Language, AstGeneralizer
 from ..python import make_numpy_constructor, make_st_ndarray
+from .definitions import INTRINSICS_FORTRAN_TO_PYTHON, INTRINSICS_SPECIAL_CASES
 
 _LOG = logging.getLogger(__name__)
 
@@ -95,6 +97,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             ]
 
     def transform(self, node: ET.Element, warn: bool = True):
+        """Transform single node of Fortran XML AST."""
         transform_name = '_{}'.format(node.tag.replace('-', '_'))
         if transform_name not in self._transforms:
             if warn:
@@ -109,6 +112,7 @@ class FortranAstGeneralizer(AstGeneralizer):
     def transform_all_subnodes(
             self, node: ET.Element, warn: bool = True, skip_empty: bool = False,
             ignored: t.Set[str] = None):
+        """Transform all subnodes of a given node of Fortran XML AST."""
         assert node is not None
         transformed = []
         for subnode in node:
@@ -181,7 +185,8 @@ class FortranAstGeneralizer(AstGeneralizer):
             name=node.attrib['name'], bases=[], keywords=[], body=members, decorator_list=[])
         return [conditional, clsdef]
         # _LOG.warning('%s', ET.tostring(node).decode().rstrip())
-        # raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        # raise NotImplementedError('not implemented handling of:\n{}'
+        #                          .format(ET.tostring(node).decode().rstrip()))
 
     def _function(self, node: ET.Element):
         arguments = self.transform(node.find('./header/names'))
@@ -210,7 +215,8 @@ class FortranAstGeneralizer(AstGeneralizer):
         return typed_ast3.arguments(
             args=self.transform_all_subnodes(
                 node, warn=False, ignored={
-                    'dummy-arg-list__begin', 'dummy-arg-list'} | {'generic-name-list__begin', 'generic-name-list'}),
+                    'dummy-arg-list__begin', 'dummy-arg-list',
+                    'generic-name-list__begin', 'generic-name-list'}),
             vararg=None, kwonlyargs=[], kwarg=None, defaults=[], kw_defaults=[])
 
     def _argument(self, node: ET.Element) -> typed_ast3.arg:
@@ -256,7 +262,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         return declarations
 
     def _declaration(self, node: ET.Element) -> typed_ast3.AnnAssign:
-        #if 'type' not in node.attrib:
+        # if 'type' not in node.attrib:
         #    # return []  # TODO: TMP
         #    raise SyntaxError(
         #        '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
@@ -264,21 +270,16 @@ class FortranAstGeneralizer(AstGeneralizer):
         if declaration_type is None:
             pass
         elif declaration_type == 'implicit':
-            # TODO: generate comment here maybe?
-            if node.attrib['subtype'].lower() == 'none':
-                annotation = typed_ast3.NameConstant(value=None)
-            else:
-                annotation = typed_ast3.Str(s=node.attrib['subtype'])
-            return typed_ast3.AnnAssign(
-                target=typed_ast3.Name(id='implicit'), annotation=annotation, value=None,
-                simple=True)
+            return self._declaration_implicit(node)
         elif declaration_type == 'variable':
             return self._declaration_variable(node)
+        # elif declaration_type == 'variable-dimensions':
+        #    return self._declaration_variable_dimensions(node)
         elif declaration_type == 'parameter':
             return self._declaration_parameter(node)
         elif declaration_type == 'include':
             return self._declaration_include(node)
-        elif declaration_type in ('data', 'external'):
+        elif declaration_type in ('variable-dimensions', 'data', 'external'):
             return typed_ast3.Expr(value=typed_ast3.Call(
                 func=typed_ast3.Name(id='print'),
                 args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
@@ -288,6 +289,38 @@ class FortranAstGeneralizer(AstGeneralizer):
         return details
         # raise NotImplementedError(
         #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+
+    def _declaration_implicit(self, node) -> typed_ast3.AnnAssign:
+        subtype = node.attrib['subtype'].lower()
+        if subtype == 'none':
+            annotation = typed_ast3.NameConstant(value=None)
+        elif subtype == 'some':
+            base_type_node = node.find('./type')
+            base_type = self.transform(base_type_node)
+            letter_ranges_node = node.find('./letter-ranges')
+            letter_ranges = self.transform(letter_ranges_node)
+            annotation = typed_ast3.Subscript(
+                value=typed_ast3.Attribute(value=typed_ast3.Name(id='Fortran',
+                                                                 ctx=typed_ast3.Load()),
+                                           attr='TypeByNamePrefix', ctx=typed_ast3.Load()),
+                slice=typed_ast3.Index(value=typed_ast3.Tuple(elts=[base_type, letter_ranges]),
+                                       ctx=typed_ast3.Load()))
+        else:
+            raise SyntaxError('expecting only "none" or "some", but got "{}"'.format(subtype))
+        return typed_ast3.AnnAssign(
+            target=typed_ast3.Name(id='implicit'), annotation=annotation, value=None,
+            simple=True)
+
+    def _letter_ranges(self, node) -> t.List[typed_ast3.Str]:
+        return self.transform_all_subnodes(node, warn=False,
+                                           ignored={'letter-spec-list__begin', 'letter-spec-list'})
+
+    def _letter_range(self, node) -> typed_ast3.Str:
+        begin = node.attrib['begin']
+        end = node.attrib['end']
+        assert re.fullmatch('[a-zA-Z]', begin), begin
+        assert re.fullmatch('[a-zA-Z]', end), end
+        return typed_ast3.Str(s='[{}-{}]'.format(begin, end))
 
     def _declaration_variable(
             self, node: ET.Element) -> t.Union[
@@ -332,7 +365,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             annotations = [annotation for _ in variables]
         elif has_variable_dimensions:
             self._ensure_top_level_import('static_typing', 'st')
-            annotations = [_ if _ is None else make_st_ndarray(base_type, _)
+            annotations = [base_type if _ is None else make_st_ndarray(base_type, _)
                            for _ in variable_dimensions]
         else:
             annotations = [base_type for _ in variables]
@@ -376,39 +409,8 @@ class FortranAstGeneralizer(AstGeneralizer):
 
         return assignments
 
-        _ = '''
-        if len(variables) == 1:
-            assignments = [typed_ast3.AnnAssign(
-                target=target, annotation=annotation, value=value, simple=True)]
-        else:
-            assert len(variables) == len(value)
-            if not self._split_declarations:
-                value = typed_ast3.Tuple(
-                    elts=[typed_ast3.NameConstant(value=None) if v is None else v for v in value])
-                type_comment = typed_astunparse.unparse(
-                    typed_ast3.Tuple(elts=[annotation for _ in range(len(variables))])).strip()
-                assignments = [typed_ast3.Assign(
-                    argets=[target], value=value, type_comment=type_comment)]
-            else:
-                assignments = [
-                    typed_ast3.AnnAssign(target=var, annotation=annotation, value=val, simple=True)
-                    for var, val in variables]
-        if not metadata:
-            if len(assignments) == 1:
-                return assignments[0]
-        else:
-            for assignment in assignments:
-                assignment.fortran_metadata = metadata
-            if self._split_declarations:
-                new_assignments = []
-                for assignment in assignments:
-                    new_assignments.append(assignment)
-                    new_assignments.append(metadata_node)
-                assignments = new_assignments
-            else:
-                assignments.append(metadata_node)
-        return assignments
-        '''
+    def _declaration_variable_dimensions(self, node):
+        raise NotImplementedError()
 
     def _declaration_parameter(self, node: ET.Element):
         constants_node = node.find('./constants')
@@ -434,6 +436,9 @@ class FortranAstGeneralizer(AstGeneralizer):
         path_attrib = file_node.attrib['path']
         self._ensure_top_level_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
+
+    def _label(self, node: ET.Element) -> typed_ast3.Num:
+        return typed_ast3.Num(n=int(node.attrib['lbl']))
 
     def _format(self, node: ET.Element) -> t.Union[typed_ast3.AnnAssign, typed_ast3.JoinedStr]:
         format_items_node = node.find('./format-items')
@@ -527,7 +532,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         inner_loop = None
         for index_variable in index_variables.findall('./index-variable'):
             if not index_variable:
-                continue # TODO: this is just a duct tape
+                continue  # TODO: this is just a duct tape
             target, iter_ = self._index_variable(index_variable)
             if outer_loop is None:
                 outer_loop = typed_ast3.For(target=target, iter=iter_, body=[], orelse=[])
@@ -535,7 +540,7 @@ class FortranAstGeneralizer(AstGeneralizer):
                 continue
             inner_loop.body = [typed_ast3.For(target=target, iter=iter_, body=[], orelse=[])]
             inner_loop = inner_loop.body[0]
-        #inner_loop.body = [self.transform(self._get_node(node, './assignmet'))]
+        # inner_loop.body = [self.transform(self._get_node(node, './assignmet'))]
         inner_loop.body = self.transform_all_subnodes(self._get_node(node, './body'), warn=False)
         return outer_loop
 
@@ -563,11 +568,27 @@ class FortranAstGeneralizer(AstGeneralizer):
             args=range_args, keywords=[])
         return target, iter_
 
+    def _continue(self, node: ET.Element) -> typed_ast3.Pass:
+        label_node = node.find('./label')
+        label = None if label_node is None else self.transform(label_node)
+        result = [typed_ast3.Pass()]
+        if label is not None:
+            cmnt = 'label: {}'.format(typed_astunparse.unparse(label).strip())
+            result += [horast_nodes.Comment(value=typed_ast3.Str(s=cmnt), eol=True)]
+        return result
+
     def _cycle(self, node: ET.Element) -> typed_ast3.Continue:
         return typed_ast3.Continue()
 
     def _exit(self, node: ET.Element) -> typed_ast3.Break:
         return typed_ast3.Break()
+
+    def _goto_stmt(self, node):
+        # TODO: make a better placeholder for goto
+        return typed_ast3.Expr(value=typed_ast3.Call(
+            func=typed_ast3.Name(id='print'),
+            args=[typed_ast3.Str(s='goto'), typed_ast3.Str(s=node.attrib['target_label'])],
+            keywords=[]))
 
     def _if(self, node: ET.Element):
         headers = node.findall('./header')
@@ -627,9 +648,10 @@ class FortranAstGeneralizer(AstGeneralizer):
         details = self.transform_all_subnodes(
             node, warn=False, ignored={
                 'action-stmt', 'executable-construct', 'execution-part-construct',
+                'do-term-action-stmt',  # until do loop parsing implementation is changed
                 'execution-part'})
         flatten_sequence(details)
-        #if len(details) == 0:
+        # if len(details) == 0:
         #    args = [
         #        typed_ast3.Str(s=ET.tostring(node).decode().rstrip()),
         #        typed_ast3.Num(n=len(node))]
@@ -667,7 +689,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             assignment = typed_ast3.Assign(targets=[var], value=val, type_comment=None)
             assignment.fortran_metadata = {'is_allocation': True}
             assignments.append(assignment)
-            assignments.append(horast_nodes.Comment(typed_ast3.Str(
+            assignments.append(horast_nodes.Comment(value=typed_ast3.Str(
                 s=' Fortran metadata: {}'.format(repr(assignment.fortran_metadata))), eol=True))
         return assignments
 
@@ -727,7 +749,8 @@ class FortranAstGeneralizer(AstGeneralizer):
         call = called[0]
         if not isinstance(call, typed_ast3.Call):
             name_node = node.find('./name')
-            is_intrinsic = name_node.attrib['id'] in self._intrinsics_converters if name_node is not None else False
+            is_intrinsic = name_node.attrib['id'].lower() in self._intrinsics_converters \
+                if name_node is not None else False
             if is_intrinsic:
                 if isinstance(call, typed_ast3.Call):
                     call.fortran_metadata = {'is_procedure_call': True}
@@ -1060,9 +1083,9 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _operation_unary(self, node: ET.Element):
         operators_and_operands = self.transform_all_subnodes(
-            node, skip_empty=True) #, ignored={
-            #    'add-operand__add-op', 'add-operand', 'mult-operand__mult-op', 'mult-operand',
-            #    'primary'})
+            node, skip_empty=True)  # , ignored={
+        #        'add-operand__add-op', 'add-operand', 'mult-operand__mult-op', 'mult-operand',
+        #        'primary'})
         assert isinstance(operators_and_operands, list), operators_and_operands
         assert len(operators_and_operands) == 2, operators_and_operands
         operation_type, operator_type = operators_and_operands[0]
@@ -1080,7 +1103,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             })
         if len(operand) != 1:
             _LOG.warning('%s', ET.tostring(node).decode().rstrip())
-            #_LOG.error("%s", operand)
+            # _LOG.error("%s", operand)
             _LOG.error([typed_astunparse.unparse(_).rstrip() for _ in operand])
             raise SyntaxError(
                 'expected exactly one operand but got {} in:\n{}'
@@ -1098,7 +1121,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             '/': (typed_ast3.BinOp, typed_ast3.Div),
             '%': (typed_ast3.BinOp, typed_ast3.Mod),
             '**': (typed_ast3.BinOp, typed_ast3.Pow),
-            '//': (typed_ast3.BinOp, typed_ast3.Add), # concatenation operator, only in Fortran
+            '//': (typed_ast3.BinOp, typed_ast3.Add),  # concatenation operator, only in Fortran
             # LShift
             # RShift
             # BitOr
@@ -1146,7 +1169,8 @@ class FortranAstGeneralizer(AstGeneralizer):
                 .format(values, ET.tostring(node).decode().rstrip()))
 
         header_node = node.find('./header')
-        header = self.transform_all_subnodes(header_node, warn=False, ignored={'ac-implied-do-control'})
+        header = self.transform_all_subnodes(header_node, warn=False,
+                                             ignored={'ac-implied-do-control'})
         assert len(header) == 1
         comp_target, comp_iter = header[0]
         generator = typed_ast3.comprehension(
@@ -1239,8 +1263,8 @@ class FortranAstGeneralizer(AstGeneralizer):
             if isinstance(kind, typed_ast3.Num):
                 kind = kind.n
             if not isinstance(kind, int):
-                #_LOG.warning('%s', ET.tostring(node).decode().rstrip())
-                #raise NotImplementedError('non-literal kinds are not supported')
+                # _LOG.warning('%s', ET.tostring(node).decode().rstrip())
+                # raise NotImplementedError('non-literal kinds are not supported')
                 python_type = typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
                 self._ensure_top_level_import('static_typing', 'st')
                 static_type = typed_ast3.Attribute(
@@ -1248,11 +1272,11 @@ class FortranAstGeneralizer(AstGeneralizer):
                     attr=python_type, ctx=typed_ast3.Load())
                 return typed_ast3.Subscript(
                     value=static_type, slice=typed_ast3.Index(value=kind), ctx=typed_ast3.Load())
-                #typed_ast3.parse({
+                # typed_ast3.parse({
                 #    'integer': 'st.int[0]'.format(kind),
                 #    'real': lambda kind: 'st.float[0]'.format(kind)}[name](kind), mode='eval')
-                #custom_kind_type.
-                #return custom_kind_type
+                # custom_kind_type.
+                # return custom_kind_type
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, kind], mode='eval')
         else:
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
@@ -1309,8 +1333,13 @@ class FortranAstGeneralizer(AstGeneralizer):
             value=typed_ast3.Subscript(
                 value=typed_ast3.Attribute(value=typed_ast3.Name(id='os', ctx=typed_ast3.Load()),
                                            attr='environ', ctx=typed_ast3.Load()),
-                slice=typed_ast3.Index(value=call.args[0]), ctx=typed_ast3.Load())
-            , type_comment=None)
+                slice=typed_ast3.Index(value=call.args[0]), ctx=typed_ast3.Load()),
+            type_comment=None)
+
+    def _intrinsic_trim(self, call):
+        return typed_ast3.Call(
+            func=typed_ast3.Attribute(value=call.args[0], attr='rstrip', ctx=typed_ast3.Load()),
+            args=call.args[1:], keywords=[])
 
     def _intrinsic_count(self, call):
         assert isinstance(call, typed_ast3.Call), type(call)
@@ -1318,6 +1347,11 @@ class FortranAstGeneralizer(AstGeneralizer):
         return typed_ast3.Call(
             func=typed_ast3.Attribute(value=call.args[0], attr='sum', ctx=typed_ast3.Load()),
             args=[], keywords=[])
+
+    def _intrinsic_converter_rename(self, call, name: str):
+        assert isinstance(call.func, typed_ast3.Name)
+        call.func.id = name
+        return call
 
     def _intrinsic_converter_not_implemented(self, call):
         raise NotImplementedError(
@@ -1332,9 +1366,36 @@ class FortranAstGeneralizer(AstGeneralizer):
                                       attr=name, ctx=typed_ast3.Load()),
             args=call.args, keywords=call.keywords)
 
+    _convgen_specials = {
+        'getenv': _intrinsic_getenv,
+        'trim': _intrinsic_trim,
+        'count': _intrinsic_count}
+
+    @classmethod
+    def _convgen(cls, case, value):
+        if value is None:
+            return cls._intrinsic_converter_not_implemented
+        if case in INTRINSICS_SPECIAL_CASES:
+            return cls._convgen_specials[case]
+        if case == value:
+            return cls._intrinsic_identity
+        if isinstance(value, str):
+            return functools.partial(cls._intrinsic_converter_rename, name=value)
+        assert isinstance(value, tuple), type(value)
+        assert len(value) == 2, value
+        package, function = value
+        if package == 'numpy':
+            if value == function:
+                return cls._intrinsic_numpy_call
+            return functools.partial(cls._intrinsic_numpy_call, name=function)
+        raise NotImplementedError((case, value))
+
+    _intrinsics_converters = {}
+
+    '''
     _intrinsics_converters = {
         # Fortran 77
-        'abs': _intrinsic_identity, # np.absolute
+        'abs': _intrinsic_identity,  # np.absolute
         'acos': _intrinsic_converter_not_implemented,
         'aimag': _intrinsic_converter_not_implemented,
         'aint': _intrinsic_converter_not_implemented,
@@ -1347,7 +1408,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         'conjg': _intrinsic_converter_not_implemented,
         'cos': _intrinsic_numpy_call,
         'cosh': _intrinsic_converter_not_implemented,
-        'dble': _intrinsic_converter_not_implemented,
+        'dble': functools.partial(_intrinsic_converter_rename, name='float'),  # incorrect
         'dim': _intrinsic_converter_not_implemented,
         'dprod': _intrinsic_converter_not_implemented,
         'exp': _intrinsic_converter_not_implemented,
@@ -1365,7 +1426,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         'min': functools.partial(_intrinsic_numpy_call, name='minimum'),
         'mod': _intrinsic_converter_not_implemented,
         'nint': _intrinsic_converter_not_implemented,
-        'real': _intrinsic_converter_not_implemented,
+        'real': functools.partial(_intrinsic_converter_rename, name='float'),
         'sign': _intrinsic_converter_not_implemented,
         'sin': _intrinsic_numpy_call,
         'sinh': _intrinsic_converter_not_implemented,
@@ -1383,9 +1444,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         'len_trim': _intrinsic_converter_not_implemented,
         'repeat': _intrinsic_converter_not_implemented,
         'scan': _intrinsic_converter_not_implemented,
-        'trim': lambda self, call: typed_ast3.Call(
-            func=typed_ast3.Attribute(value=call.args[0], attr='rstrip', ctx=typed_ast3.Load()),
-            args=call.args[1:], keywords=[]),
+        'trim': _intrinsic_trim,
         'verify': _intrinsic_converter_not_implemented,
         # Logical function
         'logical': _intrinsic_converter_not_implemented,
@@ -1422,6 +1481,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         # Fortran 2003
         # Fortran 2008
         }
+    '''
 
     def _name(self, node: ET.Element) -> typed_ast3.AST:
         name_str = node.attrib['id']
@@ -1438,7 +1498,8 @@ class FortranAstGeneralizer(AstGeneralizer):
                 name_type = "function"
                 call = self._intrinsics_converters[name_str](self, call)
         except SyntaxError:
-            _LOG.info('transforming name to call failed as below (continuing despite that)', exc_info=True)
+            _LOG.info('transforming name to call failed as below (continuing despite that)',
+                      exc_info=True)
 
         slice_ = self._subscripts(subscripts_node) if subscripts_node else None
         subscript = typed_ast3.Subscript(value=name, slice=slice_, ctx=typed_ast3.Load())
@@ -1454,10 +1515,13 @@ class FortranAstGeneralizer(AstGeneralizer):
         elif name_type in ("ambiguous",):
             return subscript
         elif name_type is not None:
-            raise NotImplementedError('unrecognized name type "{}" in:\n{}'.format(name_type, ET.tostring(node).decode().rstrip()))
+            raise NotImplementedError('unrecognized name type "{}" in:\n{}'
+                                      .format(name_type, ET.tostring(node).decode().rstrip()))
         elif name_type is None:
-            raise NotImplementedError('no name type in:\n{}'.format(ET.tostring(node).decode().rstrip()))
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+            raise NotImplementedError('no name type in:\n{}'
+                                      .format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError('not implemented handling of:\n{}'
+                                  .format(ET.tostring(node).decode().rstrip()))
 
     def _args(self, node: ET.Element, arg_node_name: str = 'subscript') -> t.List[typed_ast3.AST]:
         args = []
@@ -1521,3 +1585,8 @@ class FortranAstGeneralizer(AstGeneralizer):
             return typed_ast3.Str(s=node.attrib['value'][1:-1])
         _LOG.warning('%s', ET.tostring(node).decode().rstrip())
         raise NotImplementedError('literal type "{}" not supported'.format(literal_type))
+
+
+FortranAstGeneralizer._intrinsics_converters = {
+    case: FortranAstGeneralizer._convgen(case, value)
+    for case, value in INTRINSICS_FORTRAN_TO_PYTHON.items()}

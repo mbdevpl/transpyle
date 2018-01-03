@@ -46,10 +46,11 @@ _APPS_CODE_FILEPATHS = {
                      pathlib.Path(_APPS_ROOT_PATHS['FFB-MINI'], 'src')))
                  for name in files
                  if pathlib.Path(name).suffix in ('.f', '.F', '.f90') and name not in (
-                     'bcgs3x.F', 'bcgsxe.F', 'calax3.F', 'callap.F', 'dd_mpi.F', 'e2plst.F',
-                     'extrfn.F', 'gfutil.f', 'grad3x.F', 'les3x.F', 'lesrop.F', 'lesrpx.F',
-                     'lessfx.F', 'lrfnms.F', 'miniapp_util.F', 'mfname.F', 'neibr2.F', 'nodlex.F',
-                     'pres3e.F', 'rcmelm.F', 'rfname.F', 'srfexx.F', 'vel3d1.F', 'vel3d2.F')]}
+                     'bcgs3x.F', 'bcgsxe.F', 'calax3.F', 'callap.F', 'ddcom4.F', 'dd_mpi.F',
+                     'e2plst.F', 'extrfn.F', 'gfutil.f', 'grad3x.F', 'les3x.F', 'lesrop.F',
+                     'lesrpx.F', 'lessfx.F', 'lrfnms.F', 'miniapp_util.F', 'mfname.F', 'neibr2.F',
+                     'nodlex.F', 'pres3e.F', 'rcmelm.F', 'reordr.F', 'rfname.F', 'srfexx.F',
+                     'vel3d1.F', 'vel3d2.F')]}
 
 
 def _prepare_roundtrip(case, language: Language):
