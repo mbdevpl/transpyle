@@ -2,6 +2,7 @@ argunparse
 astunparse
 horast
 loo.py
+pandas
 static-typing
 typed_ast
 typed-astunparse
