@@ -49,6 +49,7 @@ install:
   - pip install -U pip
   - pip install ply # workaround for broken packaging of pcpp
   - pip install git+https://github.com/ned14/pcpp.git # workaround for broken packaging of pcpp
+  - pip install git+https://github.com/mbdevpl/open-fortran-parser-xml.git # use OFP XML from repo
   - pip install -U -r dev_requirements.txt
 
 script:
