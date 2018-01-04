@@ -679,5 +679,5 @@ class Fortran2008Unparser(Unparser):
 
     def unparse(self, tree, indent: int = 2, fixed_form: bool = False) -> str:
         stream = io.StringIO()
-        Fortran77UnparserBackend(tree, file=stream, indent=indent, fixed_form=fixed_form)
+        Fortran2008UnparserBackend(tree, file=stream, indent=indent, fixed_form=fixed_form)
         return stream.getvalue()

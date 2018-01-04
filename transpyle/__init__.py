@@ -4,7 +4,6 @@ import logging
 
 _LOG = logging.getLogger(__name__)
 
-#from .general import *
 from .python import *
 
 try:
@@ -17,20 +16,20 @@ try:
 except ImportError:
     _LOG.warning("C++ unavailable")
 
-try:
-    from .cython import *
-except ImportError:
-    _LOG.warning("Cython unavailable")
+# try:
+#    from .cython import *
+# except ImportError:
+#    _LOG.warning("Cython unavailable")
 
 try:
     from .fortran import *
 except ImportError:
     _LOG.warning("Fortran unavailable")
 
-try:
-    from .opencl import *
-except ImportError:
-    _LOG.warning("OpenCL unavailable")
+# try:
+#    from .opencl import *
+# except ImportError:
+#    _LOG.warning("OpenCL unavailable")
 
 _ = '''
 def instantiate_auto_processors():
