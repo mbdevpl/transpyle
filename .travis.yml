@@ -50,11 +50,21 @@ install:
   - pip install -U pip
   - pip install ply # workaround for broken packaging of pcpp
   - pip install git+https://github.com/ned14/pcpp.git # workaround for broken packaging of pcpp
+  # CastXML
+  - |
+    set -e
+    git clone "https://github.com/CastXML/CastXML" "../CastXML"
+    cd "../CastXML"
+    cmake .
+    make
+    export PATH="$(pwd)/bin:${PATH}"
+    cd -
+    set +e
   # use OFP XML from repo
   - |
     set -e
-    git clone "https://github.com/mbdevpl/open-fortran-parser-xml"
-    cd open-fortran-parser-xml
+    git clone "https://github.com/mbdevpl/open-fortran-parser-xml" "../open-fortran-parser-xml"
+    cd "../open-fortran-parser-xml"
     pip install -U -r dev_requirements.txt
     python -m open_fortran_parser --dev-deps
     ant

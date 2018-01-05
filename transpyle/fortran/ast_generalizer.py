@@ -12,9 +12,11 @@ import horast.nodes as horast_nodes
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
-from ..general import Language, AstGeneralizer
+from ..general import Language, XmlAstGeneralizer
 from ..python import make_numpy_constructor, make_st_ndarray
-from .definitions import INTRINSICS_FORTRAN_TO_PYTHON, INTRINSICS_SPECIAL_CASES
+from .definitions import \
+    FORTRAN_PYTHON_TYPE_PAIRS, FORTRAN_PYTHON_OPERATORS, INTRINSICS_FORTRAN_TO_PYTHON, \
+    INTRINSICS_SPECIAL_CASES
 
 _LOG = logging.getLogger(__name__)
 
@@ -28,19 +30,6 @@ def flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
             del sequence[i + len(elem)]
 
 
-FORTRAN_PYTHON_TYPE_PAIRS = {
-    ('logical', None): 'bool',
-    ('integer', None): 'int',
-    ('real', None): 'float',
-    ('character', t.Any): 'str',
-    ('integer', 1): 'np.int8',
-    ('integer', 2): 'np.int16',
-    ('integer', 4): 'np.int32',
-    ('integer', 8): 'np.int64',
-    ('real', 2): 'np.float16',
-    ('real', 4): 'np.float32',
-    ('real', 8): 'np.float64'}
-
 PYTHON_TYPE_ALIASES = {
     'bool': ('np.bool_',),
     'int': ('np.int_', 'np.intc', 'np.intp'),
@@ -52,7 +41,7 @@ FORTRAN_PYTHON_FORMAT_SPEC = {
     'I': int}
 
 
-class FortranAstGeneralizer(AstGeneralizer):
+class FortranAstGeneralizer(XmlAstGeneralizer):
 
     """Transform Fortran AST in XML format into typed Python AST.
 
@@ -64,79 +53,11 @@ class FortranAstGeneralizer(AstGeneralizer):
     def __init__(self, split_declarations: bool = True):
         super().__init__(Language.find('Fortran 2008'))
         self._split_declarations = split_declarations
-
         self._now_parsing_file = False
-        self._top_level_imports = dict()
-        self._transforms = [f for f in dir(self) if not f.startswith('__')]
 
-    def generalize(self, root_node: ET.Element) -> typed_ast3.AST:
-        file_node = root_node[0]
-        return self.transform(file_node)
-
-    def _ensure_top_level_import(self, canonical_name: str, alias: t.Optional[str] = None):
-        if (canonical_name, alias) not in self._top_level_imports:
-            if canonical_name in ('mpif.h', '?'):  # TODO: other ways to include MPI?
-                self._ensure_mpi_import(canonical_name, alias)
-            else:
-                self._top_level_imports[canonical_name, alias] = [typed_ast3.Import(
-                    names=[typed_ast3.alias(name=canonical_name, asname=alias)])]
-
-    def _get_node(self, node: ET.Element, xpath: str) -> ET.Element:
-        found = node.find(xpath)
-        if found is None:
-            raise SyntaxError('no "{}" found in "{}":\n{}'
-                              .format(xpath, node.tag, ET.tostring(node).decode().rstrip()))
-        return found
-
-    def _ensure_mpi_import(self, canonical_name, alias):
-        # if ('mpi4py', None) not in self._top_level_imports:
-        self._top_level_imports[canonical_name, alias] = [
-            typed_ast3.ImportFrom(
-                module='mpi4py', names=[typed_ast3.alias(name='MPI', asname=None)], level=0),
-            # typed_ast3.parse('mpi4py.config = no_auto_init', mode='eval') # TODO: may be needed
-            ]
-
-    def transform(self, node: ET.Element, warn: bool = True):
-        """Transform single node of Fortran XML AST."""
-        transform_name = '_{}'.format(node.tag.replace('-', '_'))
-        if transform_name not in self._transforms:
-            if warn:
-                _LOG.warning('no transformer available for node "%s"', node.tag)
-                _LOG.debug('%s', ET.tostring(node).decode().rstrip())
-            raise NotImplementedError(
-                'no transformer available for node "{}":\n{}'.format(
-                    node.tag, ET.tostring(node).decode().rstrip()))
-        _transform = getattr(self, transform_name)
-        return _transform(node)
-
-    def transform_all_subnodes(
-            self, node: ET.Element, warn: bool = True, skip_empty: bool = False,
-            ignored: t.Set[str] = None):
-        """Transform all subnodes of a given node of Fortran XML AST."""
-        assert node is not None
-        transformed = []
-        for subnode in node:
-            if skip_empty and not subnode.attrib and len(subnode) == 0:
-                continue
-            transform_name = '_{}'.format(subnode.tag.replace('-', '_'))
-            if transform_name not in self._transforms:
-                if ignored and subnode.tag in ignored:
-                    continue
-                if warn:
-                    _LOG.warning(
-                        'no transformer available for node "%s", a subnode of "%s"',
-                        subnode.tag, node.tag)
-                    _LOG.debug('%s', ET.tostring(subnode).decode().rstrip())
-                    continue
-                raise NotImplementedError(
-                    'no transformer available for node "{}", a subnode of "{}":\n{}'.format(
-                        subnode.tag, node.tag, ET.tostring(subnode).decode().rstrip()))
-            if ignored and subnode.tag in ignored:
-                _LOG.warning('ignoring existing transformer for %s', subnode.tag)
-                continue
-            _transform = getattr(self, transform_name)
-            transformed.append(_transform(subnode))
-        return transformed
+    def _ofp(self, node: ET.Element):
+        assert len(node) == 1
+        return self.transform_one(node[0])
 
     def _file(self, node: ET.Element) -> t.Union[typed_ast3.Module, typed_ast3.Expr]:
         if not self._now_parsing_file:
@@ -189,7 +110,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         #                          .format(ET.tostring(node).decode().rstrip()))
 
     def _function(self, node: ET.Element):
-        arguments = self.transform(node.find('./header/names'))
+        arguments = self.transform_one(node.find('./header/names'))
         body = self.transform_all_subnodes(node.find('./body'))
         return typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
@@ -205,7 +126,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         if arguments_node is None:
             arguments = []
         else:
-            arguments = self.transform(arguments_node)
+            arguments = self.transform_one(arguments_node)
         body = self.transform_all_subnodes(node.find('./body'))
         return typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
@@ -296,9 +217,9 @@ class FortranAstGeneralizer(AstGeneralizer):
             annotation = typed_ast3.NameConstant(value=None)
         elif subtype == 'some':
             base_type_node = node.find('./type')
-            base_type = self.transform(base_type_node)
+            base_type = self.transform_one(base_type_node)
             letter_ranges_node = node.find('./letter-ranges')
-            letter_ranges = self.transform(letter_ranges_node)
+            letter_ranges = self.transform_one(letter_ranges_node)
             annotation = typed_ast3.Subscript(
                 value=typed_ast3.Attribute(value=typed_ast3.Name(id='Fortran',
                                                                  ctx=typed_ast3.Load()),
@@ -345,7 +266,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         base_type_node = node.find('./type')
         if base_type_node is None:
             raise SyntaxError('"type" node not present in\n{}', ET.tostring(node).decode().rstrip())
-        base_type = self.transform(base_type_node)
+        base_type = self.transform_one(base_type_node)
 
         # dimensionality information (only for array types)
         dimensions_node = node.find('./dimensions')
@@ -358,7 +279,7 @@ class FortranAstGeneralizer(AstGeneralizer):
             raise SyntaxError(
                 'declaration dimension data as well as per-variable dimension data present')
         if dimensions_node is not None:
-            dimensions = self.transform(dimensions_node)
+            dimensions = self.transform_one(dimensions_node)
             assert len(dimensions) >= 1
             self._ensure_top_level_import('static_typing', 'st')
             annotation = make_st_ndarray(base_type, dimensions)
@@ -441,8 +362,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         return typed_ast3.Num(n=int(node.attrib['lbl']))
 
     def _format(self, node: ET.Element) -> t.Union[typed_ast3.AnnAssign, typed_ast3.JoinedStr]:
-        format_items_node = node.find('./format-items')
-        value = self.transform(format_items_node, warn=False)
+        value = self.transform_one(self.get_one(node, './format-items'), warn=False)
         label_node = node.find('./label')
         if label_node is None:
             return value
@@ -540,8 +460,8 @@ class FortranAstGeneralizer(AstGeneralizer):
                 continue
             inner_loop.body = [typed_ast3.For(target=target, iter=iter_, body=[], orelse=[])]
             inner_loop = inner_loop.body[0]
-        # inner_loop.body = [self.transform(self._get_node(node, './assignmet'))]
-        inner_loop.body = self.transform_all_subnodes(self._get_node(node, './body'), warn=False)
+        # inner_loop.body = [self.transform_one(self.get_one(node, './assignmet'))]
+        inner_loop.body = self.transform_all_subnodes(self.get_one(node, './body'), warn=False)
         return outer_loop
 
     def _index_variable(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, typed_ast3.Call]:
@@ -570,7 +490,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _continue(self, node: ET.Element) -> typed_ast3.Pass:
         label_node = node.find('./label')
-        label = None if label_node is None else self.transform(label_node)
+        label = None if label_node is None else self.transform_one(label_node)
         result = [typed_ast3.Pass()]
         if label is not None:
             cmnt = 'label: {}'.format(typed_astunparse.unparse(label).strip())
@@ -667,7 +587,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _allocate(self, node: ET.Element) -> t.List[typed_ast3.Assign]:
         expressions_node = node.find('./expressions')
-        expressions = self.transform(expressions_node, warn=False)
+        expressions = self.transform_one(expressions_node, warn=False)
         assignments = []
         for expression in expressions:
             assert isinstance(expression, typed_ast3.Subscript), type(expression)
@@ -725,7 +645,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _deallocate(self, node: ET.Element) -> typed_ast3.Delete:
         expressions_node = node.find('./expressions')
-        expressions = self.transform(expressions_node, warn=False)
+        expressions = self.transform_one(expressions_node, warn=False)
         targets = []
         for expression in expressions:
             assert isinstance(expression, typed_ast3.Name), type(expression)
@@ -768,10 +688,10 @@ class FortranAstGeneralizer(AstGeneralizer):
         written = []
         io_controls_node = node.find('./io-controls')
         if io_controls_node is not None:
-            args = self.transform(io_controls_node, warn=False)
+            args = self.transform_one(io_controls_node, warn=False)
         outputs_node = node.find('./outputs')
         if outputs_node is not None:
-            written = self.transform(outputs_node, warn=False)
+            written = self.transform_one(outputs_node, warn=False)
         if len(written) > 1 or len(args) > 1:
             # file
             pass
@@ -785,8 +705,8 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _read(self, node: ET.Element):
         file_handle = self._create_file_handle_var()
-        io_controls = self.transform(node.find('./io-controls'), warn=False)
-        inputs = self.transform(node.find('./inputs'), warn=False)
+        io_controls = self.transform_one(node.find('./io-controls'), warn=False)
+        inputs = self.transform_one(node.find('./inputs'), warn=False)
         for i, io_control in enumerate(list(io_controls)):
             if isinstance(io_control, typed_ast3.keyword):
                 arg_name = io_control.arg.lower()
@@ -815,11 +735,11 @@ class FortranAstGeneralizer(AstGeneralizer):
         format_ = None
         #if format_node is not None:
         if format_node.attrib['type'] == 'label':
-            format_ = self.transform(format_node, warn=False)
+            format_ = self.transform_one(format_node, warn=False)
         outputs_node = node.find('./outputs')
         args = []
         if outputs_node is not None:
-            args = self.transform(outputs_node, warn=False)
+            args = self.transform_one(outputs_node, warn=False)
             if format_ is not None:
                 if isinstance(format_, typed_ast3.Num):
                     name = 'format_label_{}'.format(format_.n)
@@ -895,7 +815,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _open(self, node: ET.Element) -> typed_ast3.AnnAssign:
         file_handle = self._create_file_handle_var()
-        kwargs = self.transform(node.find('./keyword-arguments'), warn=False)
+        kwargs = self.transform_one(node.find('./keyword-arguments'), warn=False)
         file_handle.slice.value = kwargs.pop(0).value
         filename = None
         mode = ''
@@ -923,7 +843,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _close(self, node: ET.Element) -> typed_ast3.AnnAssign:
         file_handle = self._create_file_handle_var()
-        kwargs = self.transform(node.find('./keyword-arguments'), warn=False)
+        kwargs = self.transform_one(node.find('./keyword-arguments'), warn=False)
         file_handle.slice.value = kwargs.pop(0).value
         self._ensure_top_level_import('typing', 't')
         return typed_ast3.Call(
@@ -1112,46 +1032,7 @@ class FortranAstGeneralizer(AstGeneralizer):
 
     def _operator(
             self, node: ET.Element) -> t.Tuple[t.Type[typed_ast3.AST], t.Type[typed_ast3.AST]]:
-        return {
-            # binary
-            '+': (typed_ast3.BinOp, typed_ast3.Add),
-            '-': (typed_ast3.BinOp, typed_ast3.Sub),
-            '*': (typed_ast3.BinOp, typed_ast3.Mult),
-            # missing: MatMult
-            '/': (typed_ast3.BinOp, typed_ast3.Div),
-            '%': (typed_ast3.BinOp, typed_ast3.Mod),
-            '**': (typed_ast3.BinOp, typed_ast3.Pow),
-            '//': (typed_ast3.BinOp, typed_ast3.Add),  # concatenation operator, only in Fortran
-            # LShift
-            # RShift
-            # BitOr
-            # BitXor
-            # BitAnd
-            # missing: FloorDiv
-            '.eq.': (typed_ast3.Compare, typed_ast3.Eq),
-            '==': (typed_ast3.Compare, typed_ast3.Eq),
-            '.ne.': (typed_ast3.Compare, typed_ast3.NotEq),
-            '/=': (typed_ast3.Compare, typed_ast3.NotEq),
-            '.lt.': (typed_ast3.Compare, typed_ast3.Lt),
-            '<': (typed_ast3.Compare, typed_ast3.Lt),
-            '.le.': (typed_ast3.Compare, typed_ast3.LtE),
-            '<=': (typed_ast3.Compare, typed_ast3.LtE),
-            '.gt.': (typed_ast3.Compare, typed_ast3.Gt),
-            '>': (typed_ast3.Compare, typed_ast3.Gt),
-            '.ge.': (typed_ast3.Compare, typed_ast3.GtE),
-            '>=': (typed_ast3.Compare, typed_ast3.GtE),
-            # Is
-            # IsNot
-            # In
-            # NotIn
-            '.and.': (typed_ast3.BoolOp, typed_ast3.And),
-            '.or.': (typed_ast3.BoolOp, typed_ast3.Or),
-            # unary
-            # '+': (typed_ast3.UnaryOp, typed_ast3.UAdd),
-            # '-': (typed_ast3.UnaryOp, typed_ast3.USub),
-            '.not.': (typed_ast3.UnaryOp, typed_ast3.Not),
-            # Invert: (typed_ast3.UnaryOp, typed_ast3.Invert)
-            }[node.attrib['operator'].lower()]
+        return FORTRAN_PYTHON_OPERATORS[node.attrib['operator'].lower()]
 
     def _array_constructor(self, node: ET.Element) -> typed_ast3.ListComp:
         value_nodes = node.findall('./value')
@@ -1240,8 +1121,8 @@ class FortranAstGeneralizer(AstGeneralizer):
     def _type(self, node: ET.Element) -> type:
         name = node.attrib['name'].lower()
         length = \
-            self.transform(node.find('./length')) if node.attrib['hasLength'] == 'true' else None
-        kind = self.transform(node.find('./kind')) if node.attrib['hasKind'] == 'true' else None
+            self.transform_one(node.find('./length')) if node.attrib['hasLength'] == 'true' else None
+        kind = self.transform_one(node.find('./kind')) if node.attrib['hasKind'] == 'true' else None
         if length is not None and kind is not None:
             raise SyntaxError(
                 'only one of "length" and "kind" can be provided, but both were given'
@@ -1310,7 +1191,7 @@ class FortranAstGeneralizer(AstGeneralizer):
         metadata = {}
         dimensions_node = node.find('./dimensions')
         if dimensions_node is not None:
-            metadata['dimensions'] = self.transform(dimensions_node, warn=False)
+            metadata['dimensions'] = self.transform_one(dimensions_node, warn=False)
         if metadata:
             variable.fortran_metadata = metadata
         return variable, value
@@ -1391,97 +1272,6 @@ class FortranAstGeneralizer(AstGeneralizer):
         raise NotImplementedError((case, value))
 
     _intrinsics_converters = {}
-
-    '''
-    _intrinsics_converters = {
-        # Fortran 77
-        'abs': _intrinsic_identity,  # np.absolute
-        'acos': _intrinsic_converter_not_implemented,
-        'aimag': _intrinsic_converter_not_implemented,
-        'aint': _intrinsic_converter_not_implemented,
-        'anint': _intrinsic_converter_not_implemented,
-        'asin': _intrinsic_converter_not_implemented,
-        'atan': _intrinsic_converter_not_implemented,
-        'atan2': _intrinsic_converter_not_implemented,
-        'char': _intrinsic_converter_not_implemented,
-        'cmplx': _intrinsic_converter_not_implemented,
-        'conjg': _intrinsic_converter_not_implemented,
-        'cos': _intrinsic_numpy_call,
-        'cosh': _intrinsic_converter_not_implemented,
-        'dble': functools.partial(_intrinsic_converter_rename, name='float'),  # incorrect
-        'dim': _intrinsic_converter_not_implemented,
-        'dprod': _intrinsic_converter_not_implemented,
-        'exp': _intrinsic_converter_not_implemented,
-        'ichar': _intrinsic_converter_not_implemented,
-        'index': _intrinsic_converter_not_implemented,
-        'int': _intrinsic_identity,
-        'len': _intrinsic_converter_not_implemented,
-        'lge': _intrinsic_converter_not_implemented,
-        'lgt': _intrinsic_converter_not_implemented,
-        'lle': _intrinsic_converter_not_implemented,
-        'llt': _intrinsic_converter_not_implemented,
-        'log': _intrinsic_converter_not_implemented,
-        'log10': _intrinsic_converter_not_implemented,
-        'max': functools.partial(_intrinsic_numpy_call, name='maximum'),
-        'min': functools.partial(_intrinsic_numpy_call, name='minimum'),
-        'mod': _intrinsic_converter_not_implemented,
-        'nint': _intrinsic_converter_not_implemented,
-        'real': functools.partial(_intrinsic_converter_rename, name='float'),
-        'sign': _intrinsic_converter_not_implemented,
-        'sin': _intrinsic_numpy_call,
-        'sinh': _intrinsic_converter_not_implemented,
-        'sqrt': _intrinsic_numpy_call,
-        'tan': _intrinsic_converter_not_implemented,
-        'tanh': _intrinsic_converter_not_implemented,
-        # non-standard Fortran 77
-        'getenv': _intrinsic_getenv,
-        # Fortran 90
-        # Character string functions
-        'achar': _intrinsic_converter_not_implemented,
-        'adjustl': _intrinsic_converter_not_implemented,
-        'adjustr': _intrinsic_converter_not_implemented,
-        'iachar': _intrinsic_converter_not_implemented,
-        'len_trim': _intrinsic_converter_not_implemented,
-        'repeat': _intrinsic_converter_not_implemented,
-        'scan': _intrinsic_converter_not_implemented,
-        'trim': _intrinsic_trim,
-        'verify': _intrinsic_converter_not_implemented,
-        # Logical function
-        'logical': _intrinsic_converter_not_implemented,
-        # Numerical inquiry functions
-        'digits': _intrinsic_converter_not_implemented,
-        'epsilon': _intrinsic_converter_not_implemented,
-        'huge': _intrinsic_converter_not_implemented,
-        'maxexponent': _intrinsic_converter_not_implemented,
-        'minexponent': _intrinsic_converter_not_implemented,
-        'precision': _intrinsic_converter_not_implemented,
-        'radix': _intrinsic_converter_not_implemented,
-        'range': _intrinsic_converter_not_implemented,
-        'tiny': _intrinsic_converter_not_implemented,
-        # Bit inquiry function
-        'bit_size': _intrinsic_converter_not_implemented,
-        # Vector- and matrix-multiplication functions
-        'dot_product': functools.partial(_intrinsic_numpy_call, name='dot'),
-        'matmul': _intrinsic_converter_not_implemented,
-        # Array functions
-        'all': _intrinsic_converter_not_implemented,
-        'any': _intrinsic_converter_not_implemented,
-        'count': _intrinsic_count,
-        'maxval': _intrinsic_converter_not_implemented,
-        'minval': _intrinsic_converter_not_implemented,
-        'product': _intrinsic_converter_not_implemented,
-        'sum': _intrinsic_identity,
-        # Array location functions
-        'maxloc': functools.partial(_intrinsic_numpy_call, name='argmax'),
-        'minloc':  functools.partial(_intrinsic_numpy_call, name='argmin'),
-        # Fortran 95
-        'cpu_time': _intrinsic_converter_not_implemented,
-        'present': _intrinsic_converter_not_implemented,
-        'set_exponent': _intrinsic_converter_not_implemented,
-        # Fortran 2003
-        # Fortran 2008
-        }
-    '''
 
     def _name(self, node: ET.Element) -> typed_ast3.AST:
         name_str = node.attrib['id']
