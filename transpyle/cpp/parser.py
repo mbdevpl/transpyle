@@ -36,7 +36,7 @@ class CppParser(Parser):
         with tempfile.NamedTemporaryFile(delete=False) as temporary_file:
             output_path = pathlib.Path(temporary_file.name)
         _ = run_castxml(path, output_path, gcc=False)
-        with open(output_path) as output_file:
+        with open(str(output_path)) as output_file:
             output = output_file.read()
         output_path.unlink()
         return ET.fromstring(output)
