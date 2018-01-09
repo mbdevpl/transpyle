@@ -547,7 +547,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'allocation-list__begin', 'allocation-list'})
 
     def _expression(self, node) -> typed_ast3.AST:
-        expression = self.transform_all_subnodes(node, warn=True, ignored={
+        expression = self.transform_all_subnodes(node, ignored={
+            'output-item', 'io-implied-do-object',
             'allocate-object', 'allocation'})
         if len(expression) != 1:
             raise NotImplementedError('exactly one output expected but {} found in:\n{}'.format(
@@ -872,8 +873,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             self, node: ET.Element) -> t.Union[
                 typed_ast3.BinOp, typed_ast3.BoolOp, typed_ast3.Compare]:
         operators_and_operands = self.transform_all_subnodes(node, skip_empty=True, ignored={
-            'add-operand', 'mult-operand', 'and-operand', 'or-operand', 'parenthesized_expr',
-            'primary', 'level-2-expr', 'level-3-expr'})
+            'add-operand', 'mult-operand', 'power-operand', 'and-operand', 'or-operand',
+            'parenthesized_expr', 'primary', 'level-2-expr', 'level-3-expr'})
         assert isinstance(operators_and_operands, list), operators_and_operands
         assert len(operators_and_operands) % 2 == 1, operators_and_operands
 
