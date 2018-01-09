@@ -326,9 +326,6 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
         return assignments
 
-    def _declaration_variable_dimensions(self, node):
-        raise NotImplementedError()
-
     def _declaration_parameter(self, node: ET.Element):
         constants_node = node.find('./constants')
         constants = self.transform_all_subnodes(constants_node, skip_empty=True, ignored={
@@ -605,51 +602,14 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 s=' Fortran metadata: {}'.format(repr(assignment.fortran_metadata))), eol=True))
         return assignments
 
-    '''
-    def _allocations(self, node: ET.Element) -> typed_ast3.Assign:
-        allocation_nodes = node.findall('./allocation')
-        allocations = []
-        for allocation_node in allocation_nodes:
-            if not allocation_node:
-                continue
-            allocation = self.transform_all_subnodes(allocation_node)
-            assert len(allocation) == 1
-            allocations.append(allocation[0])
-        assert len(allocations) == int(node.attrib['count']), (len(allocations), node.attrib['count'])
-        assignments = []
-        for allocation in allocations:
-            assert isinstance(allocation, typed_ast3.Subscript)
-            var = allocation.value
-            if isinstance(allocation.slice, typed_ast3.Index):
-                sizes = [allocation.slice.value]
-            elif isinstance(allocation.slice, typed_ast3.ExtSlice):
-                sizes = allocation.slice.dims
-            else:
-                raise NotImplementedError('unrecognized slice type: "{}"'.format(type(allocation.slice)))
-            val = typed_ast3.Call(
-                func=typed_ast3.Attribute(
-                    value=typed_ast3.Name(id='np'), attr='zeros', ctx=typed_ast3.Load()),
-                args=[typed_ast3.Tuple(elts=sizes)], keywords=[typed_ast3.keyword(arg='dtype', value='t.Any')])
-            assignments.append(
-                typed_ast3.Assign(targets=[var], value=val, type_comment=None))
-        return assignments
-    '''
-
     def _deallocate(self, node: ET.Element) -> typed_ast3.Delete:
         expressions_node = node.find('./expressions')
         expressions = self.transform_one(expressions_node)
         targets = []
         for expression in expressions:
             assert isinstance(expression, typed_ast3.Name), type(expression)
-            #raise NotImplementedError('not handling:\n{}'.format(typed_astunparse.dump(expression)))
             targets.append(expression)
         return typed_ast3.Delete(targets=targets)
-
-    #def _allocate_objects(self, node: ET.Element) -> typed_ast3.Delete:
-    #    pass
-
-    #def _allocate_object(self, node: ET.Element) -> typed_ast3.Delete:
-    #    return self._expression(node)
 
     def _call(self, node: ET.Element) -> t.Union[typed_ast3.Call, typed_ast3.Assign]:
         called = self.transform_all_subnodes(node, ignored={'call-stmt'})
@@ -725,7 +685,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _print(self, node):
         format_node = node.find('./print-format')
         format_ = None
-        #if format_node is not None:
+        # if format_node is not None:
         if format_node.attrib['type'] == 'label':
             format_ = self.transform_one(format_node)
         outputs_node = node.find('./outputs')
@@ -905,8 +865,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return self._operation_multiary(node)
         if node.attrib['type'] == 'unary':
             return self._operation_unary(node)
-        raise NotImplementedError(
-            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError('not implemented handling of:\n{}'
+                                  .format(ET.tostring(node).decode().rstrip()))
 
     def _operation_multiary(
             self, node: ET.Element) -> t.Union[
@@ -924,7 +884,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return self._operation_multiary_boolean(operators_and_operands)
         if operation_type is typed_ast3.Compare:
             return self._operation_multiary_comparison(operators_and_operands)
-        raise NotImplementedError('not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError('not implemented handling of:\n{}'
+                                  .format(ET.tostring(node).decode().rstrip()))
 
     def _operation_multiary_arithmetic(
             self, operators_and_operands: t.Sequence[t.Union[typed_ast3.AST, t.Tuple[
@@ -1102,8 +1063,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _type(self, node: ET.Element) -> type:
         name = node.attrib['name'].lower()
-        length = \
-            self.transform_one(node.find('./length')) if node.attrib['hasLength'] == 'true' else None
+        length = self.transform_one(node.find('./length')) if node.attrib['hasLength'] == 'true' \
+            else None
         kind = self.transform_one(node.find('./kind')) if node.attrib['hasKind'] == 'true' else None
         if length is not None and kind is not None:
             raise SyntaxError(
@@ -1332,9 +1293,9 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         elif len(subscripts) > 1:
             return typed_ast3.ExtSlice(dims=subscripts)
         return []  # TODO: TMP
-        raise SyntaxError(
-            'subscripts node must contain at least one "subscript" node:\n{}'
-            .format(ET.tostring(node).decode().rstrip()))
+        # raise SyntaxError(
+        #    'subscripts node must contain at least one "subscript" node:\n{}'
+        #    .format(ET.tostring(node).decode().rstrip()))
 
     def _literal(self, node: ET.Element) -> t.Union[typed_ast3.Num, typed_ast3.Str]:
         literal_type = node.attrib['type']
