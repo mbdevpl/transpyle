@@ -4,6 +4,7 @@ import ast
 import collections.abc
 import copy
 import io
+import itertools
 import logging
 
 from astunparse.unparser import INFSTR
@@ -13,15 +14,9 @@ import typed_astunparse
 from typed_astunparse.unparser import interleave
 
 from ..general import Language, Unparser
-from .ast_generalizer import FORTRAN_PYTHON_TYPE_PAIRS, PYTHON_TYPE_ALIASES
+from .definitions import PYTHON_FORTRAN_TYPE_PAIRS, PYTHON_FORTRAN_INTRINSICS
 
 _LOG = logging.getLogger(__name__)
-
-PYTHON_FORTRAN_TYPE_PAIRS = {value: key for key, value in FORTRAN_PYTHON_TYPE_PAIRS.items()}
-
-for _name, _aliases in PYTHON_TYPE_ALIASES.items():
-    for _alias in _aliases:
-        PYTHON_FORTRAN_TYPE_PAIRS[_alias] = PYTHON_FORTRAN_TYPE_PAIRS[_name]
 
 
 def _transform_print_call(call):
@@ -36,20 +31,6 @@ def _transform_print_call(call):
             return call
     call.args.insert(0, typed_ast3.Ellipsis())
     return call
-
-
-PYTHON_FORTRAN_INTRINSICS = {
-    'np.argmin': 'minloc',
-    'np.argmax': 'maxloc',
-    'np.array': lambda _: _.args[0],
-    'np.dot': 'dot_product',
-    'np.maximum': 'max',
-    'np.minimum': 'min',
-    'np.sqrt': 'sqrt',
-    'np.zeros': lambda _: typed_ast3.Num(n=0),
-    'print': _transform_print_call
-    }
-
 
 def _match_subscripted_attributed_name(tree, name: str, attr: str) -> bool:
     return isinstance(tree, typed_ast3.Subscript) \
@@ -481,7 +462,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(')')
 
     cmpops = {
-        'Eq': '==', 'NotEq': '<>', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
+        'Eq': '==', 'NotEq': '/=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
     #    'Is': '===', 'IsNot': 'is not'}
     def _Compare(self, t):
         if len(t.ops) > 1 or len(t.comparators) > 1 \
@@ -515,13 +496,42 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if getattr(t, 'fortran_metadata', {}).get('is_procedure_call', False):
             self.write('call ')
         func_name = horast.unparse(t.func).strip()
-        if func_name in PYTHON_FORTRAN_INTRINSICS and not getattr(t, 'fortran_metadata', {}).get('is_transformed', False):
+        if func_name.startswith('Fortran.file_handles['):
+            t = copy.copy(t)
+            for suffix in ('read', 'close'):
+                if func_name.endswith('].{}'.format(suffix)):
+                    t.args.insert(0, t.func.value.slice.value)
+                    t.func = typed_ast3.Name(id=suffix, ctx=typed_ast3.Load())
+                    break
+            # if func_name.endswith('].read'):
+            #    t.func = typed_ast3.Name(id='read', ctx=typed_ast3.Load())
+            # elif func_name.endswith('].close'):
+            #    t.func = typed_ast3.Name(id='close', ctx=typed_ast3.Load())
+            else:
+                raise NotImplementedError(func_name)
+        elif func_name.endswith('.format'):
+            t = copy.copy(t)
+            prefix, _, label = t.func.value.id.rpartition('_')
+            assert prefix == 'format_label', prefix
+            self.write(label)
+            self.write(' ')
+            t.func = typed_ast3.Name(id='format', ctx=typed_ast3.Load())
+        elif func_name.endswith('.rstrip'):
+            t = copy.copy(t)
+            t.args.insert(0, t.func.value)
+            t.func = typed_ast3.Name(id='trim', ctx=typed_ast3.Load())
+        elif func_name.endswith('.sum'):
+            t = copy.copy(t)
+            t.args.insert(0, t.func.value)
+            t.func = typed_ast3.Name(id='count', ctx=typed_ast3.Load())
+        elif func_name in PYTHON_FORTRAN_INTRINSICS \
+                and not getattr(t, 'fortran_metadata', {}).get('is_transformed', False):
             new_func = PYTHON_FORTRAN_INTRINSICS[func_name]
             if isinstance(new_func, collections.abc.Callable):
                 self.dispatch(new_func(t))
                 return
             t = copy.copy(t)
-            t.func = typed_ast3.Name(id=new_func)
+            t.func = typed_ast3.Name(id=new_func, ctx=typed_ast3.Load())
         elif func_name.startswith('np.'):
             raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         if func_name not in ('print',):
@@ -531,17 +541,23 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.func)
         self.write(' ')
         comma = False
-        for e in t.args:
-            if comma: self.write(", ")
-            else: comma = True
-            self.dispatch(e)
-        for e in t.keywords:
-            if comma: self.write(", ")
-            else: comma = True
-            self.dispatch(e)
+        for arg in itertools.chain(t.args, t.keywords):
+            if comma:
+                self.write(", ")
+            else:
+                comma = True
+            self.dispatch(arg)
 
     def _Subscript(self, t):
         val = t.value
+        unparsed_val = horast.unparse(val).strip()
+        if unparsed_val in PYTHON_FORTRAN_INTRINSICS:
+            new_val = PYTHON_FORTRAN_INTRINSICS[unparsed_val]
+            if isinstance(new_val, collections.abc.Callable):
+                self.dispatch(new_val(t))
+                return
+            t = copy.copy(t)
+            t.value = typed_ast3.Name(id=new_val)
         if isinstance(val, typed_ast3.Attribute) and isinstance(val.value, typed_ast3.Name) \
                 and val.value.id == 'Fortran':
             attr = val.attr

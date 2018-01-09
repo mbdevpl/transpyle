@@ -17,6 +17,18 @@ FORTRAN_PYTHON_TYPE_PAIRS = {
     ('real', 4): 'np.float32',
     ('real', 8): 'np.float64'}
 
+PYTHON_FORTRAN_TYPE_PAIRS = {value: key for key, value in FORTRAN_PYTHON_TYPE_PAIRS.items()}
+
+PYTHON_TYPE_ALIASES = {
+    'bool': ('np.bool_',),
+    'int': ('np.int_', 'np.intc', 'np.intp'),
+    'np.float32': ('np.single',),
+    'np.float64': ('np.double', 'np.float_',)}
+
+for _name, _aliases in PYTHON_TYPE_ALIASES.items():
+    for _alias in _aliases:
+        PYTHON_FORTRAN_TYPE_PAIRS[_alias] = PYTHON_FORTRAN_TYPE_PAIRS[_name]
+
 FORTRAN_PYTHON_OPERATORS = {
     # binary
     '+': (typed_ast3.BinOp, typed_ast3.Add),
@@ -147,7 +159,33 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     # Fortran 2008
     }
 
+PYTHON_FORTRAN_INTRINSICS = {
+    'np.argmin': 'minloc',
+    'np.argmax': 'maxloc',
+    'np.array': lambda _: _.args[0],
+    'np.dot': 'dot_product',
+    'np.maximum': 'max',
+    'np.minimum': 'min',
+    'np.sqrt': 'sqrt',
+    'np.zeros': lambda _: typed_ast3.Num(n=0),
+    'print': 'print',  # _transform_print_call
+    'os.environ': 'getenv',
+    'MPI.Init': 'MPI_Init',
+    'MPI.COMM_WORLD.Comm_size': 'MPI_Comm_size',
+    'MPI.COMM_WORLD.Comm_rank': 'MPI_Comm_rank',
+    'MPI.COMM_WORLD.Barrier': 'MPI_Barrier',
+    'MPI.Bcast': 'MPI_Bcast',
+    'MPI.Allreduce': 'MPI_Allreduce',
+    'MPI.Finalize': 'MPI_Finalize',
+    '{expression}.sum': None,
+    'Fortran.file_handles[{name}].read': None,
+    'Fortran.file_handles[{name}].close': None,
+    '{name}.rstrip': None
+    }
+
 INTRINSICS_SPECIAL_CASES = {'getenv', 'trim', 'count'}
+
+PYTHON_TO_FORTRAN_SPECIAL_CASES = {'print', ('numpy', 'array'), ('numpy', 'zeros')}
 
 INTRINSICS_PYTHON_TO_FORTRAN = {value: key for key, value in INTRINSICS_FORTRAN_TO_PYTHON.items()
                                 if value is not None}

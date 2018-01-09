@@ -30,12 +30,6 @@ def flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
             del sequence[i + len(elem)]
 
 
-PYTHON_TYPE_ALIASES = {
-    'bool': ('np.bool_',),
-    'int': ('np.int_', 'np.intc', 'np.intp'),
-    'np.float32': ('np.single',),
-    'np.float64': ('np.double', 'np.float_',)}
-
 FORTRAN_PYTHON_FORMAT_SPEC = {
     'A': str,
     'I': int}

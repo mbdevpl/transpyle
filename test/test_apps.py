@@ -105,7 +105,6 @@ class Tests(unittest.TestCase):
             with self.subTest(path=path):
                 test(self, path, results_path, *tools)
 
-    @unittest.skip('not ready yet')
     def test_roundrtip_miranda_io(self):
         self._test_app('miranda_io', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
