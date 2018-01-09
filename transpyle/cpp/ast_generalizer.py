@@ -39,10 +39,10 @@ class CppAstGeneralizer(XmlAstGeneralizer):
         type_nodes = self.get_all(node, './FundamentalType')
 
         self.fundamental_types = {
-            type_node.attrib['id']: self.transform_all(type_node, warn=False, parent=node)
+            type_node.attrib['id']: self.transform_all(type_node, parent=node)
             for type_node in type_nodes}
 
-        body = self.transform_all_subnodes(node, warn=False, ignored={'Namespace', 'File'} | types)
+        body = self.transform_all_subnodes(node, ignored={'Namespace', 'File'} | types)
         return typed_ast3.Module(body=body, type_ignores=[])
 
     def default(self, node: ET.Element):
@@ -77,12 +77,8 @@ class CppAstGeneralizer(XmlAstGeneralizer):
         if node.attrib['file'] != self.file_id:
             raise ContinueIteration()
         name = node.attrib['name']
-        arguments = typed_ast3.arguments(
-            args=self.transform_all_subnodes(
-                node, warn=False, ignored={
-                    'dummy-arg-list__begin', 'dummy-arg-list',
-                    'generic-name-list__begin', 'generic-name-list'}),
-            vararg=None, kwonlyargs=[], kwarg=None, defaults=[], kw_defaults=[])
+        arguments = typed_ast3.arguments(args=self.transform_all_subnodes(node), vararg=None,
+                                         kwonlyargs=[], kwarg=None, defaults=[], kw_defaults=[])
         body = [typed_ast3.Ellipsis()]
         returns = typed_ast3.NameConstant(None)
         return typed_ast3.FunctionDef(name=name, args=arguments, body=body, decorator_list=[],

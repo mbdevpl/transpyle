@@ -85,7 +85,7 @@ class XmlAstGeneralizer(AstGeneralizer):
         raise NotImplementedError(
             'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
-    def transform_one(self, node: ET.Element, warn: bool = True, ignored: t.Set[str] = None,
+    def transform_one(self, node: ET.Element, warn: bool = False, ignored: t.Set[str] = None,
                       parent: t.Optional[ET.Element] = None):
         """Transform a single node."""
         assert node is not None
@@ -114,7 +114,7 @@ class XmlAstGeneralizer(AstGeneralizer):
         _transform = getattr(self, transform_name)
         return _transform(node)
 
-    def transform_all(self, nodes: t.List[ET.Element], warn: bool = True, skip_empty: bool = False,
+    def transform_all(self, nodes: t.List[ET.Element], warn: bool = False, skip_empty: bool = False,
                       ignored: t.Set[str] = None, parent: t.Optional[ET.Element] = None) -> list:
         """Transform all nodes in a given list."""
         transformed = []
@@ -129,7 +129,7 @@ class XmlAstGeneralizer(AstGeneralizer):
         return transformed
 
     def transform_all_subnodes(
-            self, node: ET.Element, warn: bool = True, skip_empty: bool = False,
+            self, node: ET.Element, warn: bool = False, skip_empty: bool = False,
             ignored: t.Set[str] = None):
         """Transform all subnodes of a given node."""
         assert node is not None
