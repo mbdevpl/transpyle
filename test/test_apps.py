@@ -17,14 +17,16 @@ _HERE = pathlib.Path(__file__).resolve().parent
 _APPS_PARENT_PATHS = {
     'miranda_io': pathlib.Path('fortran'),
     'FLASH': pathlib.Path('fortran'),
+    'FLASH-4.5': pathlib.Path('fortran'),
     'FFB-MINI': pathlib.Path('fortran')}
 
 _APPS_ROOT_PATHS = {
     'miranda_io': pathlib.Path('miranda_io'),
     'FLASH': pathlib.Path('flash-subset', 'FLASH4.4'),
+    'FLASH-4.5': pathlib.Path('flash-4.5'),
     'FFB-MINI': pathlib.Path('ffb-mini')}
 
-_APPS_OPTIONAL = {'FLASH'}
+_APPS_OPTIONAL = {'FLASH', 'FLASH-4.5'}
 
 _APPS_ROOT_PATHS = {
     app: (pathlib.Path('..', path) if _HERE.parent.joinpath('..', path).is_dir()
@@ -39,8 +41,21 @@ _APPS_CODE_FILEPATHS = {
     'miranda_io': [pathlib.Path(_APPS_ROOT_PATHS['miranda_io'], 'miranda_io.f90')],
     'FLASH': [pathlib.Path(_APPS_ROOT_PATHS['FLASH'], 'source', pathlib.Path(input_path))
               for input_path in [
-                  'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90'
+                  'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
+                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90',
+                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',
+                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
+                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
+                  # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
+                  # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',
+                  # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
+                  'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'
                   ]] if 'FLASH' in _APPS_ROOT_PATHS else [],
+    'FLASH-4.5': [pathlib.Path(_APPS_ROOT_PATHS['FLASH'], 'source', pathlib.Path(input_path))
+                  for input_path in [
+                      'physics/Hydro/HydroMain/split/MHD_8Wave/eos_idealGamma.F90',
+                      'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'
+                  ]] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
     'FFB-MINI': [pathlib.Path(root, name)
                  for root, _, files in os.walk(str(
                      pathlib.Path(_APPS_ROOT_PATHS['FFB-MINI'], 'src')))

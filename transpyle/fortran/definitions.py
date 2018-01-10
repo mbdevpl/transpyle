@@ -128,13 +128,13 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     # Numerical inquiry functions
     'digits': None,
     'epsilon': None,
-    'huge': None,
+    'huge': ('numpy', 'finfo', 'max'),
     'maxexponent': None,
     'minexponent': None,
     'precision': None,
     'radix': None,
     'range': None,
-    'tiny': None,
+    'tiny': ('numpy', 'finfo', 'tiny'),  # np.finfo(np.double).tiny ,
     # Bit inquiry function
     'bit_size': None,
     # Vector- and matrix-multiplication functions
@@ -153,7 +153,7 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     'minloc':  ('numpy', 'argmin'),
     # Fortran 95
     'cpu_time': None,
-    'present': None,
+    'present': 'is_not_none',  # TODO: TMP
     'set_exponent': None,
     # Fortran 2003
     # Fortran 2008
@@ -164,12 +164,15 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.argmax': 'maxloc',
     'np.array': lambda _: _.args[0],
     'np.dot': 'dot_product',
+    'np.finfo.max': 'huge',
+    'np.finfo.tiny': 'tiny',
     'np.maximum': 'max',
     'np.minimum': 'min',
     'np.sqrt': 'sqrt',
     'np.zeros': lambda _: typed_ast3.Num(n=0),
     'print': 'print',  # _transform_print_call
     'os.environ': 'getenv',
+    'is_not_none': 'present',
     'MPI.Init': 'MPI_Init',
     'MPI.COMM_WORLD.Comm_size': 'MPI_Comm_size',
     'MPI.COMM_WORLD.Comm_rank': 'MPI_Comm_rank',

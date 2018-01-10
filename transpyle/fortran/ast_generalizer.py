@@ -1177,13 +1177,13 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             "cannot convert intrinsic call from raw AST:\n{}"
             .format(typed_astunparse.unparse(call)))
 
-    def _intrinsic_numpy_call(self, call, name=None):
-        if name is None:
-            name = call.func.id
-        return typed_ast3.Call(
-            func=typed_ast3.Attribute(value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()),
-                                      attr=name, ctx=typed_ast3.Load()),
-            args=call.args, keywords=call.keywords)
+    def _intrinsic_numpy_call(self, call, members=None):
+        if not members:
+            members = (call.func.id,)
+        func = typed_ast3.Name(id='np', ctx=typed_ast3.Load())
+        for member in reversed(members):
+            func = typed_ast3.Attribute(value=func, attr=member, ctx=typed_ast3.Load())
+        return typed_ast3.Call(func=func, args=call.args, keywords=call.keywords)
 
     _convgen_specials = {
         'getenv': _intrinsic_getenv,
@@ -1201,12 +1201,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if isinstance(value, str):
             return functools.partial(cls._intrinsic_converter_rename, name=value)
         assert isinstance(value, tuple), type(value)
-        assert len(value) == 2, value
-        package, function = value
+        assert len(value) >= 2, value
+        package, *members = value
         if package == 'numpy':
-            if value == function:
+            if len(value) == 1 and value[0] == function:
                 return cls._intrinsic_numpy_call
-            return functools.partial(cls._intrinsic_numpy_call, name=function)
+            return functools.partial(cls._intrinsic_numpy_call, members=members)
         raise NotImplementedError((case, value))
 
     _intrinsics_converters = {}
