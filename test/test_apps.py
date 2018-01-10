@@ -105,15 +105,15 @@ class Tests(unittest.TestCase):
             with self.subTest(path=path):
                 test(self, path, results_path, *tools)
 
-    def test_roundrtip_miranda_io(self):
+    def test_roundtrip_miranda_io(self):
         self._test_app('miranda_io', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
-    def test_roundrtip_flash(self):
+    def test_roundtrip_flash(self):
         self._test_app('FLASH', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
-    def test_roundrtip_ffbmini(self):
+    def test_roundtrip_ffbmini(self):
         """From https://github.com/fiber-miniapp/ffb-mini"""
         self._test_app('FFB-MINI', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
