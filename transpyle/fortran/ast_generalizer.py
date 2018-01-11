@@ -951,8 +951,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             left=left_operand, ops=[operator_type()], comparators=[right_operand])
 
     def _operation_unary(self, node: ET.Element):
-        operators_and_operands = self.transform_all_subnodes(
-            node, skip_empty=True, ignored={'signed-operand', 'and-operand'})
+        operators_and_operands = self.transform_all_subnodes(node, skip_empty=True, ignored={
+            'signed-operand', 'and-operand', 'parenthesized_expr', 'primary'})
         assert isinstance(operators_and_operands, list), operators_and_operands
         assert len(operators_and_operands) == 2, operators_and_operands
         operation_type, operator_type = operators_and_operands[0]
