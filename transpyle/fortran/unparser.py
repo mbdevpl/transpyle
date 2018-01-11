@@ -354,7 +354,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.fill('end if')
 
     def _While(self, t):
-        raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
+        if not isinstance(t.test, typed_ast3.NameConstant) or t.test.value is not True:
+            self._unsupported_syntax(t)
+        self.fill('do')
+        self.enter()
+        self.dispatch(t.body)
+        self.leave()
+        self.fill('end do')
 
     def _With(self, t):
         self._unsupported_syntax(t)

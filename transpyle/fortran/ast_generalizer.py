@@ -393,6 +393,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return self._loop_implied_do(node)
         elif node.attrib['type'] == 'do-while':
             return self._loop_do_while(node)
+        elif node.attrib['type'] == 'do-label':
+            return self._loop_do_while(node, condition=typed_ast3.NameConstant(value=True))
         elif node.attrib['type'] == 'forall':
             return self._loop_forall(node)
         else:
@@ -424,12 +426,17 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return typed_ast3.ListComp(elt=elt, generators=[generator])
         # target=target, iter=iter_, body=body, orelse=[])
 
-    def _loop_do_while(self, node: ET.Element) -> typed_ast3.While:
-        header_node = node.find('./header')
-        header = self.transform_all_subnodes(header_node)
-        assert len(header) == 1
-        condition = header[0]
-        body = self.transform_all_subnodes(node.find('./body'), ignored={'block'})
+    def _loop_do_while(self, node: ET.Element,
+                       condition: typed_ast3.AST = None) -> typed_ast3.While:
+        try:
+            header = self.transform_all_subnodes(self.get_one(node, './header'))
+            assert len(header) == 1
+            assert condition is None
+            condition = header[0]
+        except SyntaxError:
+            if condition is None:
+                raise
+        body = self.transform_all_subnodes(self.get_one(node, './body'), ignored={'block'})
         return typed_ast3.While(test=condition, body=body, orelse=[])
 
     def _loop_forall(self, node: ET.Element) -> typed_ast3.For:
