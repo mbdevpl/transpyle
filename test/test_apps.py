@@ -14,19 +14,21 @@ from .examples import \
 
 _HERE = pathlib.Path(__file__).resolve().parent
 
+_FORTRAN_SUFFIXES = ('.f', '.F', '.f90', '.F90')
+
 _APPS_PARENT_PATHS = {
     'miranda_io': pathlib.Path('fortran'),
-    'FLASH': pathlib.Path('fortran'),
+    'FLASH-SUBSET': pathlib.Path('fortran'),
     'FLASH-4.5': pathlib.Path('fortran'),
     'FFB-MINI': pathlib.Path('fortran')}
 
 _APPS_ROOT_PATHS = {
     'miranda_io': pathlib.Path('miranda_io'),
-    'FLASH': pathlib.Path('flash-subset', 'FLASH4.4'),
+    'FLASH-SUBSET': pathlib.Path('flash-subset', 'FLASH4.4'),
     'FLASH-4.5': pathlib.Path('flash-4.5'),
     'FFB-MINI': pathlib.Path('ffb-mini')}
 
-_APPS_OPTIONAL = {'FLASH', 'FLASH-4.5'}
+_APPS_OPTIONAL = {'FLASH-SUBSET', 'FLASH-4.5'}
 
 _APPS_ROOT_PATHS = {
     app: (pathlib.Path('..', path) if _HERE.parent.joinpath('..', path).is_dir()
@@ -39,33 +41,40 @@ _APPS_ROOT_PATHS = {
 
 _APPS_CODE_FILEPATHS = {
     'miranda_io': [pathlib.Path(_APPS_ROOT_PATHS['miranda_io'], 'miranda_io.f90')],
-    'FLASH': [pathlib.Path(_APPS_ROOT_PATHS['FLASH'], 'source', pathlib.Path(input_path))
-              for input_path in [
-                  'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
-                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90',
-                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',
-                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
-                  # 'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
-                  # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
-                  # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',
-                  # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
-                  'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'
-                  ]] if 'FLASH' in _APPS_ROOT_PATHS else [],
-    'FLASH-4.5': [pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
-                  for input_path in [
-                      'physics/Hydro/HydroMain/split/MHD_8Wave/eos_idealGamma.F90',
-                      'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'
-                  ]] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
-    'FFB-MINI': [pathlib.Path(root, name)
-                 for root, _, files in os.walk(str(
-                     pathlib.Path(_APPS_ROOT_PATHS['FFB-MINI'], 'src')))
-                 for name in files
-                 if pathlib.Path(name).suffix in ('.f', '.F', '.f90') and name not in (
-                     'bcgs3x.F', 'bcgsxe.F', 'calax3.F', 'callap.F', 'ddcom4.F', 'dd_mpi.F',
-                     'e2plst.F', 'extrfn.F', 'gfutil.f', 'grad3x.F', 'les3x.F', 'lesrop.F',
-                     'lesrpx.F', 'lessfx.F', 'lrfnms.F', 'miniapp_util.F', 'mfname.F', 'neibr2.F',
-                     'nodlex.F', 'pres3e.F', 'rcmelm.F', 'reordr.F', 'rfname.F', 'srfexx.F',
-                     'vel3d1.F', 'vel3d2.F')]}
+    'FLASH-SUBSET': [
+        pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
+        for input_path in [
+            'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
+            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90',  # kwargs
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
+            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',  # kwargs
+            'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
+            # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',  # contains
+            'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
+            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'  # bad declaration
+            ]] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
+    'FLASH-4.5': [
+        pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
+        for input_path in [
+            # 'physics/Hydro/HydroMain/split/MHD_8Wave/eos_idealGamma.F90',  # no such file
+            'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
+            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'  # contains
+            ]] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
+    'FFB-MINI': [
+        pathlib.Path(root, name)
+        for root, _, files in os.walk(str(pathlib.Path(_APPS_ROOT_PATHS['FFB-MINI'], 'src')))
+        for name in files if pathlib.Path(name).suffix in _FORTRAN_SUFFIXES and name not in {
+            'ddcom4.F',  # SyntaxError - just not implemented yet
+            'ffb_mini_main.F90',  # NotImplementedError
+            'f_test.F90',  # NotImplementedError
+            'mod_maprof.F90',  # NotImplementedError
+            # OFP fails for the following files
+            # issues need to be resolved upstream or files need to be modified
+            'bcgs3x.F', 'bcgsxe.F', 'calax3.F', 'callap.F', 'dd_mpi.F', 'e2plst.F', 'extrfn.F',
+            'gfutil.f', 'grad3x.F', 'les3x.F', 'lesrop.F', 'lesrpx.F', 'lessfx.F', 'lrfnms.F',
+            'makemesh.F90', 'miniapp_util.F', 'mfname.F', 'neibr2.F', 'nodlex.F', 'pres3e.F',
+            'rcmelm.F', 'rfname.F', 'srfexx.F', 'vel3d1.F', 'vel3d2.F'}]}
 
 
 def _prepare_roundtrip(case, language: Language):
@@ -125,7 +134,7 @@ class Tests(unittest.TestCase):
                        _roundtrip_fortran)
 
     def test_roundtrip_flash(self):
-        self._test_app('FLASH', _prepare_roundtrip(self, Language.find('Fortran')),
+        self._test_app('FLASH-SUBSET', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
     def test_roundtrip_flash_45(self):
@@ -133,6 +142,5 @@ class Tests(unittest.TestCase):
                        _roundtrip_fortran)
 
     def test_roundtrip_ffbmini(self):
-        """From https://github.com/fiber-miniapp/ffb-mini"""
         self._test_app('FFB-MINI', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
