@@ -73,16 +73,16 @@ FORTRAN_PYTHON_OPERATORS = {
 INTRINSICS_FORTRAN_TO_PYTHON = {
     # Fortran 77
     'abs': 'abs',  # or np.absolute
-    'acos': None,
+    'acos': ('numpy', 'arccos'),
     'aimag': None,
     'aint': None,
     'anint': None,
-    'asin': None,
-    'atan': None,
+    'asin': ('numpy', 'arcsin'),
+    'atan': ('numpy', 'arctan'),
     'atan2': None,
     'char': None,
     'cmplx': None,
-    'conjg': None,
+    'conjg': ('numpy', 'conj'),
     'cos': ('numpy', 'cos'),
     'cosh': None,
     'dble': 'float',  # incorrect
@@ -104,12 +104,12 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     'mod': None,
     'nint': None,
     'real': 'float',
-    'sign': None,
+    'sign': ('numpy', 'sign'),
     'sin': ('numpy', 'sin'),
-    'sinh': None,
+    'sinh': ('numpy', 'sinh'),
     'sqrt': ('numpy', 'sqrt'),
-    'tan': None,
-    'tanh': None,
+    'tan': ('numpy', 'tan'),
+    'tanh': ('numpy', 'tanh'),
     # non-standard Fortran 77
     'getenv': ('os', 'environ'),
     # Fortran 90
@@ -127,7 +127,7 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     'logical': None,
     # Numerical inquiry functions
     'digits': None,
-    'epsilon': None,
+    'epsilon': ('numpy', 'finfo', 'eps'),
     'huge': ('numpy', 'finfo', 'max'),
     'maxexponent': None,
     'minexponent': None,
@@ -164,10 +164,12 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.argmax': 'maxloc',
     'np.array': lambda _: _.args[0],
     'np.dot': 'dot_product',
+    'np.finfo.eps': 'epsilon',
     'np.finfo.max': 'huge',
     'np.finfo.tiny': 'tiny',
     'np.maximum': 'max',
     'np.minimum': 'min',
+    'np.sign': 'sign',
     'np.sqrt': 'sqrt',
     'np.zeros': lambda _: typed_ast3.Num(n=0),
     'print': 'print',  # _transform_print_call
