@@ -542,6 +542,50 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         assert body_node.attrib['type'] == 'else'
         return self._if_body(body_node)
 
+    def _select(self, node: ET.Element):
+        var = self.transform_all_subnodes(self.get_one(node, './header'), ignored={
+            'executable-construct', 'execution-part-construct'})
+        cases = self.transform_all_subnodes(self.get_one(node, './body'))
+        assert cases, 'encountered select without cases'
+        items = []
+        prev_case = None
+        for case in cases:
+            if not isinstance(case, typed_ast3.If):
+                items.append(case)
+                continue
+            case.test = typed_ast3.Compare(left=var, ops=[typed_ast3.Eq()], comparators=[case.test])
+            if items:
+                case.body = items + case.body
+                items = []
+            if prev_case is not None:
+                case.orelse.append(prev_case)
+            prev_case = case
+        cases[0].fortran_metadata = {'is_select': True}
+        return cases[0]
+
+    def _case(self, node: ET.Element):
+        return self._if_if(self.get_one(node, './header'), self.get_one(node, './body'))
+
+    def _value_ranges(self, node: ET.Element):
+        value_ranges = self.transform_all_subnodes(node, ignored={
+            'case-value-range-list__begin', 'case-value-range', 'case-value-range-list'})
+        value_ranges = [_ for _ in value_ranges if _ is not None]
+        assert len(value_ranges) == int(node.attrib['count']), (value_ranges, node.attrib['count'])
+        return value_ranges
+
+    def _value_range(self, node: ET.Element):
+        values = self.transform_all_subnodes(node, skip_empty=True, ignored={
+            'case-value', 'case-value-range-suffix'})
+        # self.no_transform(node)
+        if not values:
+            return None
+        return values
+
+    def _value(self, node: ET.Element):
+        values = self.transform_all_subnodes(node)
+        assert len(values) == 1, values
+        return values[0]
+
     def _expressions(self, node: ET.Element) -> t.List[typed_ast3.AST]:
         return self.transform_all_subnodes(node, ignored={
             'allocate-object-list__begin', 'allocate-object-list',
