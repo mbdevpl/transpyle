@@ -51,7 +51,7 @@ _APPS_CODE_FILEPATHS = {
                   # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
                   'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'
                   ]] if 'FLASH' in _APPS_ROOT_PATHS else [],
-    'FLASH-4.5': [pathlib.Path(_APPS_ROOT_PATHS['FLASH'], 'source', pathlib.Path(input_path))
+    'FLASH-4.5': [pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
                   for input_path in [
                       'physics/Hydro/HydroMain/split/MHD_8Wave/eos_idealGamma.F90',
                       'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'
@@ -126,6 +126,10 @@ class Tests(unittest.TestCase):
 
     def test_roundtrip_flash(self):
         self._test_app('FLASH', _prepare_roundtrip(self, Language.find('Fortran')),
+                       _roundtrip_fortran)
+
+    def test_roundtrip_flash_45(self):
+        self._test_app('FLASH-4.5', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
     def test_roundtrip_ffbmini(self):

@@ -42,7 +42,7 @@ before_install:
   - cd "../open-fortran-compiler" && make && cd -
   - export PATH="${PATH}:$(pwd)/../open-fortran-compiler"
   # FFB-MINI app
-  - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini" --branch ofp_tests
+  - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"
   # miranda_io app
   - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
 

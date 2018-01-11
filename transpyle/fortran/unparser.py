@@ -681,9 +681,8 @@ class Fortran2008UnparserBackend(Fortran77UnparserBackend):
 
     lang_name = 'Fortran 2008'
 
-    def __init__(
-            self, *args, indent: int = 2, fixed_form: bool = False, max_line_len: int = 100,
-            **kwargs):
+    def __init__(self, *args, indent: int = 2, fixed_form: bool = False, max_line_len: int = 100,
+                 **kwargs):
         super().__init__(*args, indent=indent, fixed_form=fixed_form, max_line_len=max_line_len,
                          **kwargs)
 

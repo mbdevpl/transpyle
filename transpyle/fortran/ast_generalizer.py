@@ -1181,7 +1181,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if not members:
             members = (call.func.id,)
         func = typed_ast3.Name(id='np', ctx=typed_ast3.Load())
-        for member in reversed(members):
+        for member in members:
             func = typed_ast3.Attribute(value=func, attr=member, ctx=typed_ast3.Load())
         return typed_ast3.Call(func=func, args=call.args, keywords=call.keywords)
 
