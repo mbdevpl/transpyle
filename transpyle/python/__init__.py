@@ -23,8 +23,7 @@ class PythonAstGeneralizer(IdentityAstGeneralizer):
 
     """Python doesn't need AST generalizer."""
 
-    def __init__(self):
-        super().__init__(Language.find('Python 3'))
+    pass
 
 
 AstGeneralizer.register(PythonAstGeneralizer,

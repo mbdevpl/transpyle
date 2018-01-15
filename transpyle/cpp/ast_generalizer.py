@@ -1,12 +1,11 @@
 """Generalizing C++ AST."""
 
 import logging
-# import typing as t
 import xml.etree.ElementTree as ET
 
 import typed_ast.ast3 as typed_ast3
 
-from ..general import Language, XmlAstGeneralizer
+from ..general import XmlAstGeneralizer
 from ..general.ast_generalizer import ContinueIteration
 from .definitions import CPP_PYTHON_TYPE_PAIRS
 
@@ -17,25 +16,27 @@ class CppAstGeneralizer(XmlAstGeneralizer):
 
     """Transform C++ XML AST generated with CastXML into Python AST from typed_ast."""
 
-    def __init__(self):
-        super().__init__(Language.find('C++'))
+    def __init__(self, scope):
+        super().__init__(scope)
         self.file_id = None
         self.fundamental_types = {}
 
-    def _CastXML(self, node: ET.Element):
+    def _CastXML(self, node: ET.Element):  # pylint: disable=invalid-name
         file_nodes = self.get_all(node, './File')
         relevant_file_nodes = []
+        parsed_filename = str(self.scope['path'])
         for file_node in file_nodes:
             name = file_node.attrib['name']
-            if name.startswith('/usr') or name == '<builtin>':
+            # if name.startswith('/usr') or name == '<builtin>':
+            if name != parsed_filename:
                 continue
             relevant_file_nodes.append(file_node)
         assert len(relevant_file_nodes) == 1, relevant_file_nodes
         file_node = relevant_file_nodes[0]
         self.file_id = file_node.attrib['id']
 
-        types = {'FundamentalType', 'PointerType', 'CvQualifiedType', 'ArrayType',
-                 'ElaboratedType', 'ReferenceType', 'FunctionType'}
+        types = {'ArrayType', 'CvQualifiedType', 'ElaboratedType', 'FunctionType',
+                 'FundamentalType', 'MethodType', 'OffsetType', 'PointerType', 'ReferenceType'}
         type_nodes = self.get_all(node, './FundamentalType')
 
         self.fundamental_types = {
@@ -69,11 +70,19 @@ class CppAstGeneralizer(XmlAstGeneralizer):
     _OperatorFunction = default
     _Converter = default
 
-    def _Unimplemented(self, node: ET.Element):
-        _LOG.warning('the underlying CastXML parser did not parse a %s', node.attrib['kind'])
+    def _Unimplemented(self, node: ET.Element):  # pylint: disable=invalid-name
+        try:
+            node_str = node.attrib['kind']
+        except KeyError:
+            _LOG.warning('unexpected behavior')
+            try:
+                node_str = node.attrib['type_class']
+            except KeyError:
+                self.no_transform(node)
+        _LOG.warning('the underlying CastXML parser did not parse a %s', node_str)
         raise ContinueIteration()
 
-    def _Function(self, node: ET.Element):
+    def _Function(self, node: ET.Element):  # pylint: disable=invalid-name
         if node.attrib['file'] != self.file_id:
             raise ContinueIteration()
         name = node.attrib['name']
@@ -84,10 +93,10 @@ class CppAstGeneralizer(XmlAstGeneralizer):
         return typed_ast3.FunctionDef(name=name, args=arguments, body=body, decorator_list=[],
                                       returns=returns)
 
-    def _Argument(self, node: ET.Element):
+    def _Argument(self, node: ET.Element):  # pylint: disable=invalid-name
         return typed_ast3.arg(arg=node.attrib['name'], annotation=None)
 
-    def _FundamentalType(self, node: ET.Element):
+    def _FundamentalType(self, node: ET.Element):  # pylint: disable=invalid-name
         name = node.attrib['name']
         return typed_ast3.parse(CPP_PYTHON_TYPE_PAIRS[name], mode='eval')
         # self.no_transform(node)

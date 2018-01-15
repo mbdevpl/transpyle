@@ -30,8 +30,8 @@ class Tests(unittest.TestCase):
     def test_generalize_examples(self):
         code_reader = CodeReader()
         parser = CppParser()
-        ast_generalizer = CppAstGeneralizer()
         for path in EXAMPLES_CPP14_FILES:
+            ast_generalizer = CppAstGeneralizer(scope={'path': path})
             code = code_reader.read_file(path)
             tree = parser.parse(code, path)
             basic_check_cpp_ast(self, path, tree)

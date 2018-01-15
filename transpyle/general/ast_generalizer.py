@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import typed_ast.ast3 as typed_ast3
 
 from .registry import Registry
-from .language import Language
+# from .language import Language
 
 _LOG = logging.getLogger(__name__)
 
@@ -21,29 +21,32 @@ class AstGeneralizer(Registry):
 
     """Generalize a language-specific AST."""
 
-    def __init__(self, language: Language):
-        self.language = language
+    def __init__(self, scope=None):
+        """Scope, if provided, should limit the generalization process to the given criteria."""
+        self.scope = scope
 
-    def generalize(self, tree):
+    def generalize(self, syntax):
         """Generalize a language-specific AST into a general one."""
         raise NotImplementedError()
 
 
 class IdentityAstGeneralizer(AstGeneralizer):
 
-    """Do nothing with the AST."""
+    """Do nothing with the AST, i.e. assume it already is generalized."""
 
-    def generalize(self, tree):
-        return tree
+    def __init__(self):
+        super().__init__(None)
+
+    def generalize(self, syntax):
+        return syntax
 
 
 class XmlAstGeneralizer(AstGeneralizer):
 
     """Generalize an XML-based AST."""
 
-    def __init__(self, language: Language):
-        super().__init__(language)
-
+    def __init__(self, scope=None):
+        super().__init__(scope)
         self._top_level_imports = dict()
         self._transforms = [f for f in dir(self) if not f.startswith('__')]
 
@@ -78,8 +81,8 @@ class XmlAstGeneralizer(AstGeneralizer):
                               .format(xpath, node.tag, ET.tostring(node).decode().rstrip()))
         return found
 
-    def generalize(self, tree: ET.Element):
-        return self.transform_one(tree)
+    def generalize(self, syntax: ET.Element):
+        return self.transform_one(syntax)
 
     def no_transform(self, node: ET.Element):
         raise NotImplementedError(
