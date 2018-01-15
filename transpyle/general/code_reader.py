@@ -11,7 +11,7 @@ class CodeReader:
 
     """Read whole source code files."""
 
-    def __init__(self, extensions: t.Optional[t.Iterable[str]] = None):
+    def __init__(self, extensions: t.Iterable[str] = None):
         """Initialize new instance of CodeReader.
 
         :param extensions: if provided, any files with extensions different than given ones will be
@@ -25,7 +25,7 @@ class CodeReader:
             for extension in extensions:
                 assert isinstance(extension, str), (type(extension), extension, extensions)
                 assert len(extension) > 1 and extension[0] == '.', extension
-        self._extensions = extensions
+        self._extensions = {extension for extension in extensions}
 
     @property
     def extensions(self) -> t.Sequence[str]:
@@ -35,8 +35,6 @@ class CodeReader:
         """Read a single file."""
         assert isinstance(path, pathlib.Path), type(path)
 
-        if not path.is_file():
-            raise ValueError('given path {} does not lead to a file'.format(path))
         if self._extensions and path.suffix not in self._extensions:
             raise ValueError('incompatible path {} given to {}'.format(path, self))
         with open(str(path), 'r') as source_file:
@@ -48,10 +46,12 @@ class CodeReader:
         """Read all relevant files in a given directory."""
         assert isinstance(root_path, pathlib.Path), type(root_path)
         assert isinstance(recursive, bool), type(recursive)
-        if not root_path.is_dir():
-            raise ValueError('given path {} does not lead to a folder'.format(root_path))
+
+        def raise_err(err):
+            raise err
+
         files = {}
-        for folder_path, _, file_names in os.walk(str(root_path), topdown=True):
+        for folder_path, _, file_names in os.walk(str(root_path), topdown=True, onerror=raise_err):
             for file_name in file_names:
                 file_path = pathlib.Path(folder_path, file_name)
                 if not self._extensions or file_path.suffix in self._extensions:

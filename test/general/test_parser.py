@@ -67,6 +67,7 @@ class Tests(unittest.TestCase):
         class MyParser(Parser):
             def _parse_scope(self, code, path=None):
                 return code
+
             def _join_scopes(self, parsed_scopes):
                 return ''.join(parsed_scopes)
         parser = MyParser()

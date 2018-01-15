@@ -43,12 +43,17 @@ class IdentityAstGeneralizer(AstGeneralizer):
 
 class XmlAstGeneralizer(AstGeneralizer):
 
-    """Generalize an XML-based AST."""
+    """Generalize an XML-based AST.
 
-    def __init__(self, scope=None):
+    Limitation of XML node name recognition: dash '-' and underscore '_' are not differentiated,
+    therefore <some_node> and <some-node> will be handled by the same handler (i.e. _some_node)
+    """
+
+    def __init__(self, scope=None, case_sensitive: bool = False):
         super().__init__(scope)
+        self.case_sensitive = case_sensitive
+        self._transforms = [f for f in dir(self) if f.startswith('_') and not f.startswith('__')]
         self._top_level_imports = dict()
-        self._transforms = [f for f in dir(self) if not f.startswith('__')]
 
     def _ensure_top_level_import(self, canonical_name: str, alias: t.Optional[str] = None):
         if (canonical_name, alias) not in self._top_level_imports:
@@ -82,6 +87,7 @@ class XmlAstGeneralizer(AstGeneralizer):
         return found
 
     def generalize(self, syntax: ET.Element):
+        self.top_level_imports = dict()
         return self.transform_one(syntax)
 
     def no_transform(self, node: ET.Element):
@@ -91,7 +97,7 @@ class XmlAstGeneralizer(AstGeneralizer):
     def transform_one(self, node: ET.Element, warn: bool = False, ignored: t.Set[str] = None,
                       parent: t.Optional[ET.Element] = None):
         """Transform a single node."""
-        assert node is not None
+        assert isinstance(node, ET.Element)
         transform_name = '_{}'.format(node.tag.replace('-', '_'))
         if transform_name not in self._transforms:
             if ignored and node.tag in ignored:
@@ -122,7 +128,7 @@ class XmlAstGeneralizer(AstGeneralizer):
         """Transform all nodes in a given list."""
         transformed = []
         for node in nodes:
-            assert node is not None
+            assert isinstance(node, ET.Element)
             if skip_empty and not node.attrib and len(node) == 0:
                 continue
             try:
@@ -135,5 +141,5 @@ class XmlAstGeneralizer(AstGeneralizer):
             self, node: ET.Element, warn: bool = False, skip_empty: bool = False,
             ignored: t.Set[str] = None):
         """Transform all subnodes of a given node."""
-        assert node is not None
+        assert isinstance(node, ET.Element)
         return self.transform_all(iter(node), warn, skip_empty, ignored, node)
