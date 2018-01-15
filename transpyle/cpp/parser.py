@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from ..general import Language, Parser
+from ..general import Parser
 
 _LOG = logging.getLogger(__name__)
 
@@ -28,10 +28,7 @@ class CppParser(Parser):
 
     """C++ parser using CastXML."""
 
-    def __init__(self):
-        super().__init__(Language.find('C++'))
-
-    def parse(self, code, path=None):
+    def _parse_scope(self, code, path=None):
         output_path = None
         with tempfile.NamedTemporaryFile(delete=False) as temporary_file:
             output_path = pathlib.Path(temporary_file.name)

@@ -29,7 +29,7 @@ class Tests(unittest.TestCase):
             parser = parser_class()
             for example in examples:
                 with self.subTest(cls=parser_class, example=example):
-                    tree = parser.parse(code=example, path=None, mode=None)
+                    tree = parser.parse(code=example, path=None)
                     self.assertIsNotNone(tree)
 
     def test_construct_unparser(self):
@@ -58,10 +58,10 @@ class Tests(unittest.TestCase):
             unparser = unparser_class()
             for example in examples:
                 with self.subTest(cls=parser_class, example=example):
-                    tree = parser.parse(code=example, path=None, mode=None)
+                    tree = parser.parse(code=example, path=None)
                     new_code = unparser.unparse(tree).strip()
                     try:
-                        new_tree = parser.parse(new_code, path=None, mode=None)
+                        new_tree = parser.parse(new_code, path=None)
                     except Exception as err:
                         raise AssertionError('failed to re-parse the unparsed code """{}"""'
                                              .format(new_code)) from err

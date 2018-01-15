@@ -142,12 +142,12 @@ class C99Parser(Parser):
 
     """Parser for C99 based on pycparser package."""
 
-    def __init__(self):
-        super().__init__(Language.find('C99'))
+    def __init__(self, default_scopes=None):
+        super().__init__(default_scopes)
         self._preprocessor = C99Preprocessor()
         self._parser = pycparser.CParser()
 
-    def parse(self, code: str, path: pathlib.Path = None):
+    def _parse_scope(self, code: str, path: pathlib.Path = None):
         assert path is not None, 'path is required'
         path_str = str(path)
         # return pycparser.parser_file(path_str, use_cpp=False, cpp_path='cpp', cpp_args='')
