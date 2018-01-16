@@ -101,7 +101,8 @@ Not implemented yet.
 C++ to Python AST
 ~~~~~~~~~~~~~~~~~
 
-Not implemented yet.
+Parsing declarations, but not definitions (i.e. function signature, not body). And only selected
+subset of basic types and basic syntax is supported.
 
 
 Python AST to C++
@@ -136,6 +137,7 @@ Currently, the Fortran unparser uses special attribute :python:`fortran_metadata
 to selected Python AST nodes, and therefore unparsing raw Python AST created directly from ordinary
 Python file might not work as expected.
 
+The above behaviour will change in the future.
 
 OpenCL to Python AST
 ~~~~~~~~~~~~~~~~~~~~
