@@ -59,9 +59,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             self._now_parsing_file = True
             body = self.transform_all_subnodes(node, ignored={'start-of-file', 'end-of-file'})
             self._now_parsing_file = False
-            import_statements = list(itertools.chain(
-                *[statements for _, statements in self._top_level_imports.items()]))
-            body = import_statements + body
+            body = self.import_statements + body
         else:
             return typed_ast3.Expr(value=typed_ast3.Call(
                 func=typed_ast3.Name(id='print'),
@@ -263,11 +261,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if dimensions_node is not None:
             dimensions = self.transform_one(dimensions_node)
             assert len(dimensions) >= 1
-            self._ensure_top_level_import('static_typing', 'st')
+            self.ensure_import('static_typing', 'st')
             annotation = make_st_ndarray(base_type, dimensions)
             annotations = [annotation for _ in variables]
         elif has_variable_dimensions:
-            self._ensure_top_level_import('static_typing', 'st')
+            self.ensure_import('static_typing', 'st')
             annotations = [base_type if _ is None else make_st_ndarray(base_type, _)
                            for _ in variable_dimensions]
         else:
@@ -347,7 +345,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _declaration_include(self, node: ET.Element) -> typed_ast3.Import:
         file_node = node.find('./file')
         path_attrib = file_node.attrib['path']
-        self._ensure_top_level_import(path_attrib)
+        self.ensure_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
 
     def _label(self, node: ET.Element) -> typed_ast3.Num:
@@ -835,7 +833,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if not mode:
             mode = 'r'
         assert 0 < len(mode) <= 2, ET.tostring(node).decode().rstrip()
-        self._ensure_top_level_import('typing', 't')
+        self.ensure_import('typing', 't')
         return typed_ast3.AnnAssign(
             target=file_handle, value=typed_ast3.Call(
                 func=typed_ast3.Name(id='open', ctx=typed_ast3.Load()),
@@ -846,7 +844,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         file_handle = self._create_file_handle_var()
         kwargs = self.transform_one(node.find('./keyword-arguments'))
         file_handle.slice.value = kwargs.pop(0).value
-        self._ensure_top_level_import('typing', 't')
+        self.ensure_import('typing', 't')
         return typed_ast3.Call(
             func=typed_ast3.Attribute(value=file_handle, attr='close', ctx=typed_ast3.Load()),
             args=[], keywords=kwargs)
@@ -1132,17 +1130,17 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                     length, ET.tostring(node).decode().rstrip())
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, t.Any], mode='eval')
         elif length is not None:
-            self._ensure_top_level_import('numpy', 'np')
+            self.ensure_import('numpy', 'np')
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, length], mode='eval')
         elif kind is not None:
-            self._ensure_top_level_import('numpy', 'np')
+            self.ensure_import('numpy', 'np')
             if isinstance(kind, typed_ast3.Num):
                 kind = kind.n
             if not isinstance(kind, int):
                 # _LOG.warning('%s', ET.tostring(node).decode().rstrip())
                 # raise NotImplementedError('non-literal kinds are not supported')
                 python_type = typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
-                self._ensure_top_level_import('static_typing', 'st')
+                self.ensure_import('static_typing', 'st')
                 static_type = typed_ast3.Attribute(
                     value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
                     attr=python_type, ctx=typed_ast3.Load())
@@ -1200,7 +1198,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _intrinsic_getenv(self, call):
         assert isinstance(call, typed_ast3.Call), type(call)
         assert len(call.args) == 2, call.args
-        self._ensure_top_level_import('os')
+        self.ensure_import('os')
         target = call.args[1]
         if isinstance(target, typed_ast3.keyword):
             target = target.value

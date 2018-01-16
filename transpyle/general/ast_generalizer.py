@@ -1,6 +1,7 @@
 """Generailzation of language-specific ASTs."""
 
 import collections.abc
+import itertools
 import logging
 import typing as t
 import xml.etree.ElementTree as ET
@@ -49,19 +50,24 @@ class XmlAstGeneralizer(AstGeneralizer):
         super().__init__(scope)
         self.case_sensitive = case_sensitive
         self._transforms = [f for f in dir(self) if f.startswith('_') and not f.startswith('__')]
-        self._top_level_imports = dict()
+        self._import_statements = dict()
 
-    def _ensure_top_level_import(self, canonical_name: str, alias: t.Optional[str] = None):
-        if (canonical_name, alias) not in self._top_level_imports:
+    @property
+    def import_statements(self):
+        return list(itertools.chain(*[statements
+                                      for _, statements in self._import_statements.items()]))
+
+    def ensure_import(self, canonical_name: str, alias: t.Optional[str] = None):
+        if (canonical_name, alias) not in self._import_statements:
             if canonical_name in ('mpif.h', '?'):  # TODO: other ways to include MPI?
-                self._ensure_mpi_import(canonical_name, alias)
+                self.ensure_mpi(canonical_name, alias)
             else:
-                self._top_level_imports[canonical_name, alias] = [typed_ast3.Import(
+                self._import_statements[canonical_name, alias] = [typed_ast3.Import(
                     names=[typed_ast3.alias(name=canonical_name, asname=alias)])]
 
-    def _ensure_mpi_import(self, canonical_name, alias):
-        # if ('mpi4py', None) not in self._top_level_imports:
-        self._top_level_imports[canonical_name, alias] = [
+    def ensure_mpi(self, canonical_name, alias):
+        # if ('mpi4py', None) not in self._import_statements:
+        self._import_statements[canonical_name, alias] = [
             typed_ast3.ImportFrom(
                 module='mpi4py', names=[typed_ast3.alias(name='MPI', asname=None)], level=0),
             # typed_ast3.parse('mpi4py.config = no_auto_init', mode='eval') # TODO: may be needed
@@ -83,7 +89,7 @@ class XmlAstGeneralizer(AstGeneralizer):
         return found
 
     def generalize(self, syntax: ET.Element):
-        self.top_level_imports = dict()
+        self._import_statements = dict()
         return self.transform_one(syntax)
 
     def no_transform(self, node: ET.Element):
