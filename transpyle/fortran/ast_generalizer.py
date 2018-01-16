@@ -1271,7 +1271,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
         subscripts_node = node.find('./subscripts')
         try:
-            args = self._args(subscripts_node) if subscripts_node else []
+            args = self._subscripts(subscripts_node, postprocess=False) if subscripts_node else []
             call = typed_ast3.Call(func=name, args=args, keywords=[])
             if is_intrinsic:
                 name_type = "function"
@@ -1302,46 +1302,27 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         raise NotImplementedError('not implemented handling of:\n{}'
                                   .format(ET.tostring(node).decode().rstrip()))
 
-    def _args(self, node: ET.Element, arg_node_name: str = 'subscript') -> t.List[typed_ast3.AST]:
-        args = []
-        for arg_node in node.findall('./{}'.format(arg_node_name)):
-            new_args = self.transform_all_subnodes(arg_node, skip_empty=True)
-            if not new_args:
-                continue
-            if len(new_args) != 1:
-                raise SyntaxError(
-                    'args must be specified one new arg at a time, not like {} in:\n{}'.format(
-                        [typed_astunparse.unparse(_) for _ in new_args],
-                        ET.tostring(arg_node).decode().rstrip()))
-            args += new_args
-        return args
-
-    def _subscripts(
-            self, node: ET.Element) -> t.Union[
-                typed_ast3.Index, typed_ast3.Slice, typed_ast3.ExtSlice]:
-        subscripts = []
-        for subscript in node.findall('./subscript'):
-            new_subscripts = self.transform_all_subnodes(subscript)
-            if not new_subscripts:
-                continue
-            if len(new_subscripts) == 1:
-                new_subscript = typed_ast3.Index(value=new_subscripts[0])
-            elif len(new_subscripts) == 2:
-                new_subscript = typed_ast3.Slice(
-                    lower=new_subscripts[0], upper=new_subscripts[1], step=None)
-            else:
-                _LOG.error('%s', ET.tostring(subscript).decode().rstrip())
-                _LOG.error('%s', [typed_astunparse.unparse(_) for _ in new_subscripts])
-                raise SyntaxError('there must be 1 or 2 new subscript data elements')
-            subscripts.append(new_subscript)
+    def _subscripts(self, node: ET.Element, postprocess: bool = True) -> t.Union[
+            typed_ast3.Index, typed_ast3.Slice, typed_ast3.ExtSlice]:
+        subscripts = self.transform_all_subnodes(node, ignored={
+            'section-subscript-list__begin', 'section-subscript-list'})
+        assert len(subscripts) == int(node.attrib['count'])
+        if not postprocess:
+            return subscripts
         if len(subscripts) == 1:
-            return subscripts[0]
-        elif len(subscripts) > 1:
-            return typed_ast3.ExtSlice(dims=subscripts)
-        return []  # TODO: TMP
-        # raise SyntaxError(
-        #    'subscripts node must contain at least one "subscript" node:\n{}'
-        #    .format(ET.tostring(node).decode().rstrip()))
+            return typed_ast3.Index(value=subscripts[0])
+        return typed_ast3.ExtSlice(dims=subscripts)
+
+    def _subscript(self, node: ET.Element) -> t.Union[
+            typed_ast3.Index, typed_ast3.Slice, typed_ast3.ExtSlice]:
+        subscripts = self.transform_all_subnodes(node, ignored={'section-subscript'})
+        if not subscripts:
+            assert node.attrib['type'] == 'empty'
+            return typed_ast3.Slice(lower=None, upper=None, step=None)
+        if len(subscripts) != 1:
+            self.no_transform(node)
+        assert node.attrib['type'] in ('simple', 'range')
+        return subscripts[0]
 
     def _literal(self, node: ET.Element) -> t.Union[typed_ast3.Num, typed_ast3.Str]:
         literal_type = node.attrib['type']
