@@ -9,17 +9,16 @@ from transpyle.general.ast_generalizer import \
 
 class Tests(unittest.TestCase):
 
-    def test_construct_base(self):
+    def test_base_construct(self):
         ast_generalizer = AstGeneralizer()
         with self.assertRaises(NotImplementedError):
             ast_generalizer.generalize(None)
 
+    def test_identity_construct(self):
         identity_generalizer = IdentityAstGeneralizer()
         self.assertEqual(identity_generalizer.generalize('abcde'), 'abcde')
 
-        xml_generalizer = XmlAstGeneralizer()
-
-    def test_xml_generalizer(self):
+    def test_xml_construct(self):
         xml_generalizer = XmlAstGeneralizer()
 
         with self.assertRaises(NotImplementedError):
@@ -42,3 +41,24 @@ class Tests(unittest.TestCase):
             my_generalizer.generalize(ET.Element('some_node'))
 
         self.assertEqual(my_generalizer.generalize(ET.Element('other_node')), 'abcde')
+
+    def test_xml_get(self):
+        xml_generalizer = XmlAstGeneralizer()
+        with self.assertRaises(SyntaxError):
+            xml_generalizer.get_one(ET.Element('some-node'), './xpath')
+
+        empty = xml_generalizer.get_all(ET.Element('some-node'), './xpath', require_results=False)
+        self.assertListEqual(empty, [])
+
+        with self.assertRaises(SyntaxError):
+            xml_generalizer.get_all(ET.Element('some-node'), './xpath')
+
+    def test_xml_get(self):
+        xml_generalizer = XmlAstGeneralizer()
+        with self.assertRaises(NotImplementedError):
+            xml_generalizer.transform_one(ET.Element('some-node'))
+        with self.assertRaises(NotImplementedError):
+            xml_generalizer.transform_all([ET.Element('some-node')])
+
+        empty = xml_generalizer.transform_all_subnodes(ET.Element('some-node'))
+        self.assertListEqual(empty, [])

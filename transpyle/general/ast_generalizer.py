@@ -1,5 +1,6 @@
 """Generailzation of language-specific ASTs."""
 
+import collections.abc
 import logging
 import typing as t
 import xml.etree.ElementTree as ET
@@ -7,7 +8,6 @@ import xml.etree.ElementTree as ET
 import typed_ast.ast3 as typed_ast3
 
 from .registry import Registry
-# from .language import Language
 
 _LOG = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ class XmlAstGeneralizer(AstGeneralizer):
     def transform_one(self, node: ET.Element, warn: bool = False, ignored: t.Set[str] = None,
                       parent: t.Optional[ET.Element] = None):
         """Transform a single node."""
-        assert isinstance(node, ET.Element)
+        assert isinstance(node, ET.Element), type(node)
         transform_name = '_{}'.format(node.tag.replace('-', '_'))
         if transform_name not in self._transforms:
             if ignored and node.tag in ignored:
@@ -123,12 +123,14 @@ class XmlAstGeneralizer(AstGeneralizer):
         _transform = getattr(self, transform_name)
         return _transform(node)
 
-    def transform_all(self, nodes: t.List[ET.Element], warn: bool = False, skip_empty: bool = False,
-                      ignored: t.Set[str] = None, parent: t.Optional[ET.Element] = None) -> list:
+    def transform_all(
+            self, nodes: t.Iterable[ET.Element], warn: bool = False, skip_empty: bool = False,
+            ignored: t.Set[str] = None, parent: t.Optional[ET.Element] = None) -> list:
         """Transform all nodes in a given list."""
+        assert isinstance(nodes, (ET.Element, collections.abc.Iterable)), type(nodes)
         transformed = []
         for node in nodes:
-            assert isinstance(node, ET.Element)
+            assert isinstance(node, ET.Element), type(node)
             if skip_empty and not node.attrib and len(node) == 0:
                 continue
             try:
@@ -139,7 +141,7 @@ class XmlAstGeneralizer(AstGeneralizer):
 
     def transform_all_subnodes(
             self, node: ET.Element, warn: bool = False, skip_empty: bool = False,
-            ignored: t.Set[str] = None):
+            ignored: t.Set[str] = None) -> list:
         """Transform all subnodes of a given node."""
-        assert isinstance(node, ET.Element)
-        return self.transform_all(iter(node), warn, skip_empty, ignored, node)
+        assert isinstance(node, ET.Element), type(node)
+        return self.transform_all(node, warn, skip_empty, ignored, node)
