@@ -1153,6 +1153,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 # return custom_kind_type
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, kind], mode='eval')
         else:
+            if node.attrib['type'] == 'derived':
+                return typed_ast3.Call(func=typed_ast3.Name(id='type', ctx=typed_ast3.Load()),
+                                       args=[typed_ast3.Name(id=name, ctx=typed_ast3.Load())],
+                                       kwargs=[])
+            assert node.attrib['type'] == 'intrinsic'
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
         raise NotImplementedError(
             'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
