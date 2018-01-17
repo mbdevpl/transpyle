@@ -7,14 +7,10 @@ import xml.etree.ElementTree as ET
 
 import typed_ast.ast3 as typed_ast3
 
+from .exc import ContinueIteration
 from .registry import Registry
 
 _LOG = logging.getLogger(__name__)
-
-
-class ContinueIteration(StopIteration):
-
-    pass
 
 
 class AstGeneralizer(Registry):

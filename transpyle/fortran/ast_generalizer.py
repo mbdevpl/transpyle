@@ -206,10 +206,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if subtype == 'none':
             annotation = typed_ast3.NameConstant(value=None)
         elif subtype == 'some':
-            base_type_node = node.find('./type')
-            base_type = self.transform_one(base_type_node)
-            letter_ranges_node = node.find('./letter-ranges')
-            letter_ranges = self.transform_one(letter_ranges_node)
+            base_type = self.transform_one(self.get_one(node, './type'))
+            letter_ranges = self.transform_one(self.get_one(node, './letter-ranges'))
             annotation = typed_ast3.Subscript(
                 value=typed_ast3.Attribute(value=typed_ast3.Name(id='Fortran',
                                                                  ctx=typed_ast3.Load()),
@@ -240,12 +238,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         """Reorganize data from multi-variable declaration into sequence of anotated assignments."""
 
         # variable names
-        variables_node = node.find('./variables')
-        if variables_node is None:
-            _LOG.error('%s', ET.tostring(node).decode().rstrip())
-            raise SyntaxError('"variables" node not present')
         variables_and_values = self.transform_all_subnodes(
-            variables_node, skip_empty=True,
+            self.get_one(node, './variables'), skip_empty=True,
             ignored={'entity-decl-list__begin', 'entity-decl-list'})
         if not variables_and_values:
             _LOG.error('%s', ET.tostring(node).decode().rstrip())
@@ -253,10 +247,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         variables = [var for var, _ in variables_and_values]
 
         # base type of variables
-        base_type_node = node.find('./type')
-        if base_type_node is None:
-            raise SyntaxError('"type" node not present in\n{}', ET.tostring(node).decode().rstrip())
-        base_type = self.transform_one(base_type_node)
+        base_type = self.transform_one(self.get_one(node, './type'))
 
         # dimensionality information (only for array types)
         dimensions_node = node.find('./dimensions')
