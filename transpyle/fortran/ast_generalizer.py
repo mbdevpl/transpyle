@@ -12,6 +12,7 @@ import horast.nodes as horast_nodes
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
+from ..general.exc import ContinueIteration
 from ..general import Language, XmlAstGeneralizer
 from ..python import make_numpy_constructor, make_st_ndarray
 from .definitions import \
@@ -289,13 +290,21 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if intent_node is not None:
             metadata['intent'] = intent_node.attrib['type']
 
-        pointer_node = node.find('./pointer')
-        if pointer_node is not None:
-            metadata['is_pointer'] = True
+        attributes = ('allocatable', 'asynchronous', 'external', 'intrinsic', 'optional',
+                      'parameter', 'pointer', 'protected', 'save', 'target', 'value', 'volatile')
+        for attribute in attributes:
+            if node.find('./attribute-{}'.format(attribute)) is not None:
+                metadata['is_{}'.format(attribute)] = True
 
         if metadata:
             metadata_node = horast_nodes.Comment(
                 value=typed_ast3.Str(s=' Fortran metadata: {}'.format(repr(metadata))), eol=False)
+
+        _handled = {'variables', 'type', 'dimensions', 'intent'}
+        extra_results = self.transform_all_subnodes(node, ignored={
+            'type-declaration-stmt'} | _handled | {'attribute-{}'.format(_) for _ in attributes})
+        if extra_results:
+            _LOG.warning('ignoring additional information in the declaration:\n%s', extra_results)
 
         if not self._split_declarations:
             raise NotImplementedError()
@@ -310,6 +319,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             assignments = new_assignments
 
         return assignments
+
+    def _attr_spec(self, node: ET.Element):
+        attr = node.attrib['attrKeyword'].lower()
+        if attr in {'dimension', 'intent'}:
+            raise ContinueIteration()
+        self.no_transform(node)
 
     def _declaration_parameter(self, node: ET.Element):
         constants_node = node.find('./constants')
