@@ -58,6 +58,7 @@ COPY . /home/user/Projects/transpyle
 RUN sudo chown -R user:user /home/user/Projects/transpyle
 
 WORKDIR /home/user/Projects/transpyle
+RUN git clean -f -d
 
 RUN pip3.6 install --user -r test_requirements.txt
 RUN python3.6 setup.py bdist_wheel

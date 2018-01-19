@@ -45,20 +45,21 @@ _APPS_CODE_FILEPATHS = {
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
         for input_path in [
             'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
-            'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
-            # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',  # contains in subroutine
+            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',  # contains in subroutine
             'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
-            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'  # contains in subroutine
+            # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',  # contains in subroutine
+            'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
+            'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90',
             ]] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
     'FLASH-4.5': [
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
         for input_path in [
+            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',  # contains in subroutine
             'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
-            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90'  # contains in subroutine
             ]] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
     'FFB-MINI': [
         pathlib.Path(root, name)
