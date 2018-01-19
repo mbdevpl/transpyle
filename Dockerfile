@@ -50,7 +50,6 @@ RUN git clone "https://github.com/CastXML/CastXML"
 
 WORKDIR /home/user/Projects/CastXML
 
-RUN sudo apt install -y libclang-5.0-dev
 RUN cmake .
 RUN make
 RUN export PATH="$(pwd)/bin:${PATH}"
