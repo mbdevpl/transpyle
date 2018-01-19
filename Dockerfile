@@ -42,6 +42,20 @@ RUN python3.6 setup.py bdist_wheel
 RUN pip3.6 install --user dist/*.whl
 
 #
+# CastXML
+#
+
+WORKDIR /home/user/Projects
+RUN git clone "https://github.com/CastXML/CastXML"
+
+WORKDIR /home/user/Projects/CastXML
+
+RUN sudo apt install -y libclang-5.0-dev
+RUN cmake .
+RUN make
+RUN export PATH="$(pwd)/bin:${PATH}"
+
+#
 # apps
 #
 
@@ -58,17 +72,8 @@ COPY . /home/user/Projects/transpyle
 RUN sudo chown -R user:user /home/user/Projects/transpyle
 
 WORKDIR /home/user/Projects/transpyle
-RUN git clean -f -d
+RUN git clean -f -d -x
 
 RUN pip3.6 install --user -r test_requirements.txt
 RUN python3.6 setup.py bdist_wheel
 RUN pip3.6 install --user dist/*
-
-#WORKDIR /home/user/Projects/transpyle
-
-#RUN python3.6 -m unittest test.test_apps.Tests.test_roundtrip_flash
-
-
-#WORKDIR /home/user/Projects/python
-
-#WORKDIR /home/user

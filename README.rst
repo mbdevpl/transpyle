@@ -200,3 +200,25 @@ Additionally, support for some languages requires the following software to be i
 *   C, C++: SWIG (Simplified Wrapper and Interface Generator) with executable `swig`
 
 *   Fortran: a modern Fortran compiler with executable `gfortran`
+
+
+docker image
+------------
+
+There is a docker image prepared so that you can easily try the transpiler.
+
+First, download and run the docker container (migth require sudo):
+
+.. code:: bash
+
+    docker pull "mbdevpl/transpyle"
+    docker run -h transmachine -it "mbdevpl/transpyle"
+
+Then, in the container:
+
+.. code:: bash
+
+    python3 -m jupyter notebok --ip="$(hostname -i)" --port=8080
+
+Open the shown link in your host's web browser, navigate to `examples.ipynb`_,
+and start transpiling!
