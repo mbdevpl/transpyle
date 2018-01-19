@@ -15,7 +15,9 @@ WORKDIR /home/user/Projects
 RUN git clone https://github.com/CodethinkLabs/ofc open-fortran-compiler
 
 WORKDIR /home/user/Projects/open-fortran-compiler
-#RUN make
+
+RUN CC=gcc-5 make
+RUN export PATH="$(pwd):${PATH}"
 
 #
 # Open Fortran Paresr
