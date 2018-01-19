@@ -220,5 +220,5 @@ Then, in the container:
 
     python3 -m jupyter notebok --ip="$(hostname -i)" --port=8080
 
-Open the shown link in your host's web browser, navigate to `examples.ipynb`_,
+Open the shown link in your host's web browser, navigate to `<examples.ipynb>`_,
 and start transpiling!
