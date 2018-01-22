@@ -19,19 +19,6 @@ from .definitions import PYTHON_FORTRAN_TYPE_PAIRS, PYTHON_FORTRAN_INTRINSICS
 _LOG = logging.getLogger(__name__)
 
 
-def _transform_print_call(call):
-    if not hasattr(call, 'fortran_metadata'):
-        call.fortran_metadata = {}
-    call.fortran_metadata['is_transformed'] = True
-    if len(call.args) == 1:
-        arg = call.args[0]
-        if isinstance(arg, typed_ast3.Call) and isinstance(arg.func, typed_ast3.Attribute):
-            label = int(arg.func.value.id.replace('format_label_', ''))
-            call.args = [typed_ast3.Num(n=label)] + arg.args
-            return call
-    call.args.insert(0, typed_ast3.Ellipsis())
-    return call
-
 def _match_subscripted_attributed_name(tree, name: str, attr: str) -> bool:
     return isinstance(tree, typed_ast3.Subscript) \
         and isinstance(tree.value, typed_ast3.Attribute) \

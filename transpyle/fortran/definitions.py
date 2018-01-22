@@ -159,6 +159,21 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     # Fortran 2008
     }
 
+
+def _transform_print_call(call):
+    if not hasattr(call, 'fortran_metadata'):
+        call.fortran_metadata = {}
+    call.fortran_metadata['is_transformed'] = True
+    if len(call.args) == 1:
+        arg = call.args[0]
+        if isinstance(arg, typed_ast3.Call) and isinstance(arg.func, typed_ast3.Attribute):
+            label = int(arg.func.value.id.replace('format_label_', ''))
+            call.args = [typed_ast3.Num(n=label)] + arg.args
+            return call
+    call.args.insert(0, typed_ast3.Ellipsis())
+    return call
+
+
 PYTHON_FORTRAN_INTRINSICS = {
     'np.argmin': 'minloc',
     'np.argmax': 'maxloc',
@@ -172,7 +187,7 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.sign': 'sign',
     'np.sqrt': 'sqrt',
     'np.zeros': lambda _: typed_ast3.Num(n=0),
-    'print': 'print',  # _transform_print_call
+    'print': _transform_print_call,
     'os.environ': 'getenv',
     'is_not_none': 'present',
     'MPI.Init': 'MPI_Init',
