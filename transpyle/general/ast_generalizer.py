@@ -120,7 +120,7 @@ class XmlAstGeneralizer(AstGeneralizer):
                     'no transformer available for node "{}", a subnode of "{}":\n{}'
                     .format(node.tag, parent.tag, ET.tostring(node).decode().rstrip()))
         if ignored and node.tag in ignored:
-            _LOG.warning('ignoring existing transformer for %s', node.tag)
+            _LOG.info('ignoring existing transformer for %s', node.tag)
             raise ContinueIteration()
         _transform = getattr(self, transform_name)
         return _transform(node)
