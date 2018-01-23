@@ -562,7 +562,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 case.body = items + case.body
                 items = []
             if prev_case is not None:
-                case.orelse.append(prev_case)
+                prev_case.orelse.append(case)
             prev_case = case
         cases[0].fortran_metadata = {'is_select': True}
         return cases[0]

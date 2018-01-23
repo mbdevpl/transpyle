@@ -321,6 +321,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _If(self, t):
+        metadata = getattr(t, 'fortran_metadata', {})
+        if metadata.get('is_select'):
+            return self._select(t)
+        elif metadata:
+            raise NotImplementedError(metadata)
         return self._generic_If(t)
 
     def _generic_If(self, t, prefix='if'):
@@ -339,6 +344,38 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.dispatch(t.orelse)
                 self.leave()
         self.fill('end if')
+
+    def _select(self, select: typed_ast3.If):
+        self.fill('select case(')
+        assert isinstance(select.test, typed_ast3.Compare), type(select.test)
+        select_variable = select.test.left
+        self.dispatch(select_variable)
+        self.write(')')
+        self.enter()
+        case = [select]
+        while case:
+            assert len(case) == 1, case
+            case = case[0]
+            assert isinstance(case, typed_ast3.If), type(case)
+            assert isinstance(case.test, typed_ast3.Compare), type(case.test)
+            assert case.test.left == select_variable
+            self._select_case(case)
+            case = case.orelse
+        self.leave()
+        self.fill('end select')
+
+    def _select_case(self, case: typed_ast3.If):
+        self.fill('case (')
+        assert isinstance(case.test, typed_ast3.Compare), type(case.test)
+        assert len(case.test.ops) == 1
+        assert isinstance(case.test.ops[0], typed_ast3.Eq)
+        assert len(case.test.comparators) == 1
+        case_value = case.test.comparators[0]
+        self.dispatch(case_value)
+        self.write(')')
+        self.enter()
+        self.dispatch(case.body)
+        self.leave()
 
     def _While(self, t):
         if not isinstance(t.test, typed_ast3.NameConstant) or t.test.value is not True:
