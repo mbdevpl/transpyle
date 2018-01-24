@@ -8,6 +8,7 @@ import re
 import typing as t
 import xml.etree.ElementTree as ET
 
+import horast
 import horast.nodes as horast_nodes
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
@@ -552,20 +553,28 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         cases = self.transform_all_subnodes(self.get_one(node, './body'))
         assert cases, 'encountered select without cases'
         items = []
+        first_case = None
         prev_case = None
         for case in cases:
             if not isinstance(case, typed_ast3.If):
                 items.append(case)
+                _LOG.debug('accumulated %s', [horast.unparse(_) for _ in items])
                 continue
             case.test = typed_ast3.Compare(left=var, ops=[typed_ast3.Eq()], comparators=[case.test])
             if items:
+                _LOG.debug('prepending %s', [horast.unparse(_) for _ in items])
                 case.body = items + case.body
                 items = []
+            if first_case is None:
+                first_case = case
             if prev_case is not None:
                 prev_case.orelse.append(case)
             prev_case = case
-        cases[0].fortran_metadata = {'is_select': True}
-        return cases[0]
+        if items:
+            prev_case.body += items
+            _LOG.debug('appending %s', [horast.unparse(_) for _ in items])
+        first_case.fortran_metadata = {'is_select': True}
+        return first_case
 
     def _case(self, node: ET.Element):
         return self._if_if(self.get_one(node, './header'), self.get_one(node, './body'))
