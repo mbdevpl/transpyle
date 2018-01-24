@@ -167,6 +167,14 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.write(')')
             self.write(')')
             return
+        else:
+            self.fill()
+            assert len(t.targets) == 1
+            self.dispatch(t.targets[0])
+            self.write(" => ")
+            self.dispatch(t.value)
+            return
+        self.fill()
         if t.type_comment:
             self.dispatch_var_type(t.type_comment)
         for key, value in metadata.items():
@@ -193,14 +201,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.value)
 
     def _AnnAssign(self, t):
+        self.fill()
         if isinstance(t.target, typed_ast3.Name) and t.target.id.lower() == 'implicit':
             assert t.value is None
-            self.fill()
             self.dispatch(t.target)
             self.write(' ')
             self.dispatch(t.annotation)
             return
-        self.fill()
         metadata = getattr(t, 'fortran_metadata', {})
         if metadata.get('is_format', False):
             self.write(t.target.id.replace('format_label_', ''))

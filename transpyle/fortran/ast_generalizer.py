@@ -910,6 +910,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 .format(len(value), value, ET.tostring(node).decode().rstrip()))
         return typed_ast3.Assign(targets=[target], value=value, type_comment=None)
 
+    def _pointer_assignment(self, node: ET.Element):
+        assignment = self._assignment(node)
+        assignment.fortran_metadata = {'is_pointer_assignment': True}
+        return assignment
+
     def _operation(self, node: ET.Element) -> typed_ast3.AST:
         if node.attrib['type'] == 'multiary':
             return self._operation_multiary(node)
