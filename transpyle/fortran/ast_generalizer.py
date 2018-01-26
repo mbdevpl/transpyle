@@ -121,9 +121,16 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         else:
             arguments = self.transform_one(arguments_node)
         body = self.transform_all_subnodes(node.find('./body'))
-        return typed_ast3.FunctionDef(
+        function_def = typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
             returns=typed_ast3.NameConstant(None))
+        members_node = node.find('./members')
+        if members_node is not None:
+            members = self.transform_all_subnodes(members_node, ignored={
+                'internal-subprogram', 'internal-subprogram-part'})
+            assert members
+            function_def.fortran_metadata = {'contains': members}
+        return function_def
 
     def _arguments(self, node: ET.Element) -> typed_ast3.arguments:
         return typed_ast3.arguments(

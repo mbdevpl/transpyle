@@ -175,9 +175,13 @@ def _transform_print_call(call):
 
 
 PYTHON_FORTRAN_INTRINSICS = {
+    'np.arcsin': 'asin',
+    'np.arctan': 'atan',
     'np.argmin': 'minloc',
     'np.argmax': 'maxloc',
     'np.array': lambda _: _.args[0],
+    'np.conj': 'conjg',
+    'np.cos': 'cos',
     'np.dot': 'dot_product',
     'np.finfo.eps': 'epsilon',
     'np.finfo.max': 'huge',
@@ -185,6 +189,8 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.maximum': 'max',
     'np.minimum': 'min',
     'np.sign': 'sign',
+    'np.sin': 'sin',
+    'np.sinh': 'sinh',
     'np.sqrt': 'sqrt',
     'np.zeros': lambda _: typed_ast3.Num(n=0),
     'print': _transform_print_call,

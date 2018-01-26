@@ -305,6 +305,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             # self.dispatch(t.returns)
         self.enter()
         self.dispatch(t.body)
+
+        metadata = getattr(t, 'fortran_metadata', {})
+        if 'contains' in metadata:
+            self.write('\n')
+            self.fill('contains')
+            for member in metadata['contains']:
+                self.dispatch(member)
         self.leave()
         self.fill('end subroutine ' + t.name)
 

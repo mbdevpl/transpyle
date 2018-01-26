@@ -40,14 +40,14 @@ _APPS_ROOT_PATHS = {
     if app not in _APPS_OPTIONAL or _HERE.parent.joinpath(path).is_dir()}
 
 _FLASH_COMMON_PATHS = [
-    # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',  # contains in subroutine
+    'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
-    # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',  # contains in subroutine
+    'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',
     'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
     'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
     'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
-    # 'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',  # contains in subroutine
+    # 'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',  # interface
     'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90']
 
 _APPS_CODE_FILEPATHS = {
