@@ -509,18 +509,20 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write(')')
 
     cmpops = {
-        'Eq': '==', 'NotEq': '/=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
-    #    'Is': '===', 'IsNot': 'is not'}
+        'Eq': '.eq.', 'NotEq': '.ne.', 'Lt': '.lt.', 'LtE': '.le.', 'Gt': '.gt.', 'GtE': '.ge.'}
+    #    'Is': '.eqv.', 'IsNot': '.neqv.'}
+
     def _Compare(self, t):
         if len(t.ops) > 1 or len(t.comparators) > 1 \
                 or any([o.__class__.__name__ not in self.cmpops for o in t.ops]):
             raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
         super()._Compare(t)
 
-    boolops = {ast.And: '.and.', ast.Or: '.or.', typed_ast3.And: '.and.', typed_ast3.Or: '.or.'}
+    boolops = {'And': '.and.', 'Or': '.or.'}
+
     def _BoolOp(self, t):
         self.write("(")
-        s = " %s " % self.boolops[t.op.__class__]
+        s = " %s " % self.boolops[t.op.__class__.__name__]
         interleave(lambda: self.write(s), self.dispatch, t.values)
         self.write(")")
 
@@ -732,6 +734,9 @@ class Fortran2008UnparserBackend(Fortran77UnparserBackend):
                  **kwargs):
         super().__init__(*args, indent=indent, fixed_form=fixed_form, max_line_len=max_line_len,
                          **kwargs)
+
+    cmpops = {
+        'Eq': '==', 'NotEq': '/=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
 
 
 class Fortran2008Unparser(Unparser):

@@ -964,7 +964,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         operators_and_operands = list(reversed(operators_and_operands))
         operators_and_operands += [(None, None)]
 
-        root_operation = None
+        root_operation = None  # type: typed_ast3.BinOp
+        operation = None  # type: typed_ast3.BinOp
         root_operation_type = None
         root_operator_type = None
         zippped = zip(operators_and_operands[::2], operators_and_operands[1::2])
@@ -1000,6 +1001,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             if root_operation is None:
                 root_operation_type = operation_type
                 root_operator_type = operator_type
+                if root_operation_type is not typed_ast3.BoolOp:
+                    raise NotImplementedError('root operation initialisation')
                 root_operation = typed_ast3.BoolOp(
                     op=root_operator_type(), values=[operand])
                 continue
