@@ -107,6 +107,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(')')
         elif _match_io(tree):
             self.write('integer')
+        elif isinstance(tree, typed_ast3.Call) and isinstance(tree.func, typed_ast3.Name) \
+                and tree.func.id == 'type':
+            self.dispatch(tree)
         else:
             raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(tree)))
             # self._unsupported_syntax(tree)
