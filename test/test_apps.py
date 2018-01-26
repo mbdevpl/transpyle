@@ -119,8 +119,8 @@ def _migrate_fortran(case, path, results_path, parser, ast_generalizer, unparser
 class Tests(unittest.TestCase):
 
     def _test_app(self, app_name, tools, test, dir_name=None):
-        if app_name not in _APPS_ROOT_PATHS:
-            return
+        if app_name not in _APPS_ROOT_PATHS and app_name in _APPS_OPTIONAL:
+            self.skipTest('{} directory not found'.format(app_name))
         if dir_name is None:
             dir_name = app_name.lower()
         results_path = pathlib.Path(APPS_RESULTS_ROOT, dir_name)
