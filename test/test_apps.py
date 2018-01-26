@@ -18,17 +18,17 @@ _FORTRAN_SUFFIXES = ('.f', '.F', '.f90', '.F90')
 
 _APPS_PARENT_PATHS = {
     'miranda_io': pathlib.Path('fortran'),
-    'FLASH-SUBSET': pathlib.Path('fortran'),
     'FLASH-4.5': pathlib.Path('fortran'),
+    'FLASH-SUBSET': pathlib.Path('fortran'),
     'FFB-MINI': pathlib.Path('fortran')}
 
 _APPS_ROOT_PATHS = {
     'miranda_io': pathlib.Path('miranda_io'),
-    'FLASH-SUBSET': pathlib.Path('flash-subset', 'FLASH4.4'),
     'FLASH-4.5': pathlib.Path('flash-4.5'),
+    'FLASH-SUBSET': pathlib.Path('flash-subset', 'FLASH4.4'),
     'FFB-MINI': pathlib.Path('ffb-mini')}
 
-_APPS_OPTIONAL = {'FLASH-SUBSET', 'FLASH-4.5'}
+_APPS_OPTIONAL = {'FLASH-4.5', 'FLASH-SUBSET'}
 
 _APPS_ROOT_PATHS = {
     app: (pathlib.Path('..', path) if _HERE.parent.joinpath('..', path).is_dir()
@@ -39,28 +39,29 @@ _APPS_ROOT_PATHS = {
     app: _HERE.parent.joinpath(path).resolve() for app, path in _APPS_ROOT_PATHS.items()
     if app not in _APPS_OPTIONAL or _HERE.parent.joinpath(path).is_dir()}
 
+_FLASH_COMMON_PATHS = [
+    # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',  # contains in subroutine
+    'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
+    # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',  # contains in subroutine
+    'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
+    'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
+    'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
+    'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
+    # 'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',  # contains in subroutine
+    'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90']
+
 _APPS_CODE_FILEPATHS = {
     'miranda_io': [pathlib.Path(_APPS_ROOT_PATHS['miranda_io'], 'miranda_io.f90')],
+    'FLASH-4.5': [
+        pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
+        for input_path in [
+            ] + _FLASH_COMMON_PATHS] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
     'FLASH-SUBSET': [
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
         for input_path in [
             'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
-            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',  # contains in subroutine
-            'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
-            # 'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',  # contains in subroutine
-            'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
-            'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90',
-            ]] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
-    'FLASH-4.5': [
-        pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
-        for input_path in [
-            # 'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',  # contains in subroutine
-            'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
-            ]] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90'  # also in 4.5, but fails
+            ] + _FLASH_COMMON_PATHS] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
     'FFB-MINI': [
         pathlib.Path(root, name)
         for root, _, files in os.walk(str(pathlib.Path(_APPS_ROOT_PATHS['FFB-MINI'], 'src')))
@@ -133,12 +134,12 @@ class Tests(unittest.TestCase):
         self._test_app('miranda_io', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
-    def test_roundtrip_flash(self):
-        self._test_app('FLASH-SUBSET', _prepare_roundtrip(self, Language.find('Fortran')),
-                       _roundtrip_fortran)
-
     def test_roundtrip_flash_45(self):
         self._test_app('FLASH-4.5', _prepare_roundtrip(self, Language.find('Fortran')),
+                       _roundtrip_fortran)
+
+    def test_roundtrip_flash(self):
+        self._test_app('FLASH-SUBSET', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
     def test_roundtrip_ffbmini(self):
