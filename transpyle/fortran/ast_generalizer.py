@@ -1006,7 +1006,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             if operation_type is not None:
                 assert operation_type is root_operation_type, (operation_type, root_operation_type)
                 assert operator_type is root_operator_type, (operator_type, root_operator_type)
-                root_operation.values.append(operand)
+            root_operation.values.append(operand)
 
         return root_operation
 
