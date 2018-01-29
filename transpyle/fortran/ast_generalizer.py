@@ -1,6 +1,5 @@
 """Transformer of Fortran AST into Python AST."""
 
-import collections.abc
 import functools
 import itertools
 import logging
@@ -16,21 +15,12 @@ import typed_astunparse
 from ..general.exc import ContinueIteration
 from ..general import Language, XmlAstGeneralizer
 from ..python import make_numpy_constructor, make_st_ndarray
+from ..python.transformations import _flatten_sequence
 from .definitions import \
     FORTRAN_PYTHON_TYPE_PAIRS, FORTRAN_PYTHON_OPERATORS, INTRINSICS_FORTRAN_TO_PYTHON, \
     INTRINSICS_SPECIAL_CASES
 
 _LOG = logging.getLogger(__name__)
-
-
-def flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
-    assert isinstance(sequence, collections.abc.MutableSequence)
-    for i, elem in enumerate(sequence):
-        if isinstance(elem, collections.abc.Sequence):
-            for value in reversed(elem):
-                sequence.insert(i, value)
-            del sequence[i + len(elem)]
-
 
 FORTRAN_PYTHON_FORMAT_SPEC = {
     'A': str,
@@ -203,7 +193,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
                 keywords=[]))
         details = self.transform_all_subnodes(node, ignored={})
-        flatten_sequence(details)
+        _flatten_sequence(details)
         return details
         # raise NotImplementedError(
         #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
@@ -625,7 +615,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'action-stmt', 'executable-construct', 'execution-part-construct',
             'do-term-action-stmt',  # until do loop parsing implementation is changed
             'execution-part'})
-        flatten_sequence(details)
+        _flatten_sequence(details)
         # if len(details) == 0:
         #    args = [
         #        typed_ast3.Str(s=ET.tostring(node).decode().rstrip()),

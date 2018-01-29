@@ -165,6 +165,23 @@ Python 3.6 with whole-line comments outside expressions is fully supported.
 Presence of end-of-line comments or comments in expressions might result in errors.
 
 
+fetures
+-------
+
+Using Python AST as the intermediate representation, enables the AST to be directly manipulated,
+and certain performance-oriented transformations can be applied. Current transpiler implementation
+aims at:
+
+- inlining selected calls
+- decorating selected loops with compiler-extension pragmas
+
+More optimizations will be introduced in the future.
+
+Some (if not all) of the above optimizations may have very limited (if not no) performance impact
+in Python, however when C, C++ or Fortran code is generated, the performance gains can be
+much greater.
+
+
 requirements
 ------------
 
