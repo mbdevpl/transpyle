@@ -137,6 +137,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'actual-arg', 'actual-arg-spec', 'dummy-arg'})
         if values:
             assert len(values) == 1
+            _LOG.warning('generating invalid Python AST: keyword() in arguments()')
             return typed_ast3.keyword(arg=node.attrib['name'], value=values[0])
         return typed_ast3.arg(arg=node.attrib['name'], annotation=None)
 

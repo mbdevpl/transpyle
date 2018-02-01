@@ -298,15 +298,23 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write('\n')
         if t.decorator_list:
             self._unsupported_syntax(t)
-        self.fill('subroutine ' + t.name + ' (')
+        returns_something = t.returns is not None and not isinstance(t.returns, typed_ast3.NameConstant)
+        function_kind = 'function' if returns_something else 'subroutine'
+        self.fill('{} {} ('.format(function_kind, t.name))
         self.dispatch(t.args)
         self.write(')')
-        if t.returns:
-            _LOG.warning('skipping return')
+        self.enter()
+        if returns_something:
+            # _LOG.warning('ignoring return annotation on %s', t.name)
+            self.fill('! return type')
+            self.fill()
+            self.dispatch_var_type(t.returns)
+            self.write(' :: ')
+            self.write(t.name)
+            self.write('\n')
             # raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
             # self.write(' result ')
             # self.dispatch(t.returns)
-        self.enter()
         self.dispatch(t.body)
 
         metadata = getattr(t, 'fortran_metadata', {})
@@ -315,8 +323,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.fill('contains')
             for member in metadata['contains']:
                 self.dispatch(member)
+
         self.leave()
-        self.fill('end subroutine ' + t.name)
+        self.fill('end {} {}'.format(function_kind, t.name))
 
     def _AsyncFunctionDef(self, t):
         self._unsupported_syntax(t)
@@ -664,7 +673,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     # argument
     def _arg(self, t):
         if t.annotation:
-            self._unsupported_syntax(t)
+            _LOG.warning('ignoring annotation "%s" on argument %s', t.annotation, t.arg)
+            # self._unsupported_syntax(t)
         self.write(t.arg)
 
     # others

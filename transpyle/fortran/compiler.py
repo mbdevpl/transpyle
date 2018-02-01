@@ -100,5 +100,9 @@ class F2PyCompiler(Compiler):
 
         results = [result for result in output_folder.glob('{}*'.format(module_name))
                    if result.is_file()]
+        if len(results) != 1:
+            _LOG.warning('%s', result.args)
+            _LOG.warning('%s', result.stdout)
+            _LOG.error('%s', result.stderr)
         assert len(results) == 1, results
         return results[0]
