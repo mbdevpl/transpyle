@@ -7,8 +7,9 @@ import nuitka
 from ..general import Language, Unparser
 
 
-def transpile():
+def transpile_test():
     command = ['nuitka', '--module', '{}.py']
+    raise NotImplementedError()
 
 
 class Cpp14UnparserBackend(horast.unparser.Unparser):

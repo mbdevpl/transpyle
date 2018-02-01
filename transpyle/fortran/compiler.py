@@ -51,12 +51,12 @@ class F2PyCompiler(Compiler):
         return result
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
-                output_path: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
+                output_folder: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
         assert isinstance(code, str), type(code)
         assert isinstance(path, pathlib.Path), type(path)
         assert path.is_file(), path
-        assert isinstance(output_path, pathlib.Path), type(output_path)
-        assert output_path.is_dir(), output_path
+        assert isinstance(output_folder, pathlib.Path), type(output_folder)
+        assert output_folder.is_dir(), output_folder
 
         module_name = create_f2py_module_name(path)
         # if __debug__:
@@ -79,7 +79,7 @@ class F2PyCompiler(Compiler):
         # kwargs['noopt'] = True
 
         _working_dir = pathlib.Path.cwd()
-        os.chdir(str(output_path))
+        os.chdir(str(output_folder))
         result = self.run_f2py(code, path, module_name, *args, **kwargs)
         os.chdir(str(_working_dir))
 
@@ -98,7 +98,7 @@ class F2PyCompiler(Compiler):
         # print(result.stdout)
         # print(result.stderr)
 
-        results = [result for result in output_path.glob('{}*'.format(module_name))
+        results = [result for result in output_folder.glob('{}*'.format(module_name))
                    if result.is_file()]
         assert len(results) == 1, results
         return results[0]

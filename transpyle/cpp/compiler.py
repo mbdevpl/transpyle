@@ -84,7 +84,7 @@ class CppSwigCompiler(SwigCompiler):
         return result
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
-                output_path: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
+                output_folder: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
         swig_interface = self.create_swig_interface(path)
         swig_interface_path = path.with_suffix('.i')
         with open(str(), 'w') as swig_interface_file:

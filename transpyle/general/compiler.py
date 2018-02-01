@@ -15,5 +15,5 @@ class Compiler(Registry):
         self.default_kwargs = kwargs
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
-                output_path: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
+                output_folder: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
         raise NotImplementedError()
