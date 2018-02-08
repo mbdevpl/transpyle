@@ -1210,7 +1210,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return variable, value
 
     def _names(self, node: ET.Element) -> typed_ast3.arguments:
-        return self._arguments(node)
+        arguments = self._arguments(node)
+        for i, name in enumerate(arguments.args):
+            assert isinstance(name, typed_ast3.Name), type(name)
+            arguments.args[i] = typed_ast3.arg(arg=name.id, annotation=None)
+        return arguments
 
     def _intrinsic_identity(self, call):
         return call

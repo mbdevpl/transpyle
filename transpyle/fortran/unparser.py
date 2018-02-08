@@ -9,6 +9,7 @@ import logging
 
 from astunparse.unparser import INFSTR
 import horast
+import static_typing as st
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 from typed_astunparse.unparser import interleave
@@ -47,6 +48,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._fixed_form = fixed_form
         self._line_len = 0
         self._max_line_len = max_line_len
+        self._context = None
+        self._context_input_args = False
         super().__init__(*args, **kwargs)
 
     def fill(self, text='', continuation: bool = False):
@@ -103,7 +106,18 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.dispatch_var_type(elts[1])
             self.write(', ')
             self.write('dimension(')
-            self.dispatch(elts[2])
+            if not self._context_input_args:
+                self.dispatch(elts[2])
+            else:
+                _LOG.warning('coercing indices to 0-based')
+                # _LOG.warning('coercing indices of %s in %s to 0-based', arg.arg, t.name)
+                tup = elts[2]
+                tup = typed_ast3.Tuple(
+                    elts=[typed_ast3.Slice(lower=typed_ast3.Num(n=0),
+                                           upper=typed_ast3.Num(n=elt.n - 1),
+                                           step=None) for elt in elts[2].elts],
+                    ctx=typed_ast3.Load())
+                self.dispatch(tup)
             self.write(')')
         elif _match_io(tree):
             self.write('integer')
@@ -235,11 +249,14 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(" = ")
             self.dispatch(t.value)
 
-    # def _Return(self, t):
-    #    self.fill("return")
-    #    if t.value:
-    #        self.write(" ")
-    #        self.dispatch(t.value)
+    def _Return(self, t):
+        assert self._context is not None
+        function = self._context
+        if t.value:
+            self.fill(function.name)
+            self.write(' = ')
+            self.dispatch(t.value)
+        self.fill("return")
 
     def _Pass(self, t):
         self.fill('continue')
@@ -298,8 +315,10 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write('\n')
         if t.decorator_list:
             self._unsupported_syntax(t)
-        returns_something = t.returns is not None and not isinstance(t.returns, typed_ast3.NameConstant)
+        returns_something = t.returns is not None \
+            and not isinstance(t.returns, typed_ast3.NameConstant)
         function_kind = 'function' if returns_something else 'subroutine'
+        # function_kind = 'subroutine'  # TODO: temporary
         self.fill('{} {} ('.format(function_kind, t.name))
         self.dispatch(t.args)
         self.write(')')
@@ -315,7 +334,27 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             # raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
             # self.write(' result ')
             # self.dispatch(t.returns)
+        # if isinstance(t, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
+        #    for param, type_info in self._params.items():
+        if t.args:
+            # try:
+            annotated_args = [arg for arg in t.args.args if arg.annotation]
+            # except:
+            #    raise ValueError(horast.dump(t.args))
+            if annotated_args:
+                self._context_input_args = True
+                self.fill('! parameters')
+                for arg in annotated_args:
+                    self.fill()
+                    self.dispatch_var_type(arg.annotation)
+                    self.write(', intent(in)')
+                    self.write(' :: ')
+                    self.write(arg.arg)
+                self.write('\n')
+                self._context_input_args = False
+        self._context = t
         self.dispatch(t.body)
+        self._context = None
 
         metadata = getattr(t, 'fortran_metadata', {})
         if 'contains' in metadata:

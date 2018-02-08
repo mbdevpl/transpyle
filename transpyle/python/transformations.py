@@ -4,6 +4,9 @@ import collections.abc
 import copy
 import functools
 import logging
+import pathlib
+import tempfile
+import types
 import typing as t
 
 import horast
@@ -11,6 +14,8 @@ import horast.nodes as horast_nodes
 import static_typing as st
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
+
+from ..general import Language, CodeReader, Parser, CodeWriter
 
 _LOG = logging.getLogger(__name__)
 
@@ -241,19 +246,20 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
                 and self._is_target_for_inlining(node.value):
             if typed_ast3.Assign not in self._valid_inlining_contexts:
                 raise NotImplementedError('{} cannot be inlined inside {}'
-                                          ' -- return supported only at the end of the function',
-                                          self._inlined_function.name, type(node))
+                                          ' -- return supported only at the end of the function'
+                                          .format(self._inlined_function.name, type(node)))
             return self._inline_call_in_assign(node)
         if isinstance(node, typed_ast3.Expr) and self._is_target_for_inlining(node.value):
             if typed_ast3.Expr not in self._valid_inlining_contexts:
                 raise NotImplementedError('{} cannot be inlined inside {}'
-                                          ' -- returns not supported',
-                                          self._inlined_function.name, type(node))
+                                          ' -- returns not supported'
+                                          .format(self._inlined_function.name, type(node)))
             return self._inline_call_in_expr(node)
         if self._is_target_for_inlining(node):
             if t.Any not in self._valid_inlining_contexts:
                 raise NotImplementedError('{} cannot be inlined in arbitrary context'
-                                          ' -- only one-liners are supported')
+                                          ' -- only one-liners are supported'
+                                          .format(self._inlined_function.name))
             replacers = create_name_replacers(self._inlined_args, node.args)
             replacers.append(Replacer(lambda return_: return_.value
                                       if isinstance(return_, typed_ast3.Return) else return_))
@@ -265,12 +271,48 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         return value
 
 
-def inline_calls(target: typed_ast3.FunctionDef, inlined_function: typed_ast3.FunctionDef,
-                 *args, **kwargs) -> typed_ast3.FunctionDef:
+def inline_syntax(target: typed_ast3.FunctionDef, inlined_function: typed_ast3.FunctionDef,
+                  globals_=None, *args, **kwargs) -> typed_ast3.FunctionDef:
     if not isinstance(target, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
-        target = st.augment(target)
+        target = st.augment(target, globals_=globals_)
     if not isinstance(inlined_function, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
-        inlined_function = st.augment(inlined_function)
+        inlined_function = st.augment(inlined_function, globals_=globals_)
     call_inliner = CallInliner(inlined_function, *args, **kwargs)
     target = call_inliner.visit(target)
+    assert isinstance(target, typed_ast3.FunctionDef)
     return target
+
+
+def inline(target_function, inlined_function, globals_=None) -> object:
+    """Inline all calls to given inlined function within the target.
+
+    Can be used as decorator.
+    """
+    assert isinstance(target_function, types.FunctionType)
+    assert isinstance(inlined_function, types.FunctionType)
+    language = Language.find('Python 3')
+    parser = Parser.find(language)()
+    target_code = CodeReader.read_function(target_function)
+    inlined_code = CodeReader.read_function(inlined_function)
+    target_syntax = parser.parse(target_code).body[0]
+    inlined_syntax = parser.parse(inlined_code).body[0]
+    target_inlined_syntax = inline_syntax(target_syntax, inlined_syntax, globals_=globals_,
+                                          verbose=False)
+    target_inlined_code = horast.unparse(target_inlined_syntax).lstrip()
+
+    with tempfile.NamedTemporaryFile(suffix='.py', delete=False) as output_file:
+        # TODO: this leaves garbage behind in /tmp/ but is neeeded by subsequent transpiler passes
+        code_writer = CodeWriter('.py')
+        target_inlined_path = pathlib.Path(output_file.name)
+        code_writer.write_file(target_inlined_code, target_inlined_path)
+
+    code_obj = compile(target_inlined_code, filename=str(target_inlined_path), mode='exec')
+    if globals_ is None:
+        globals_ = {'__builtins__': globals()['__builtins__']}
+    locals_ = {}
+    eval_result = eval(code_obj, globals_, locals_)
+    assert eval_result is None, eval_result
+    assert target_function.__name__ in locals_
+    target_inlined_function = locals_[target_function.__name__]
+    assert isinstance(target_inlined_function, types.FunctionType)
+    return target_inlined_function

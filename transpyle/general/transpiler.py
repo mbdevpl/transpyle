@@ -3,6 +3,7 @@
 import pathlib
 
 from .registry import Registry
+from .code_writer import CodeWriter
 from .language import Language
 from .compiler import Compiler
 from .binder import Binder
@@ -18,11 +19,14 @@ class Transpiler(Registry):
         self.compiler = compiler
         self.binder = binder
 
-    def transpile(self, code: str, path: pathlib.Path = None):
+    def transpile(self, code: str, path: pathlib.Path = None, translated_path: pathlib.Path = None,
+                  compile_folder: pathlib.Path = None):
         """Transpile given"""
         translated_code = self.translator.translate(code, path)
-        compiled = self.compiler.compile(translated_code)
-        binding = self.binder.bind(compiled)
+        code_writer = CodeWriter(translated_path.suffix)
+        code_writer.write_file(translated_code, translated_path)
+        compiled_path = self.compiler.compile(translated_code, translated_path, compile_folder)
+        binding = self.binder.bind(compiled_path)
         return binding
 
 

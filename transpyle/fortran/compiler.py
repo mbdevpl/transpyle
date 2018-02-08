@@ -60,7 +60,7 @@ class F2PyCompiler(Compiler):
 
         module_name = create_f2py_module_name(path)
         # if __debug__:
-        _LOG.debug('f2py compiling file: "%s", (%i characters)', path, len(code))
+        _LOG.warning('f2py compiling file: "%s", (%i characters)', path, len(code))
         # _LOG.debug('compiled file\'s contents: %s', code)
 
         # module_name = cls.create_module_name(code, file_name)

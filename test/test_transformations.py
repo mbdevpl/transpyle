@@ -3,6 +3,7 @@
 import contextlib
 import logging
 import os
+import types
 import unittest
 
 import horast
@@ -10,7 +11,7 @@ import typed_astunparse
 import static_typing as st
 
 from transpyle.general import CodeReader, Language, Parser
-from transpyle.python.transformations import inline_calls
+from transpyle.python.transformations import inline_syntax, inline
 
 from .examples_inlining import \
     buy_products, buy, buy_products_inlined, \
@@ -43,7 +44,7 @@ class Tests(unittest.TestCase):
                 inline_oneliner(1)
                 inline_oneliner_inlined(1)
 
-    def test_inline_calls(self):
+    def test_inline_syntax(self):
         language = Language.find('Python 3')
         parser = Parser.find(language)()
         for (target, inlined), target_inlined in INLINING_EXAMPLES.items():
@@ -53,8 +54,14 @@ class Tests(unittest.TestCase):
             target_syntax = parser.parse(target_code).body[0]
             inlined_syntax = parser.parse(inlined_code).body[0]
             with self.subTest(target=target, inlined=inlined):
-                target_inlined_syntax = inline_calls(target_syntax, inlined_syntax, verbose=False)
+                target_inlined_syntax = inline_syntax(target_syntax, inlined_syntax, verbose=False)
                 target_inlined_code = horast.unparse(target_inlined_syntax)
                 _LOG.warning('%s', target_inlined_code)
                 self.assertEqual(reference_code.replace('_inlined(', '(').lstrip(),
                                  target_inlined_code.lstrip())
+
+    def test_inline(self):
+        for (target, inlined), target_inlined in INLINING_EXAMPLES.items():
+            with self.subTest(target=target, inlined=inlined):
+                target_inlined_ = inline(target, inlined)
+                self.assertIsInstance(target_inlined_, types.FunctionType)

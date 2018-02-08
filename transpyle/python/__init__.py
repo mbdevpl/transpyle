@@ -1,16 +1,24 @@
 """Python support for transpyle package."""
 
+import datetime
 import inspect
+import logging
+import pathlib
+import tempfile
+import types
 import typing as t
 
 import typed_ast.ast3 as typed_ast3
 
 from ..general import \
-    Language, Parser, AstGeneralizer, IdentityAstGeneralizer, Unparser, Translator, AutoTranspiler
+    CodeReader, Language, Parser, AstGeneralizer, IdentityAstGeneralizer, Unparser, Translator, \
+    AutoTranspiler
 from .parser import TypedPythonParserWithComments
 from .unparser import TypedPythonUnparserWithComments
 from .translator import PythonTranslator
+from .transformations import inline
 
+_LOG = logging.getLogger(__name__)
 
 Language.register(Language(['Python 3.5'], ['.py']), ['Python 3.5'])
 Language.register(Language(['Python 3.6'], ['.py']), ['Python 3.6', 'Python 3', 'Python'])
@@ -98,5 +106,20 @@ def transpile(function_or_class, to_language: Language, *args, **kwargs):
     """Instantiate Python transpiler to transpile one function or class.
 
     Meant to be used as decorator."""
+    if not isinstance(function_or_class, types.FunctionType):
+        raise NotImplementedError('transpiler only supports pure Python user-defined functions now')
     transpiler = AutoTranspiler(Language.find('Python 3'), to_language)
-    return transpiler.transpile(function_or_class)
+    function_or_class_code = CodeReader.read_function(function_or_class)
+    path = inspect.getsourcefile(function_or_class)
+    if path is not None:
+        path = pathlib.Path(path)
+    compile_path = pathlib.Path(tempfile.gettempdir(), 'transpyle_{}_{}_tmp_{}'.format(
+        function_or_class.__name__, to_language.default_name.replace(' ', '_'),
+        datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+    compile_path.mkdir(parents=True)
+    translated_path = pathlib.Path(compile_path,
+                                   path.with_suffix(to_language.default_file_extension).name)
+    _LOG.warning('compiling code translated to %s into %s', to_language, compile_path)
+    module = transpiler.transpile(function_or_class_code, path, translated_path, compile_path)
+    interface = getattr(module, function_or_class.__name__)
+    return interface
