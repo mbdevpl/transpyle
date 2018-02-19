@@ -479,7 +479,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def _NameConstant(self, t):
         if t.value is None:
-            _LOG.warning('possibly invalid Fortran in """%s"""', typed_astunparse.dump(t))
+            _LOG.info('possibly invalid Fortran in """%s"""', typed_astunparse.dump(t))
         self.write({
             None: 'none',
             False: '.false.',
@@ -690,7 +690,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     # slice
     def _Ellipsis(self, t):
         # self._unsupported_syntax(t)
-        _LOG.warning('special usage of Ellipsis')
+        _LOG.info('special usage of Ellipsis')
         self.write('*')
 
     def _Index(self, t):

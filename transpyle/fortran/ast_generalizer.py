@@ -60,14 +60,14 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _comment(self, node: ET.Element) -> horast_nodes.Comment:
         comment = node.attrib['text']
-        if len(comment) == 0 or comment[0] not in ('!', 'c', 'C'):
+        if not comment or comment[0] not in ('!', 'c', 'C'):
             raise SyntaxError('comment token {} has unexpected prefix'.format(repr(comment)))
         comment = comment[1:]
         return horast_nodes.Comment(value=typed_ast3.Str(s=comment), eol=False)
 
     def _directive(self, node) -> horast_nodes.Comment:
         directive = node.attrib['text']
-        if len(directive) == 0 or directive[0] not in ('#',):
+        if not directive or directive[0] not in ('#',):
             raise SyntaxError('directive token {} has unexpected prefix'.format(repr(directive)))
         directive = directive[1:]
         directive_ = horast_nodes.Comment(value=typed_ast3.Str(s=directive), eol=False)
@@ -149,8 +149,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _stop(self, node: ET.Element) -> typed_ast3.Call:
-        _LOG.warning('ignoring exit code in """%s"""', ET.tostring(node).decode().rstrip())
-        return typed_ast3.Call(func=typed_ast3.Name(id='exit'), args=[], keywords=[])
+        stop_code = node.attrib['code']
+        args = []
+        if stop_code:
+            _LOG.warning('ignoring exit code in """%s"""', ET.tostring(node).decode().rstrip())
+            # args.append(int(stop_code))
+        return typed_ast3.Call(func=typed_ast3.Name(id='exit'), args=args, keywords=[])
 
     def _program(self, node: ET.Element) -> typed_ast3.AST:
         module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
@@ -1311,15 +1315,15 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         slice_ = self._subscripts(subscripts_node) if subscripts_node else None
         subscript = typed_ast3.Subscript(value=name, slice=slice_, ctx=typed_ast3.Load())
 
-        if name_type in ("procedure", "function"):
+        if name_type in ('procedure', 'function'):
             return call
         elif not subscripts_node:
             return name
-        elif name_type in ("variable",):
+        elif name_type in ('variable',):
             return subscript
         elif not slice_:
             return call
-        elif name_type in ("ambiguous",):
+        elif name_type in ('ambiguous',):
             return subscript
         elif name_type is not None:
             raise NotImplementedError('unrecognized name type "{}" in:\n{}'
