@@ -1306,8 +1306,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             args = self._subscripts(subscripts_node, postprocess=False) if subscripts_node else []
             call = typed_ast3.Call(func=name, args=args, keywords=[])
             if is_intrinsic:
-                name_type = "function"
-                call = self._intrinsics_converters[name_str](self, call)
+                if subscripts_node is None:
+                    _LOG.warning('found intrinsic name "%s" without any subscripts', name_str)
+                else:
+                    name_type = 'function'
+                    call = self._intrinsics_converters[name_str](self, call)
         except SyntaxError:
             _LOG.info('transforming name to call failed as below (continuing despite that)',
                       exc_info=True)
