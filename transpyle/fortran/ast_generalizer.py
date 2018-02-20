@@ -76,7 +76,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _module(self, node: ET.Element):
         _ = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
-        body = self.transform_all_subnodes(node.find('./body'))
+        body = self.transform_all_subnodes(self.get_one(node, './body'))
         conditional = _.body[0]
         conditional.body = body
         members_node = node.find('./members')
@@ -93,24 +93,20 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         #                          .format(ET.tostring(node).decode().rstrip()))
 
     def _function(self, node: ET.Element):
-        arguments = self.transform_one(node.find('./header/names'))
-        body = self.transform_all_subnodes(node.find('./body'))
+        arguments = self.transform_one(self.get_one(node, './header/names'))
+        body = self.transform_all_subnodes(self.get_one(node, './body'))
         return typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
             returns=typed_ast3.NameConstant(None))
 
     def _subroutine(self, node: ET.Element) -> typed_ast3.FunctionDef:
-        header_node = node.find('./header')
-        if header_node is None:
-            raise SyntaxError(
-                'no "header" found in "subroutine":\n{}'
-                .format(ET.tostring(node).decode().rstrip()))
-        arguments_node = node.find('./header/arguments')
+        header_node = self.get_one(node, './header')
+        arguments_node = header_node.find('./arguments')
         if arguments_node is None:
             arguments = []
         else:
             arguments = self.transform_one(arguments_node)
-        body = self.transform_all_subnodes(node.find('./body'))
+        body = self.transform_all_subnodes(self.get_one(node, './body'))
         function_def = typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
             returns=typed_ast3.NameConstant(None))
@@ -158,7 +154,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _program(self, node: ET.Element) -> typed_ast3.AST:
         module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
-        body = self.transform_all_subnodes(node.find('./body'))
+        body = self.transform_all_subnodes(self.get_one(node, './body'))
         for i in range(len(body) - 1, -1, -1):
             if isinstance(body[i], list):
                 sublist = body[i]
@@ -328,9 +324,9 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         self.no_transform(node)
 
     def _declaration_parameter(self, node: ET.Element):
-        constants_node = node.find('./constants')
-        constants = self.transform_all_subnodes(constants_node, skip_empty=True, ignored={
-            'named-constant-def-list__begin', 'named-constant-def-list'})
+        constants = self.transform_all_subnodes(
+            self.get_one(node, './constants'), skip_empty=True, ignored={
+                'named-constant-def-list__begin', 'named-constant-def-list'})
         assignments = []
         for constant, value in constants:
             assignment = typed_ast3.Assign(targets=[constant], value=value, type_comment=None)
@@ -346,8 +342,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return name, value
 
     def _declaration_include(self, node: ET.Element) -> typed_ast3.Import:
-        file_node = node.find('./file')
-        path_attrib = file_node.attrib['path']
+        path_attrib = self.get_one(node, './file').attrib['path']
         self.ensure_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
 
@@ -409,21 +404,15 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _loop_do(self, node: ET.Element) -> typed_ast3.For:
-        index_variable = node.find('./header/index-variable')
-        body_node = node.find('./body')
-        if index_variable is None or body_node is None:
-            raise SyntaxError('at least one of required sub nodes is not present in:\n{}'
-                              .format(ET.tostring(node).decode().rstrip()))
+        index_variable = self.get_one(node, './header/index-variable')
+        body_node = self.get_one(node, './body')
         target, iter_ = self._index_variable(index_variable)
         body = self.transform_all_subnodes(body_node, ignored={'block'})
         return typed_ast3.For(target=target, iter=iter_, body=body, orelse=[])
 
     def _loop_implied_do(self, node: ET.Element) -> typed_ast3.ListComp:
-        index_variable = node.find('./header/index-variable')
-        body_node = node.find('./body')
-        if index_variable is None or body_node is None:
-            raise SyntaxError('at least one of required sub nodes is not present in:\n{}'
-                              .format(ET.tostring(node).decode().rstrip()))
+        index_variable = self.get_one(node, './header/index-variable')
+        body_node = self.get_one(node, './body')
         comp_target, comp_iter = self._index_variable(index_variable)
         expressions = self.transform_all_subnodes(body_node, ignored={})
         assert len(expressions) > 0
@@ -447,7 +436,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return typed_ast3.While(test=condition, body=body, orelse=[])
 
     def _loop_forall(self, node: ET.Element) -> typed_ast3.For:
-        index_variables = node.find('./header/index-variables')
+        index_variables = self.get_one(node, './header/index-variables')
         outer_loop = None
         inner_loop = None
         for index_variable in index_variables.findall('./index-variable'):
@@ -511,8 +500,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             keywords=[]))
 
     def _if(self, node: ET.Element):
-        headers = node.findall('./header')
-        bodies = node.findall('./body')
+        headers = self.get_all(node, './header')
+        bodies = self.get_all(node, './body')
         outermost_if = None
         current_if = None
         for header, body in itertools.zip_longest(headers, bodies):
@@ -636,8 +625,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             for detail in details]
 
     def _allocate(self, node: ET.Element) -> t.List[typed_ast3.Assign]:
-        expressions_node = node.find('./expressions')
-        expressions = self.transform_one(expressions_node)
+        expressions = self.transform_one(self.get_one(node, './expressions'))
         assignments = []
         for expression in expressions:
             assert isinstance(expression, typed_ast3.Subscript), type(expression)
@@ -664,8 +652,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return assignments
 
     def _deallocate(self, node: ET.Element) -> typed_ast3.Delete:
-        expressions_node = node.find('./expressions')
-        expressions = self.transform_one(expressions_node)
+        expressions = self.transform_one(self.get_one(node, './expressions'))
         targets = []
         for expression in expressions:
             assert isinstance(expression, typed_ast3.Name), type(expression)
@@ -718,8 +705,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _read(self, node: ET.Element):
         file_handle = self._create_file_handle_var()
-        io_controls = self.transform_one(node.find('./io-controls'))
-        inputs = self.transform_one(node.find('./inputs'))
+        io_controls = self.transform_one(self.get_one(node, './io-controls'))
+        inputs = self.transform_one(self.get_one(node, './inputs'))
         for i, io_control in enumerate(list(io_controls)):
             if isinstance(io_control, typed_ast3.keyword):
                 arg_name = io_control.arg.lower()
@@ -744,7 +731,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             for input_ in inputs]
 
     def _print(self, node):
-        format_node = node.find('./print-format')
+        format_node = self.get_one(node, './print-format')
         format_ = None
         # if format_node is not None:
         if format_node.attrib['type'] == 'label':
@@ -825,7 +812,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _open(self, node: ET.Element) -> typed_ast3.AnnAssign:
         file_handle = self._create_file_handle_var()
-        kwargs = self.transform_one(node.find('./keyword-arguments'))
+        kwargs = self.transform_one(self.get_one(node, './keyword-arguments'))
         file_handle.slice.value = kwargs.pop(0).value
         filename = None
         mode = ''
@@ -853,7 +840,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _close(self, node: ET.Element) -> typed_ast3.AnnAssign:
         file_handle = self._create_file_handle_var()
-        kwargs = self.transform_one(node.find('./keyword-arguments'))
+        kwargs = self.transform_one(self.get_one(node, './keyword-arguments'))
         file_handle.slice.value = kwargs.pop(0).value
         self.ensure_import('typing', 't')
         return typed_ast3.Call(
@@ -909,8 +896,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return [tree, error_var_assignment, error_var_comment]
 
     def _assignment(self, node: ET.Element):
-        target = self.transform_all_subnodes(node.find('./target'))
-        value = self.transform_all_subnodes(node.find('./value'))
+        target = self.transform_all_subnodes(self.get_one(node, './target'))
+        value = self.transform_all_subnodes(self.get_one(node, './value'))
         if len(target) != 1:
             raise SyntaxError(
                 'exactly 1 target expected but {} given {} in:\n{}'
@@ -1048,7 +1035,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return FORTRAN_PYTHON_OPERATORS[node.attrib['operator'].lower()]
 
     def _array_constructor(self, node: ET.Element) -> typed_ast3.ListComp:
-        value_nodes = node.findall('./value')
+        value_nodes = self.get_all(node, './value')
         values = []
         for value_node in value_nodes:
             value = self.transform_all_subnodes(value_node)
@@ -1062,8 +1049,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 'not implemented handling of {} in:\n{}'
                 .format(values, ET.tostring(node).decode().rstrip()))
 
-        header_node = node.find('./header')
-        header = self.transform_all_subnodes(header_node, ignored={'ac-implied-do-control'})
+        header = self.transform_all_subnodes(self.get_one(node, './header'),
+                                             ignored={'ac-implied-do-control'})
         assert len(header) == 1
         comp_target, comp_iter = header[0]
         generator = typed_ast3.comprehension(
@@ -1071,7 +1058,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return typed_ast3.ListComp(elt=values[0], generators=[generator])
 
     def _array_constructor_values(self, node: ET.Element) -> typed_ast3.List:
-        value_nodes = node.findall('./value')
+        value_nodes = self.get_all(node, './value')
         values = []
         for value_node in value_nodes:
             value = self.transform_all_subnodes(value_node)
@@ -1132,9 +1119,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _type(self, node: ET.Element) -> type:
         name = node.attrib['name'].lower()
-        length = self.transform_one(node.find('./length')) if node.attrib['hasLength'] == 'true' \
-            else None
-        kind = self.transform_one(node.find('./kind')) if node.attrib['hasKind'] == 'true' else None
+        length = self.transform_one(self.get_one(node, './length')) \
+            if node.attrib['hasLength'] == 'true' else None
+        kind = self.transform_one(self.get_one(node, './kind')) \
+            if node.attrib['hasKind'] == 'true' else None
         if length is not None and kind is not None:
             raise SyntaxError(
                 'only one of "length" and "kind" can be provided, but both were given'
