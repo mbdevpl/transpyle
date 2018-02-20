@@ -733,7 +733,6 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _print(self, node):
         format_node = self.get_one(node, './print-format')
         format_ = None
-        # if format_node is not None:
         if format_node.attrib['type'] == 'label':
             format_ = self.transform_one(format_node)
         outputs_node = node.find('./outputs')
