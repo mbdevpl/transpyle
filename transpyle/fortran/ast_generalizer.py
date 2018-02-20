@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 
 import horast
 import horast.nodes as horast_nodes
+import static_typing as st
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
@@ -95,6 +96,13 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _function(self, node: ET.Element):
         arguments = self.transform_one(self.get_one(node, './header/names'))
         body = self.transform_all_subnodes(self.get_one(node, './body'))
+        _flatten_sequence(body)
+        for i, stmt in enumerate(body):
+            stmt = st.augment(stmt)
+            if isinstance(stmt, st.nodes.declaration.StaticallyTypedDeclaration[typed_ast3]):
+                _LOG.warning('declaration in function')
+            body[i] = stmt
+
         return typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
             returns=typed_ast3.NameConstant(None))
