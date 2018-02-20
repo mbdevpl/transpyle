@@ -16,6 +16,7 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
 from ..general import Language, CodeReader, Parser, CodeWriter
+from ..general.misc import flatten_syntax
 
 _LOG = logging.getLogger(__name__)
 
@@ -25,37 +26,6 @@ VALID_CONTEXTS = {
     typed_ast3.Expr: ('value', typed_ast3.AST)}
 
 VALID_CONTEXTS_TUPLE = tuple(VALID_CONTEXTS.keys())
-
-
-def _flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
-    assert isinstance(sequence, collections.abc.MutableSequence)
-    for i, elem in enumerate(sequence):
-        if isinstance(elem, collections.abc.Sequence):
-            for value in reversed(elem):
-                sequence.insert(i, value)
-            del sequence[i + len(elem)]
-
-
-def flatten_syntax(syntax: t.Union[typed_ast3.AST, list]):
-    if isinstance(syntax, (typed_ast3.Module, typed_ast3.FunctionDef, typed_ast3.ClassDef,
-                           typed_ast3.For, typed_ast3.While, typed_ast3.If, typed_ast3.With,
-                           typed_ast3.Try, typed_ast3.ExceptHandler,
-                           typed_ast3.AsyncFunctionDef, typed_ast3.AsyncFor, typed_ast3.AsyncWith)):
-        _flatten_sequence(syntax.body)
-        for node in syntax.body:
-            flatten_syntax(node)
-    if isinstance(syntax, (typed_ast3.For, typed_ast3.While, typed_ast3.If, typed_ast3.Try,
-                           typed_ast3.AsyncFor)):
-        _flatten_sequence(syntax.orelse)
-        for node in syntax.orelse:
-            flatten_syntax(node)
-    if isinstance(syntax, typed_ast3.Try):
-        # flatten_sequence(syntax.handlers)
-        for node in syntax.handlers:
-            flatten_syntax(node)
-        _flatten_sequence(syntax.finalbody)
-        for node in syntax.finalbody:
-            flatten_syntax(node)
 
 
 class Replacer(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):

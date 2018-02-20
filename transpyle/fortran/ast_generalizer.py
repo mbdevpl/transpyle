@@ -16,7 +16,6 @@ import typed_astunparse
 from ..general.exc import ContinueIteration
 from ..general import Language, XmlAstGeneralizer
 from ..python import make_numpy_constructor, make_st_ndarray
-from ..python.transformations import _flatten_sequence
 from .definitions import \
     FORTRAN_PYTHON_TYPE_PAIRS, FORTRAN_PYTHON_OPERATORS, INTRINSICS_FORTRAN_TO_PYTHON, \
     INTRINSICS_SPECIAL_CASES
@@ -41,6 +40,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         super().__init__(Language.find('Fortran 2008'))
         self._split_declarations = split_declarations
         self._now_parsing_file = False
+
+    def generalize(self, syntax: ET.Element):
+        self._now_parsing_file = False
+        return super().generalize(syntax)
 
     def _ofp(self, node: ET.Element):
         assert len(node) == 1
@@ -96,7 +99,6 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _function(self, node: ET.Element):
         arguments = self.transform_one(self.get_one(node, './header/names'))
         body = self.transform_all_subnodes(self.get_one(node, './body'))
-        _flatten_sequence(body)
         for i, stmt in enumerate(body):
             stmt = st.augment(stmt)
             if isinstance(stmt, st.nodes.declaration.StaticallyTypedDeclaration[typed_ast3]):
@@ -202,7 +204,6 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
                 keywords=[]))
         details = self.transform_all_subnodes(node, ignored={})
-        _flatten_sequence(details)
         return details
         # raise NotImplementedError(
         #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
@@ -617,7 +618,6 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'action-stmt', 'executable-construct', 'execution-part-construct',
             'do-term-action-stmt',  # until do loop parsing implementation is changed
             'execution-part'})
-        _flatten_sequence(details)
         # if len(details) == 0:
         #    args = [
         #        typed_ast3.Str(s=ET.tostring(node).decode().rstrip()),

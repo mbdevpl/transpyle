@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import typed_ast.ast3 as typed_ast3
 
 from .exc import ContinueIteration
+from .misc import flatten_syntax
 from .registry import Registry
 
 _LOG = logging.getLogger(__name__)
@@ -123,7 +124,9 @@ class XmlAstGeneralizer(AstGeneralizer):
             _LOG.info('ignoring existing transformer for %s', node.tag)
             raise ContinueIteration()
         _transform = getattr(self, transform_name)
-        return _transform(node)
+        transformed = _transform(node)
+        flatten_syntax(transformed)
+        return transformed
 
     def transform_all(
             self, nodes: t.Iterable[ET.Element], warn: bool = False, skip_empty: bool = False,
@@ -139,6 +142,7 @@ class XmlAstGeneralizer(AstGeneralizer):
                 transformed.append(self.transform_one(node, warn, ignored, parent))
             except ContinueIteration:
                 continue
+        flatten_syntax(transformed)
         return transformed
 
     def transform_all_subnodes(
