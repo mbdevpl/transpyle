@@ -100,7 +100,13 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         arguments = self.transform_one(self.get_one(node, './header/names'))
         body = self.transform_all_subnodes(self.get_one(node, './body'))
         for i, stmt in enumerate(body):
-            stmt = st.augment(stmt)
+            stmt = typed_ast3.fix_missing_locations(stmt)
+            try:
+                stmt = st.augment(stmt, eval_=False)
+            except TypeError as err:
+                raise RuntimeError(horast.dump(stmt, include_attributes=True)) from err
+            except AttributeError as err:
+                raise RuntimeError(horast.dump(stmt, include_attributes=True)) from err
             if isinstance(stmt, st.nodes.declaration.StaticallyTypedDeclaration[typed_ast3]):
                 _LOG.warning('declaration in function')
             body[i] = stmt
@@ -528,9 +534,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         header = self.transform_all_subnodes(header_node, ignored={
             'executable-construct', 'execution-part-construct'})
         if len(header) != 1:
-            _LOG.error('parsed results: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
-            raise NotImplementedError('not implemented handling of:\n{}'
-                                      .format(ET.tostring(header_node).decode().rstrip()))
+            _LOG.error('many headers in if: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
+            # raise NotImplementedError('not implemented handling of:\n{}'
+            #                          .format(ET.tostring(header_node).decode().rstrip()))
+            header = [header]
         body = self._if_body(body_node)
         if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
         return if_
