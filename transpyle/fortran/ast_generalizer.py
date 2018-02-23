@@ -1,5 +1,6 @@
 """Transformer of Fortran AST into Python AST."""
 
+import ast
 import functools
 import itertools
 import logging
@@ -100,6 +101,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         arguments = self.transform_one(self.get_one(node, './header/names'))
         body = self.transform_all_subnodes(self.get_one(node, './body'))
         for i, stmt in enumerate(body):
+            stmt = ast.fix_missing_locations(stmt)
             stmt = typed_ast3.fix_missing_locations(stmt)
             try:
                 stmt = st.augment(stmt, eval_=False)
@@ -534,10 +536,9 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         header = self.transform_all_subnodes(header_node, ignored={
             'executable-construct', 'execution-part-construct'})
         if len(header) != 1:
-            _LOG.error('many headers in if: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
-            # raise NotImplementedError('not implemented handling of:\n{}'
-            #                          .format(ET.tostring(header_node).decode().rstrip()))
-            header = [header]
+            raise SyntaxError('multiple headers {} in if:\n{}'.format(
+                [typed_astunparse.unparse(_).rstrip() for _ in header],
+                ET.tostring(header_node).decode().rstrip()))
         body = self._if_body(body_node)
         if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
         return if_
@@ -584,7 +585,16 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return first_case
 
     def _case(self, node: ET.Element):
-        return self._if_if(self.get_one(node, './header'), self.get_one(node, './body'))
+        header_node = self.get_one(node, './header')
+        body_node = self.get_one(node, './body')
+        header = self.transform_all_subnodes(header_node, ignored={
+            'executable-construct', 'execution-part-construct'})
+        if len(header) > 1:
+            _LOG.warning('many case values: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
+            header = [header]
+        body = self._if_body(body_node)
+        if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
+        return if_
 
     def _value_ranges(self, node: ET.Element):
         value_ranges = self.transform_all_subnodes(node, ignored={
