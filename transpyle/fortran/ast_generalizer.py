@@ -104,11 +104,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             stmt = ast.fix_missing_locations(stmt)
             stmt = typed_ast3.fix_missing_locations(stmt)
             try:
-                stmt = st.augment(stmt, eval_=False)
+                pass
+                # stmt = st.augment(stmt, eval_=False)  # TODO: requires static_typing upgrades!
             except TypeError as err:
-                raise RuntimeError(horast.dump(stmt, include_attributes=True)) from err
+                raise RuntimeError(horast.dump(stmt)) from err
             except AttributeError as err:
-                raise RuntimeError(horast.dump(stmt, include_attributes=True)) from err
+                raise RuntimeError(horast.dump(stmt)) from err
             if isinstance(stmt, st.nodes.declaration.StaticallyTypedDeclaration[typed_ast3]):
                 _LOG.warning('declaration in function')
             body[i] = stmt
