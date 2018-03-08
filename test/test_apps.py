@@ -20,15 +20,17 @@ _APPS_PARENT_PATHS = {
     'miranda_io': pathlib.Path('fortran'),
     'FLASH-4.5': pathlib.Path('fortran'),
     'FLASH-SUBSET': pathlib.Path('fortran'),
+    'FLASH-SUBSET-hydro': pathlib.Path('fortran'),
     'FFB-MINI': pathlib.Path('fortran')}
 
 _APPS_ROOT_PATHS = {
     'miranda_io': pathlib.Path('miranda_io'),
     'FLASH-4.5': pathlib.Path('flash-4.5'),
     'FLASH-SUBSET': pathlib.Path('flash-subset', 'FLASH4.4'),
+    'FLASH-SUBSET-hydro': pathlib.Path('flash-subset', 'FLASH4.4'),
     'FFB-MINI': pathlib.Path('ffb-mini')}
 
-_APPS_OPTIONAL = {'FLASH-4.5', 'FLASH-SUBSET'}
+_APPS_OPTIONAL = {'FLASH-4.5', 'FLASH-SUBSET', 'FLASH-SUBSET-hydro'}
 
 _APPS_ROOT_PATHS = {
     app: (pathlib.Path('..', path) if _HERE.parent.joinpath('..', path).is_dir()
@@ -62,6 +64,12 @@ _APPS_CODE_FILEPATHS = {
             'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
             'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90'  # also in 4.5, but fails
             ] + _FLASH_COMMON_PATHS] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
+    'FLASH-SUBSET-hydro': [
+        pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
+        for input_path in [
+            # 'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90'
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux_loop.F90'
+            ]] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
     'FFB-MINI': [
         pathlib.Path(root, name)
         for root, _, files in os.walk(str(pathlib.Path(_APPS_ROOT_PATHS['FFB-MINI'], 'src')))
@@ -138,8 +146,12 @@ class Tests(unittest.TestCase):
         self._test_app('FLASH-4.5', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
-    def test_roundtrip_flash(self):
+    def test_roundtrip_flash_subset(self):
         self._test_app('FLASH-SUBSET', _prepare_roundtrip(self, Language.find('Fortran')),
+                       _roundtrip_fortran)
+
+    def test_roundtrip_flash_subset_hydro(self):
+        self._test_app('FLASH-SUBSET-hydro', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
     def test_roundtrip_ffbmini(self):
