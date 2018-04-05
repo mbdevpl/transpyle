@@ -111,8 +111,8 @@ EXAMPLES_PY3_ORDINARY = [
     """print('abc')"""]
 
 EXAMPLES_PY3_TYPE_COMMENTS = [
-    """a = 1 # type: int""",
-    """b = 2 # type: t.Optional[int]"""]
+    """a = 1  # type: int""",
+    """b = 2  # type: t.Optional[int]"""]
 
 EXAMPLES_PY3_COMMENTS = [
     """print('abc')\n# printing abc"""]
