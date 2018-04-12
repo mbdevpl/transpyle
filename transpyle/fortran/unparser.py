@@ -363,9 +363,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             # self.dispatch(t.returns)
         # if isinstance(t, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
         #    for param, type_info in self._params.items():
+        from_python = False
         if t.args:
             # try:
             annotated_args = [arg for arg in t.args.args if arg.annotation]
+            from_python = True
             # except:
             #    raise ValueError(horast.dump(t.args))
             if annotated_args:
@@ -379,6 +381,23 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                     self.write(arg.arg)
                 self.write('\n')
                 self._context_input_args = False
+
+        if from_python:
+            static_t = st.augment(t, eval_=False)
+            assert isinstance(static_t,
+                              st.nodes.StaticallyTypedFunctionDef[typed_ast3]), type(static_t)
+            if static_t._local_vars:
+                self.fill('! local vars')
+                for var in static_t._local_vars:
+                    for stmt in static_t.body:
+                        if isinstance(stmt, typed_ast3.For) and stmt.type_comment is not None:
+                            stmt.type_comment = None
+                            print('bleh')
+                    # self.dispatch(typed_ast3.AnnAssign(target=t.target, value=None,
+                    #                                   annotation=t.resolved_type_comment))
+                    self.fill('! oh la la')
+                self.write('\n')
+
         self._context = t
         # self.dispatch(t.body)
         for stmt in t.body:
