@@ -51,7 +51,7 @@ class F2PyCompiler(Compiler):
         return result
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
-                output_folder: t.Optional[pathlib.Path] = None, *args, **kwargs) -> pathlib.Path:
+                output_folder: t.Optional[pathlib.Path] = None, **kwargs) -> pathlib.Path:
         assert isinstance(code, str), type(code)
         assert isinstance(path, pathlib.Path), type(path)
         assert path.is_file(), path
