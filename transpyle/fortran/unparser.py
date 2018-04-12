@@ -152,6 +152,17 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(', ')
             self.dispatch(step)
 
+    def _Module(self, tree):
+        docstring = typed_ast3.get_docstring(tree)
+        for stmt in tree.body:
+            if docstring is not None and isinstance(stmt, typed_ast3.Expr) \
+                    and isinstance(stmt.value, typed_ast3.Str) and stmt.value.s == docstring:
+                self.write('! ')
+                self.write(docstring)
+                docstring = None
+                continue
+            self.dispatch(stmt)
+
     def _Import(self, t):
         names = [name for name in t.names
                  if name.name not in ('numpy', 'static_typing', 'typing')]
@@ -323,6 +334,17 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.args)
         self.write(')')
         self.enter()
+
+        docstring = typed_ast3.get_docstring(t)
+        # _LOG.warning(docstring)
+        if docstring is not None:
+            for stmt in t.body:
+                if isinstance(stmt, typed_ast3.Expr) and isinstance(stmt.value, typed_ast3.Str) \
+                        and stmt.value.s == docstring:
+                    self.write('! ')
+                    self.write(docstring)
+                    break
+
         if returns_something:
             # _LOG.warning('ignoring return annotation on %s', t.name)
             self.fill('! return type')
@@ -353,7 +375,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.write('\n')
                 self._context_input_args = False
         self._context = t
-        self.dispatch(t.body)
+        # self.dispatch(t.body)
+        for stmt in t.body:
+            if docstring is not None and isinstance(stmt, typed_ast3.Expr) \
+                    and isinstance(stmt.value, typed_ast3.Str) and stmt.value.s == docstring:
+                docstring = None
+                continue
+            self.dispatch(stmt)
         self._context = None
 
         metadata = getattr(t, 'fortran_metadata', {})
@@ -621,6 +649,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             t = copy.copy(t)
             t.args.insert(0, t.func.value)
             t.func = typed_ast3.Name(id='count', ctx=typed_ast3.Load())
+        elif func_name.endswith('.shape'):
+            _LOG.warning('assuming np.shape()')
+            t = copy.copy(t)
+            t.args[0].n += 1
+            t.args.insert(0, t.func.value)
+            t.func = typed_ast3.Name(id='size', ctx=typed_ast3.Load())
         elif func_name in PYTHON_FORTRAN_INTRINSICS \
                 and not getattr(t, 'fortran_metadata', {}).get('is_transformed', False):
             new_func = PYTHON_FORTRAN_INTRINSICS[func_name]
