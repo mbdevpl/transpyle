@@ -52,6 +52,12 @@ class F2PyCompiler(Compiler):
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
                 output_folder: t.Optional[pathlib.Path] = None, **kwargs) -> pathlib.Path:
+        """Compile Fortran code using f2py.
+
+        Recognized kwargs:
+        mpi=True -- enable MPI support,
+        openmp=True -- enable OpenMP support.
+        """
         assert isinstance(code, str), type(code)
         assert isinstance(path, pathlib.Path), type(path)
         assert path.is_file(), path
@@ -70,14 +76,17 @@ class F2PyCompiler(Compiler):
         # if 'debug' in extra_args or 'debug-capi' in extra_args:
         #    _LOG.warning('building f2py module in debug mode')
 
-        # args = (*args, '-v')
-        # kwargs['f90exec'] = 'gfortran'
-        # kwargs['f77flags'] = '-g0'
-        # kwargs['f90exec'] = 'gfortran'
-        # kwargs['f90flags'] = '-g0'
+        if kwargs.get('mpi', False):
+            # kwargs['f77exec'] = 'mpif90'
+            kwargs['f90exec'] = 'mpif90'
+            # kwargs['f77flags'] = '-g0'
+            # kwargs['f90flags'] = '-g0'
         kwargs['opt'] = '-O3 -funroll-loops'
+        if kwargs.get('openmp', False):
+            kwargs['opt'] += ' -fopenmp'
+        args = ()
+        # args = (*args, '-v')
         # kwargs['noopt'] = True
-
         _working_dir = pathlib.Path.cwd()
         os.chdir(str(output_folder))
         result = self.run_f2py(code, path, module_name, *args, **kwargs)
