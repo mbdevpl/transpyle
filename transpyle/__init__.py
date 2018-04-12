@@ -31,6 +31,8 @@ except ImportError:
 # except ImportError:
 #    _LOG.warning("OpenCL unavailable")
 
+from .general import Language, AutoTranslator, AutoTranspiler
+
 _ = '''
 def instantiate_auto_processors():
     from .general import Language, Translator, AutoTranslator, Transpiler, AutoTranspiler

@@ -26,7 +26,7 @@ class Translator(Registry):
         to_code = self.unparser.unparse(general_ast)
         return to_code
 
-    def translate_object(self, code_object):
+    def translate_object(self, code_object) -> str:
         assert inspect.iscode(code_object), type(code_object)
         code = inspect.getsource(code_object)
         path_str = inspect.getabsfile(code_object)

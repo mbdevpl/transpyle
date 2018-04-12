@@ -21,7 +21,12 @@ class Transpiler(Registry):
 
     def transpile(self, code: str, path: pathlib.Path = None, translated_path: pathlib.Path = None,
                   compile_folder: pathlib.Path = None):
-        """Transpile given"""
+        """Transpile given code."""
+        assert isinstance(path, pathlib.Path), type(path)
+        assert path.is_file(), path
+        assert isinstance(translated_path, pathlib.Path), type(translated_path)
+        assert isinstance(compile_folder, pathlib.Path), type(compile_folder)
+        assert compile_folder.is_dir(), compile_folder
         translated_code = self.translator.translate(code, path)
         code_writer = CodeWriter(translated_path.suffix)
         code_writer.write_file(translated_code, translated_path)
@@ -38,4 +43,5 @@ class AutoTranspiler(Transpiler):
         super().__init__(AutoTranslator(from_language, to_language),
                          Compiler.find(to_language)(),
                          Binder.find(to_language)())
+        self.from_language = from_language
         self.to_language = to_language

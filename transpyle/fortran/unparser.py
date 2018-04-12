@@ -399,7 +399,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def _For(self, t):
         if hasattr(t, 'type_comment') and t.type_comment or t.orelse:
-            self._unsupported_syntax(t)
+            # self._unsupported_syntax(t)
+            pass
 
         self.fill('do ')
         self.dispatch(t.target)

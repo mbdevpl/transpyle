@@ -1,5 +1,6 @@
 """Definition of parser."""
 
+import collections.abc
 import pathlib
 import re
 import textwrap
@@ -53,6 +54,8 @@ def validate_indentation(code: str, path: pathlib.Path = None):
 
 class Parser(Registry):
 
+    """Extract abstract representation of syntax from the source code."""
+
     def __init__(self, default_scopes: t.Sequence[t.Tuple[int, t.Optional[int]]] = None):
         """Initialize new Parser instance.
 
@@ -69,6 +72,10 @@ class Parser(Registry):
 
         If path is provided, use it to guide the parser if necessary, as well as for diagnostics.
         """
+        assert isinstance(code, str), type(code)
+        assert path is None or isinstance(path, pathlib.Path), type(path)
+        assert scopes is None or isinstance(scopes, collections.abc.Sequence), type(scopes)
+
         if scopes is None:
             scopes = self.default_scopes
         parsed_scopes = []
