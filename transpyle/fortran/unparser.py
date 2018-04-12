@@ -101,23 +101,28 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             sli = tree.slice
             assert isinstance(sli, typed_ast3.Index), typed_astunparse.dump(tree)
             assert isinstance(sli.value, typed_ast3.Tuple)
-            assert len(sli.value.elts) == 3
+            assert len(sli.value.elts) in (2, 3), sli.value.elts
             elts = sli.value.elts
             self.dispatch_var_type(elts[1])
             self.write(', ')
             self.write('dimension(')
-            if not self._context_input_args:
-                self.dispatch(elts[2])
+
+            if len(sli.value.elts) == 2:
+                self.write(':')
             else:
-                _LOG.warning('coercing indices to 0-based')
-                # _LOG.warning('coercing indices of %s in %s to 0-based', arg.arg, t.name)
-                tup = elts[2]
-                tup = typed_ast3.Tuple(
-                    elts=[typed_ast3.Slice(lower=typed_ast3.Num(n=0),
-                                           upper=typed_ast3.Num(n=elt.n - 1),
-                                           step=None) for elt in elts[2].elts],
-                    ctx=typed_ast3.Load())
-                self.dispatch(tup)
+                if not self._context_input_args:
+                    self.dispatch(elts[2])
+                else:
+                    _LOG.warning('coercing indices to 0-based')
+                    # _LOG.warning('coercing indices of %s in %s to 0-based', arg.arg, t.name)
+                    tup = elts[2]
+                    tup = typed_ast3.Tuple(
+                        elts=[typed_ast3.Slice(lower=typed_ast3.Num(n=0),
+                                               upper=typed_ast3.Num(n=elt.n - 1),
+                                               step=None) for elt in elts[2].elts],
+                        ctx=typed_ast3.Load())
+                    self.dispatch(tup)
+
             self.write(')')
         elif _match_io(tree):
             self.write('integer')
