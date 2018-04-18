@@ -22,7 +22,7 @@ from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
 
 from .examples import EXAMPLES_LANGS_NAMES, EXAMPLES_FILES, EXAMPLES_C11_FILES, \
-    EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES, basic_check_python_code
+    EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES, basic_check_cpp_code, basic_check_python_code
 
 
 NOT_PARSED_LANGS = ('C++14', 'Cython')
@@ -95,6 +95,21 @@ class Tests(unittest.TestCase):
                 python_code = unparser.unparse(tree)
                 basic_check_python_code(self, input_path, python_code)
 
+    def test_python_to_cpp(self):
+        language_from = Language.find('Python')
+        language_to = Language.find('C++')
+        reader = CodeReader()
+        # parser = Parser.find(language_from)()
+        # ast_generalizer = AstGeneralizer.find(language_from)()
+        # unparser = Unparser.find(python_language)()
+        # writer = CodeWriter('.py')
+        for input_path in EXAMPLES_PY3_FILES:
+            translator = AutoTranslator(language_from, language_to)
+            with self.subTest(input_path=input_path):
+                python_code = reader.read_file(input_path)
+                cpp_code = translator.translate(python_code)
+                basic_check_cpp_code(self, input_path, cpp_code)
+
     def test_fortran_to_python(self):
         for input_path in EXAMPLES_F77_FILES:
             parser = FortranParser()
@@ -102,6 +117,7 @@ class Tests(unittest.TestCase):
             unparser = TypedPythonUnparserWithComments()
             writer = CodeWriter('.py')
             with self.subTest(input_path=input_path):
+                code = reader.read_file(input_path)
                 fortran_ast = parser.parse('', input_path)
                 tree = generalizer.generalize(fortran_ast)
                 python_code = unparser.unparse(tree)

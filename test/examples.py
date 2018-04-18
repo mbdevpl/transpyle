@@ -83,6 +83,10 @@ def basic_check_c_ast(case: unittest.TestCase, path, c_tree, **kwargs):
 EXAMPLES_CPP14_FILES = EXAMPLES_FILES['cpp14']
 
 
+def basic_check_cpp_code(case: unittest.TestCase, path, code, **kwargs):
+    basic_check_code(case, path, code, 'cpp14', **kwargs)
+
+
 def basic_check_cpp_ast(case: unittest.TestCase, path, fortran_ast, **kwargs):
     basic_check_ast(case, path, fortran_ast, ET.Element, '.xml',
                     lambda _: ET.tostring(_).decode().rstrip(), **kwargs)

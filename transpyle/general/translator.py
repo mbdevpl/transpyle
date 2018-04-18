@@ -1,5 +1,6 @@
 """Translation of source code."""
 
+import inspect
 import pathlib
 import typing as t
 
@@ -26,10 +27,10 @@ class Translator(Registry):
         return to_code
 
     def translate_object(self, code_object):
-        assert isinstance(code_object, codeobject), type(code_object)
+        assert inspect.iscode(code_object), type(code_object)
         code = inspect.getsource(code_object)
-        path = inspect.getpath(code_object)
-        return self.translate(code, path)
+        path_str = inspect.getabsfile(code_object)
+        return self.translate(code, pathlib.Path(path_str))
 
 
 class AutoTranslator(Translator):
