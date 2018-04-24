@@ -112,13 +112,14 @@ class Tests(unittest.TestCase):
 
     def test_fortran_to_python(self):
         for input_path in EXAMPLES_F77_FILES:
+            reader = CodeReader()
             parser = FortranParser()
             generalizer = FortranAstGeneralizer()
             unparser = TypedPythonUnparserWithComments()
             writer = CodeWriter('.py')
             with self.subTest(input_path=input_path):
                 code = reader.read_file(input_path)
-                fortran_ast = parser.parse('', input_path)
+                fortran_ast = parser.parse(code, input_path)
                 tree = generalizer.generalize(fortran_ast)
                 python_code = unparser.unparse(tree)
                 writer.write_file(python_code, pathlib.Path('/tmp', input_path.name + '.py'))
