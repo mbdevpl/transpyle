@@ -230,7 +230,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _AugAssign(self, t):
         self.fill()
         self.dispatch(t.target)
-        self.write(" "+self.binop[t.op.__class__.__name__]+"= ")
+        self.write(' = ')
+        self.dispatch(t.target)
+        self.write(' ' + self.binop[t.op.__class__.__name__] + ' ')
         self.dispatch(t.value)
 
     def _AnnAssign(self, t):
@@ -389,13 +391,27 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             if static_t._local_vars:
                 self.fill('! local vars')
                 for var in static_t._local_vars:
-                    for stmt in static_t.body:
-                        if isinstance(stmt, typed_ast3.For) and stmt.type_comment is not None:
-                            stmt.type_comment = None
-                            print('bleh')
+
+                    class Visitor(st.ast_manipulation.RecursiveAstVisitor[typed_ast3]):
+                        def visit_node(self, node):
+                            if isinstance(node, typed_ast3.For) and node.target.id == var \
+                                    and node.type_comment is not None:
+                                node.type_comment = None
+                                declaration = typed_ast3.AnnAssign(
+                                    target=node.target, value=None, annotation=node.resolved_type_comment)
+                                raise ValueError(declaration)
+                    visitor = Visitor()
+                    try:
+                        visitor.visit(static_t)
+                        self.fill('! oh la la')
+                    except ValueError as err:
+                        self.dispatch(err.args[0])
+                    # for stmt in static_t.body:
+                    #    if isinstance(stmt, typed_ast3.For) and stmt.type_comment is not None:
+                    #        stmt.type_comment = None
+                    #        print('bleh')
                     # self.dispatch(typed_ast3.AnnAssign(target=t.target, value=None,
                     #                                   annotation=t.resolved_type_comment))
-                    self.fill('! oh la la')
                 self.write('\n')
 
         self._context = t
