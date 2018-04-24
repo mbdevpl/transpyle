@@ -3,6 +3,7 @@
 import numpy as np
 import static_typing as st
 
+
 def dgemm(a: st.ndarray[2, np.double, (100, 100)],
           b: st.ndarray[2, np.double, (100, 100)]) -> st.ndarray[2, np.double, (100, 100)]:
 
@@ -12,9 +13,9 @@ def dgemm(a: st.ndarray[2, np.double, (100, 100)],
     c: st.ndarray[2, np.double, (100, 100)] = np.zeros((y_max, x_max), dtype=np.double)
 
     #pragma omp for
-    for y in range(y_max): # type: np.int32
-        for i in range(i_max): # type: np.int32
-            for x in range(x_max): # type: np.int32
+    for y in range(y_max):  # type: np.int32
+        for i in range(i_max):  # type: np.int32
+            for x in range(x_max):  # type: np.int32
                 c[y, x] += a[y, i] * b[i, x]
 
     return c
