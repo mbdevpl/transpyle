@@ -187,6 +187,13 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def _AsyncWith(self, t):
         self._unsupported_syntax(t)
 
+    def _Attribute(self, t):
+        if isinstance(t.value, typed_ast3.Name):
+            {''}[t.value.id, t.attr]
+        self.dispatch(t.value)
+        self.write('.')
+        self.write(t.attr)
+
     def _Call(self, t):
         raise NotImplementedError('not supported yet')
 
