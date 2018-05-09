@@ -1,5 +1,6 @@
 """Unparse into C++."""
 
+import ast
 import io
 import typing as t
 
@@ -110,6 +111,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         # raise NotImplementedError('not supported yet')
         super()._Import(t)
         self.fill('*/')
+        # #include "boost/multi_array.hpp"
 
     def _ImportFrom(self, t):
         raise NotImplementedError('not supported yet')
@@ -176,6 +178,28 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _If(self, t):
+        self.fill('if (')
+        self.dispatch(t.test)
+        self.write(')')
+        self.enter()
+        self.dispatch(t.body)
+        self.leave()
+        # collapse nested ifs into equivalent elifs.
+        while t.orelse and len(t.orelse) == 1 and isinstance(t.orelse[0], (ast.If, typed_ast3.If)):
+            t = t.orelse[0]
+            self.fill("else if (")
+            self.dispatch(t.test)
+            self.write(')')
+            self.enter()
+            self.dispatch(t.body)
+            self.leave()
+        # final else
+        if t.orelse:
+            self.fill("else")
+            self.enter()
+            self.dispatch(t.orelse)
+            self.leave()
+
         raise NotImplementedError('not supported yet')
 
     def _While(self, t):
@@ -189,13 +213,26 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _Attribute(self, t):
         if isinstance(t.value, typed_ast3.Name):
-            {''}[t.value.id, t.attr]
+            unparsed = {
+                ('a', 'shape'): '???',
+                ('b', 'shape'): '???',
+                ('c', 'shape'): '???',
+                ('np', 'single'): 'int32_t',
+                ('np', 'double'): 'int64_t',
+                ('st', 'ndarray'): 'boost::multi_array'
+                }[t.value.id, t.attr]
+            self.write(unparsed)
+            return
         self.dispatch(t.value)
         self.write('.')
         self.write(t.attr)
 
     def _Call(self, t):
-        raise NotImplementedError('not supported yet')
+        if t.keywords:
+            self._unsupported_syntax(t, ' with keyword arguments')
+
+        super()._Call(t)
+        # raise NotImplementedError('not supported yet')
 
     def _Comment(self, node):
         if node.eol:
@@ -206,6 +243,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _unsupported_syntax(self, tree, comment: str = ''):
         raise SyntaxError('unparsing {}{} to C++ is not supported'.format(type(tree), comment))
+
 
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):
 
