@@ -369,10 +369,10 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if t.args:
             # try:
             annotated_args = [arg for arg in t.args.args if arg.annotation]
-            from_python = True
             # except:
             #    raise ValueError(horast.dump(t.args))
             if annotated_args:
+                from_python = True
                 self._context_input_args = True
                 self.fill('! parameters')
                 for arg in annotated_args:
@@ -385,7 +385,10 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self._context_input_args = False
 
         if from_python:
-            static_t = st.augment(t, eval_=False)
+            try:
+                static_t = st.augment(t, eval_=False)
+            except:
+                import ipdb; ipdb.set_trace()
             assert isinstance(static_t,
                               st.nodes.StaticallyTypedFunctionDef[typed_ast3]), type(static_t)
             if static_t._local_vars:

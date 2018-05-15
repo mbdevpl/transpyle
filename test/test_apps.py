@@ -42,13 +42,10 @@ _APPS_ROOT_PATHS = {
     if app not in _APPS_OPTIONAL or _HERE.parent.joinpath(path).is_dir()}
 
 _FLASH_COMMON_PATHS = [
-    'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_fluxes.F90',
     'physics/Eos/EosMain/Gamma/eos_idealGamma.F90',
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_sweep.F90',
-    'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
-    'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90'
     # 'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90'  # interface
     ]
 
@@ -57,14 +54,20 @@ _APPS_CODE_FILEPATHS = {
     'FLASH-4.5': [
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-4.5'], 'source', pathlib.Path(input_path))
         for input_path in [
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_getFaceFlux.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_DataReconstructNormalDir_MH.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux.F90',
             'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90'
             ] + _FLASH_COMMON_PATHS] if 'FLASH-4.5' in _APPS_ROOT_PATHS else [],
     'FLASH-SUBSET': [
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
         for input_path in [
+            'physics/Hydro/HydroMain/unsplit/hy_getFaceFlux.F90',
             'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90',
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_TVDslope.F90',  # also in 4.5, but fails
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_Roe.F90'
+            'physics/Hydro/HydroMain/unsplit/hy_DataReconstructNormalDir_MH.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux.F90',
+            'physics/Hydro/HydroMain/unsplit/hy_TVDslope.F90',  # also in 4.5, but fails
+            'physics/Hydro/HydroMain/unsplit/hy_Roe.F90'
             ] + _FLASH_COMMON_PATHS] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
     'FLASH-SUBSET-hydro': [
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
