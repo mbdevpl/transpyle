@@ -10,6 +10,21 @@ import pandas as pd
 from .general import Language, CodeReader, CodeWriter, AutoTranslator
 from .general import Parser, AstGeneralizer, Unparser, Compiler, Binder
 
+PROG_NAME = 'transpyle'
+COPYRIGHT_NOTICE = 'Copyright 2017-2018 Mateusz Bysiek https://mbdevpl.github.io/,' \
+    ' Apache License 2.0'
+STEP_DESCRIPTIONS = {
+    'parsing':
+    'transforming code in a specific programming language into language-specific AST',
+    'generalization':
+    'transforming language-specific AST into generalized and extended Python AST',
+    'unparsing':
+    'transforming generalized and extended Python AST into code in a specific programming'
+    ' language',
+    'compiling':
+    'transforming source code in a specific programming language into compiled binary',
+    'binding': 'creating a callable Python object for a compiled library'}
+
 
 def query_registry() -> pd.DataFrame:
     """Gather information about supported languages in transpyle and scope of their support."""
@@ -29,7 +44,7 @@ def show_supported_langs():
         index=[language.default_name for language in support_data.index],
         data=[['✓' if support else '' for support in data_row]
               for _, data_row in support_data.iterrows()], dtype=str)
-    print(support_data.to_string(header=list(step_descriptions.keys()), justify='center'))
+    print(support_data.to_string(header=list(STEP_DESCRIPTIONS.keys()), justify='center'))
     print()
     print('caution: for each supported language, only a certain subset of syntax'
           ' and functionality is supported')
@@ -37,14 +52,11 @@ def show_supported_langs():
 
 def parse_args(args=None):
     """Parse commandline arguments of transpyle CLI."""
-    prog_name = 'transpyle'
-    copyright_notice = 'Copyright 2017-2018 Mateusz Bysiek https://mbdevpl.github.io/,' \
-        ' Apache License 2.0'
 
     parser = argparse.ArgumentParser(
-        prog=prog_name,
+        prog=PROG_NAME,
         description='Human-oriented and HPC-oriented transpiler.',
-        epilog=copyright_notice, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        epilog=COPYRIGHT_NOTICE, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('source', nargs=('?' if len(sys.argv) > 1 else None), help='source path')
     parser.add_argument('target', nargs='?',
                         help='target path, print results to stdout if not provided')
@@ -64,7 +76,7 @@ def parse_args(args=None):
                         ' expressions), whole file is transpiled if not provided')
     parser.add_argument('--keep', action='store_true',
                         help='do not discard not-transpiled scopes of the code')
-    parser.add_argument('--transformations',
+    parser.add_argument('--transformations', metavar='name', type=str, nargs='*',
                         help='specify Python script that defines performed AST transformations')
 
     parsed_args = parser.parse_args(args)
@@ -78,26 +90,15 @@ def main(args=None):
     parsed_args = parse_args(args)
 
     if parsed_args.help_languages:
-        step_descriptions = {
-            'parsing':
-            'transforming code in a specific programming language into language-specific AST',
-            'generalization':
-            'transforming language-specific AST into generalized and extended Python AST',
-            'unparsing':
-            'transforming generalized and extended Python AST into code in a specific programming'
-            ' language',
-            'compiling':
-            'transforming source code in a specific programming language into compiled binary',
-            'binding': 'creating a callable Python object for a compiled library'}
         print('transpilation step support for each supported language')
         print()
-        for step, desc in step_descriptions.items():
+        for step, desc in STEP_DESCRIPTIONS.items():
             print('{}:'.format(step))
             print('  {}'.format(desc))
         print()
         show_supported_langs()
         print()
-        print('{}, {}'.format(prog_name, copyright_notice))
+        print('{}, {}'.format(PROG_NAME, COPYRIGHT_NOTICE))
         return
 
     if parsed_args.source is None:

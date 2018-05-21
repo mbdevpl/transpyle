@@ -15,15 +15,16 @@ class Translator(Registry):
 
     """Translate from one programming language to another."""
 
-    def __init__(self, parser: Parser, ast_generaliser: AstGeneralizer, unparser: Unparser):
+    def __init__(self, parser: Parser, ast_generalixer: AstGeneralizer, unparser: Unparser):
         self.parser = parser
-        self.ast_generaliser = ast_generaliser
+        self.ast_generalizer = ast_generalizer
         self.unparser = unparser
 
-    def translate(self, code: str, path: t.Optional[pathlib.Path] = None) -> str:
-        specific_ast = self.parser.parse(code, path)
-        general_ast = self.ast_generaliser.generalize(specific_ast)
-        to_code = self.unparser.unparse(general_ast)
+    def translate(self, code: str, path: t.Optional[pathlib.Path] = None, parser_kwargs: dict = {},
+                  ast_generalizer_kwargs: dict = {}, unparser_kwargs: dict = {}) -> str:
+        specific_ast = self.parser.parse(code, path, **parser_kwargs)
+        general_ast = self.ast_generalizer.generalize(specific_ast, **ast_generalizer_kwargs)
+        to_code = self.unparser.unparse(general_ast, **unparser_kwargs)
         return to_code
 
     def translate_object(self, code_object) -> str:
@@ -37,8 +38,10 @@ class AutoTranslator(Translator):
 
     """Automatically find parser/unparser pair and translate between programming languages."""
 
-    def __init__(self, from_language: Language, to_language: Language):
-        super().__init__(Parser.find(from_language)(), AstGeneralizer.find(from_language)(),
-                         Unparser.find(to_language)())
+    def __init__(self, from_language: Language, to_language: Language, parser_kwargs: dict = {},
+                 ast_generalizer_kwargs: dict = {}, unparser_kwargs: dict = {}):
+        super().__init__(Parser.find(from_language)(**parser_kwargs),
+                         AstGeneralizer.find(from_language)(**ast_generalizer_kwargs),
+                         Unparser.find(to_language)(**unparser_kwargs))
         self.from_language = from_language
         self.to_language = to_language
