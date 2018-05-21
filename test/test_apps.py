@@ -73,7 +73,7 @@ _APPS_CODE_FILEPATHS = {
         pathlib.Path(_APPS_ROOT_PATHS['FLASH-SUBSET'], 'source', pathlib.Path(input_path))
         for input_path in [
             # 'physics/Hydro/HydroMain/simpleUnsplit/HLL/hy_hllUnsplit.F90'
-            'physics/Hydro/HydroMain/unsplit/hy_uhd_upwindTransverseFlux_loop.F90'
+            'physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux_loop.F90'
             ]] if 'FLASH-SUBSET' in _APPS_ROOT_PATHS else [],
     'FFB-MINI': [
         pathlib.Path(root, name)
