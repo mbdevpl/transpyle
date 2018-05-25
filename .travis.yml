@@ -75,7 +75,7 @@ install:
   - pip install -U -r dev_requirements.txt
 
 script:
-  - TEST_PACKAGING=1 python -m coverage run --branch --source . -m unittest discover --verbose
+  - TEST_PACKAGING=1 TEST_LONG=1 python -m coverage run --branch --source . -m unittest discover --verbose
 
 after_success:
   - python -m coverage report --show-missing

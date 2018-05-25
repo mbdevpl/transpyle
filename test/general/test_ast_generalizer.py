@@ -24,12 +24,12 @@ class Tests(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             xml_generalizer.generalize(ET.Element('abcde'))
 
-        class MyGeneralizer(XmlAstGeneralizer):
+        class MyGeneralizer(XmlAstGeneralizer):  # pylint: disable=missing-docstring
 
-            def _some_node(self, node):
+            def _some_node(self, _):
                 return self.transform_one(ET.Element('test'), warn=True)
 
-            def _other_node(self, node):
+            def _other_node(self, _):
                 return 'abcde'
 
         my_generalizer = MyGeneralizer()
@@ -53,7 +53,7 @@ class Tests(unittest.TestCase):
         with self.assertRaises(SyntaxError):
             xml_generalizer.get_all(ET.Element('some-node'), './xpath')
 
-    def test_xml_get(self):
+    def test_xml_transform(self):
         xml_generalizer = XmlAstGeneralizer()
         with self.assertRaises(NotImplementedError):
             xml_generalizer.transform_one(ET.Element('some-node'))

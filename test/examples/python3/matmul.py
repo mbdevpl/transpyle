@@ -15,7 +15,7 @@ if __name__ == "__main__":
     width = args.width
     height = args.height
 
-    #print('{} times {} x {}'.format(limit, width, height))
+    # print('{} times {} x {}'.format(limit, width, height))
 
     a = [1] * (width * height)
     b = [1] * (height * width)

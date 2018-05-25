@@ -22,12 +22,13 @@ class Binder(Registry):
         pass
 
     def bind_module(self, module_name: str) -> types.ModuleType:
+        assert isinstance(module_name, str), type(module_name)
         module = importlib.import_module(module_name)
         _LOG.info('successfully imported module "%s"', module.__name__)
         return module
 
     def bind_object(self, module_name_or_path: t.Union[pathlib.Path, str],
-                    object_name: t.Optional[str] = None) -> collections.abc.Callable:
+                    object_name: t.Optional[str] = None) -> object:
         """Bind a single object (like a class or function) from an extension module."""
         if isinstance(module_name_or_path, pathlib.Path):
             module = self.bind(module_name_or_path)
@@ -38,13 +39,18 @@ class Binder(Registry):
         object_names = [var for var in vars(module) if not var.startswith('__')]
         _LOG.debug('interface: %s', ', '.join(object_names))
         if object_name is None:
-            assert len(object_names) == 1, object_names
+            if len(object_names) != 1:
+                raise ValueError('module has to contain exactly one object for it to be default,'
+                                 ' but module {} contains {}: {}'.format(module, len(object_names),
+                                                                         object_names))
             object_name = object_names[0]
 
         interface = getattr(module, object_name)
-        assert callable(interface)
+        # assert callable(interface), interface
+        return interface
 
     def bind(self, path: pathlib.Path) -> types.ModuleType:
+        assert isinstance(path, pathlib.Path), type(path)
         dir_ = str(path.parent)
         while path.suffix:
             path = path.with_suffix('')

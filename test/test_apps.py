@@ -147,18 +147,22 @@ class Tests(unittest.TestCase):
         self._test_app('miranda_io', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
+    @unittest.skipUnless(os.environ.get('TEST_FLASH'), 'skipping test on FLASH code')
     def test_roundtrip_flash_45(self):
         self._test_app('FLASH-4.5', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
+    @unittest.skipUnless(os.environ.get('TEST_FLASH'), 'skipping test on FLASH code')
     def test_roundtrip_flash_subset(self):
         self._test_app('FLASH-SUBSET', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
+    @unittest.skipUnless(os.environ.get('TEST_FLASH'), 'skipping test on FLASH code')
     def test_roundtrip_flash_subset_hydro(self):
         self._test_app('FLASH-SUBSET-hydro', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
 
+    @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
     def test_roundtrip_ffbmini(self):
         self._test_app('FFB-MINI', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)

@@ -15,7 +15,7 @@ class Translator(Registry):
 
     """Translate from one programming language to another."""
 
-    def __init__(self, parser: Parser, ast_generalixer: AstGeneralizer, unparser: Unparser):
+    def __init__(self, parser: Parser, ast_generalizer: AstGeneralizer, unparser: Unparser):
         self.parser = parser
         self.ast_generalizer = ast_generalizer
         self.unparser = unparser

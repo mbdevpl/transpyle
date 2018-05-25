@@ -1,6 +1,7 @@
 """Examples for transpyle tests."""
 
 import io
+import itertools
 import pathlib
 import unittest
 import xml.etree.ElementTree as ET
@@ -29,7 +30,10 @@ EXAMPLES_EXTENSIONS = {
 
 EXAMPLES_ROOTS = {lang: pathlib.Path(_HERE, 'examples', lang) for lang in EXAMPLES_LANGS}
 
-EXAMPLES_FILES = {lang: list(EXAMPLES_ROOTS[lang].glob('**/*.*')) for lang in EXAMPLES_LANGS}
+EXAMPLES_FILES = {lang: list(
+    itertools.chain.from_iterable(EXAMPLES_ROOTS[lang].glob('**/*{}'.format(ext))
+                                  for ext in EXAMPLES_EXTENSIONS[lang]))
+                  for lang in EXAMPLES_LANGS}
 
 EXAMPLES_RESULTS_ROOT = pathlib.Path(RESULTS_ROOT, 'examples')
 EXAMPLES_RESULTS_ROOT.mkdir(exist_ok=True)
