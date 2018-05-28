@@ -101,7 +101,6 @@ class CppAstGeneralizer(XmlAstGeneralizer):
     def _Argument(self, node: ET.Element):  # pylint: disable=invalid-name
         annotation = self.fundamental_types[node.attrib['type']]
         assert annotation is not None
-        #import ipdb; ipdb.set_trace()
         return typed_ast3.arg(arg=node.attrib['name'], annotation=annotation)
 
     def _FundamentalType(self, node: ET.Element):  # pylint: disable=invalid-name
@@ -119,7 +118,7 @@ class CppAstGeneralizer(XmlAstGeneralizer):
             base_type = self.fundamental_types[type_]
         except KeyError:
             # _LOG.debug()
-            base_type = type_
+            base_type = typed_ast3.Str(s=type_)
         type_info = typed_ast3.Subscript(
             value=typed_ast3.Name(id='Pointer', ctx=typed_ast3.Load()), slice=base_type)
         if is_const:

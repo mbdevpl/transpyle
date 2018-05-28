@@ -243,7 +243,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         # raise NotImplementedError('not supported yet')
 
     def _arg(self, t):
-        if t.annotation is not None:
+        if t.annotation is None:
             self._unsupported_syntax(t, ' without annotation')
         self.dispatch(t.annotation)
         self.write(' ')
