@@ -16,8 +16,10 @@ class CppAstGeneralizer(XmlAstGeneralizer):
 
     """Transform C++ XML AST generated with CastXML into Python AST from typed_ast."""
 
-    def __init__(self, scope):
+    def __init__(self, scope=None):
         super().__init__(scope)
+        assert scope is not None, \
+            'scope={"path": pathlib.Path(...)} has to be provided for C++ generalizer'
         self.file_id = None
         self.fundamental_types = {}
 
@@ -37,16 +39,19 @@ class CppAstGeneralizer(XmlAstGeneralizer):
 
         types = {'ArrayType', 'CvQualifiedType', 'ElaboratedType', 'FunctionType',
                  'FundamentalType', 'MethodType', 'OffsetType', 'PointerType', 'ReferenceType'}
-        type_nodes = self.get_all(node, './FundamentalType')
 
-        self.fundamental_types = {
-            type_node.attrib['id']: self.transform_all(type_node, parent=node)
-            for type_node in type_nodes}
+        for type_ in ['FundamentalType', 'PointerType']:
+            type_nodes = self.get_all(node, './{}'.format(type_))
+            self.fundamental_types.update(dict(self.transform_all(type_nodes, parent=node)))
+        import pprint
+        _LOG.warning('Detected types:\n%s', pprint.pformat(
+            {k: typed_ast3.dump(v) for k, v in self.fundamental_types.items()}))
 
         body = self.transform_all_subnodes(node, ignored={'Namespace', 'File'} | types)
         return typed_ast3.Module(body=body, type_ignores=[])
 
     def default(self, node: ET.Element):
+        """Ignore irrelevant nodes, raise error otherwise."""
         if 'file' not in node.attrib:
             _LOG.warning('no file for %s', node)
             # self.no_transform(node)
@@ -94,9 +99,30 @@ class CppAstGeneralizer(XmlAstGeneralizer):
                                       returns=returns)
 
     def _Argument(self, node: ET.Element):  # pylint: disable=invalid-name
-        return typed_ast3.arg(arg=node.attrib['name'], annotation=None)
+        annotation = self.fundamental_types[node.attrib['type']]
+        assert annotation is not None
+        #import ipdb; ipdb.set_trace()
+        return typed_ast3.arg(arg=node.attrib['name'], annotation=annotation)
 
     def _FundamentalType(self, node: ET.Element):  # pylint: disable=invalid-name
+        id_ = node.attrib['id']
         name = node.attrib['name']
-        return typed_ast3.parse(CPP_PYTHON_TYPE_PAIRS[name], mode='eval')
-        # self.no_transform(node)
+        return (id_, typed_ast3.parse(CPP_PYTHON_TYPE_PAIRS[name], mode='eval').body)
+
+    def _PointerType(self, node: ET.Element):  # pylint: disable=invalid-name
+        id_ = node.attrib['id']
+        type_ = node.attrib['type']
+        is_const = type_.endswith('c')
+        if is_const:
+            type_ = type_[:-1]
+        try:
+            base_type = self.fundamental_types[type_]
+        except KeyError:
+            # _LOG.debug()
+            base_type = type_
+        type_info = typed_ast3.Subscript(
+            value=typed_ast3.Name(id='Pointer', ctx=typed_ast3.Load()), slice=base_type)
+        if is_const:
+            type_info = typed_ast3.Subscript(
+                value=typed_ast3.Name(id='Const', ctx=typed_ast3.Load()), slice=type_info)
+        return (id_, type_info)

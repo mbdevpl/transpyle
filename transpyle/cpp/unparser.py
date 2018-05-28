@@ -2,6 +2,7 @@
 
 import ast
 import io
+import logging
 import typing as t
 
 import horast
@@ -9,6 +10,8 @@ import nuitka
 import typed_ast.ast3 as typed_ast3
 
 from ..general import Language, Unparser
+
+_LOG = logging.getLogger(__name__)
 
 
 def transpile_test():
@@ -83,6 +86,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.fill('}')
 
     def dispatch_type(self, type_hint):
+        _LOG.debug('dispatching type hint %s', type_hint)
         if isinstance(type_hint, typed_ast3.Subscript):
             if isinstance(type_hint.value, typed_ast3.Attribute) \
                     and isinstance(type_hint.value.value, typed_ast3.Name):
@@ -100,6 +104,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.write(PY_TO_CPP_TYPES[unparsed])
                 return
             self._unsupported_syntax(type_hint)
+        if isinstance(type_hint, typed_ast3.NameConstant):
+            assert type_hint.value is None
+            self.write('void')
+            return
         self.dispatch(type_hint)
 
     def _Expr(self, tree):
@@ -140,15 +148,15 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         raise NotImplementedError('not supported yet')
 
     def _FunctionDef(self, t):
-        self.write('\n')
         if t.decorator_list:
             self._unsupported_syntax(t, ' with decorators')
+        self.write('\n')
         self.fill()
         if t.returns is None:
             self.write('void')
         else:
             self.dispatch_type(t.returns)
-        self.write(' {} ('.format(t.name))
+        self.write(' {}('.format(t.name))
         self.dispatch(t.args)
         self.write(')')
         self.enter()
@@ -234,6 +242,13 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         super()._Call(t)
         # raise NotImplementedError('not supported yet')
 
+    def _arg(self, t):
+        if t.annotation is not None:
+            self._unsupported_syntax(t, ' without annotation')
+        self.dispatch(t.annotation)
+        self.write(' ')
+        self.write(t.arg)
+
     def _Comment(self, node):
         if node.eol:
             self.write(' //')
@@ -248,7 +263,14 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):
 
     def _FunctionDef(self, t):
-        raise NotImplementedError()
+        self.fill()
+        if t.returns is None:
+            self.write('void')
+        else:
+            self.dispatch_type(t.returns)
+        self.write(' {}('.format(t.name))
+        self.dispatch(t.args)
+        self.write(');')
 
 
 class Cpp14Unparser(Unparser):

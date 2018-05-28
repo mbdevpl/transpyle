@@ -40,14 +40,14 @@ class Tests(unittest.TestCase):
             _LOG.debug('%s', typed_astunparse.dump(tree))
             _LOG.debug('%s', typed_astunparse.unparse(tree))
 
-    @unittest.skip('not ready yet')
+    # @unittest.skip('not ready yet')
     def test_compile_examples(self):
         # code_reader = CodeReader()
         compiler = CppSwigCompiler()
         for input_path in EXAMPLES_CPP14_FILES:
             output_dir = pathlib.Path(
                 EXAMPLES_RESULTS_ROOT, input_path.parent.name,
-                'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+                'swig_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
             if not output_dir.is_dir():
                 output_dir.mkdir()
             with open(str(input_path)) as input_file:
