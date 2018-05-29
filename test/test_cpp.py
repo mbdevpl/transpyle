@@ -8,6 +8,7 @@ import unittest
 import typed_astunparse
 
 from transpyle.general.code_reader import CodeReader
+from transpyle.general.binder import Binder
 from transpyle.cpp.parser import CppParser
 from transpyle.cpp.ast_generalizer import CppAstGeneralizer
 from transpyle.cpp.compiler import CppSwigCompiler
@@ -55,6 +56,9 @@ class Tests(unittest.TestCase):
             with self.subTest(input_path=input_path):
                 output_path = compiler.compile(code, input_path, output_dir)
                 self.assertIsInstance(output_path, pathlib.Path)
+                binder = Binder()
+                binding = binder.bind(output_path)
+                self.assertIsNotNone(binding)
                 output_path.unlink()
             try:
                 output_dir.rmdir()
