@@ -31,9 +31,9 @@ class CastXMLTypeResolver(RecursiveAstTransformer[typed_ast3]):
             resolved_type = self.resolved_types[node.s]
         except KeyError:
             # raise NotImplementedError('cannot completely resolve') from err
-            _LOG.warning('cannot currently resolve %s', node.s)
+            _LOG.debug('cannot currently resolve %s', node.s)
             return node
-        _LOG.warning('resolved %s into %s', node.s, typed_ast3.dump(resolved_type))
+        _LOG.debug('resolved %s into %s', node.s, typed_ast3.dump(resolved_type))
         self.modified = True
         return resolved_type
 
@@ -48,6 +48,7 @@ def fix_resolved_types(resolved_types):
         resolver.modified = False
         for id_, type_ in resolved_types.items():
             resolver.visit(type_)
+
 
 class CppAstGeneralizer(XmlAstGeneralizer):
 
@@ -66,7 +67,7 @@ class CppAstGeneralizer(XmlAstGeneralizer):
             type_nodes = self.get_all(node, './{}'.format(type_))
             resolved_types.update(dict(self.transform_all(type_nodes, parent=node)))
         fix_resolved_types(resolved_types)
-        _LOG.warning('Detected types:\n%s', pprint.pformat(
+        _LOG.debug('Detected types:\n%s', pprint.pformat(
             {k: typed_ast3.dump(v) for k, v in resolved_types.items()}))
         return resolved_types
 

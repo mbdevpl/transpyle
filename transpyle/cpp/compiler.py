@@ -129,36 +129,41 @@ class CppSwigCompiler(SwigCompiler):
     def __init__(self):
         super().__init__(Language.find('C++'))
 
-    def run_gpp(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
+    def run_gpp(self, *args):
+        gcc_cmd = ['g++', *args]
+        _LOG.warning('running C++ compiler: %s', gcc_cmd)
+        result = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            stderr, result.stderr = result.stderr, None
+            _LOG.error('C++ compiler failed: %s', result)
+            result.stderr = stderr
+            stderr = result.stderr.decode('utf-8', 'ignore')
+            _LOG.error('C++ compiler stderr is: %s', stderr[:2048])
+        else:
+            _LOG.debug('C++ compiler succeeded: %s', result)
+        return result
+
+    def run_cpp_compiler(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
         # gcc -c example.c example_wrap.c -I/usr/local/include/python2.1
         flags = '-I{} -I{} {}'.format(
             self.py_config['CONFINCLUDEPY'], self.py_config['INCLUDEPY'],
             self.py_config['CFLAGS']).split()
         flags = [_.strip() for _ in flags if _.strip()]
-        gcc_cmd = ['g++', '-x', 'c++', '-O3', '-fPIC', #*flags,
-                   '-c', str(path), str(wrapper_path)#,
-                   #'-I{}'.format(PYTHON_LIB_PATH)
-                   ]
-        _LOG.warning('running %s', gcc_cmd)
-        result = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stderr = result.stderr; result.stderr = None
-        assert result.returncode == 0, (result, stderr[:1024])
-        return result
+        gcc_args = ['-fPIC', *flags,
+                    '-c', str(path), str(wrapper_path)]
+        return self.run_gpp(*gcc_args)
 
-    def run_ld(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
+    def run_cpp_linker(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
         # ld -shared example.o example_wrap.o -o _example.so
         ldlibrary = pathlib.Path(self.py_config['LDLIBRARY'].lstrip('lib')).with_suffix('')
         flags = '-L{} -L{} -l{} {} {} {}'.format(
             self.py_config['LIBPL'], self.py_config['LIBDIR'], ldlibrary, self.py_config['LIBS'],
             self.py_config['SYSLIBS'], self.py_config['LINKFORSHARED']).split()
         flags = [_.strip() for _ in flags if _.strip()]
-        ld_cmd = ['g++', '-x', 'c++', '-O3', '-fPIC', #*flags,
-                  '-shared', str(path.with_suffix('.o')), str(wrapper_path.with_suffix('.o')),
-                  '-o', '{}'.format(path.with_name('_' + path.name).with_suffix('.so'))]
-        _LOG.warning('running %s', ld_cmd)
-        result = subprocess.run(ld_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # _LOG.debug('result is %s', result)
-        return result
+        linker_args = ['-fPIC', *flags,
+                       '-shared', str(path.with_suffix('.o')), str(wrapper_path.with_suffix('.o')),
+                       '-o', '{}'.format(path.with_name('_' + path.name).with_suffix('.so'))]
+        return self.run_gpp(*linker_args)
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
                 output_folder: t.Optional[pathlib.Path] = None, **kwargs) -> pathlib.Path:
@@ -182,10 +187,9 @@ class CppSwigCompiler(SwigCompiler):
                                'The header "{}" is:\n"""{}"""\nExamine folder "{}" for details'
                                .format(result.args, path, result.stderr.decode(), hpp_path,
                                        header_code, output_folder))
-        result = self.run_gpp(cpp_path, wrapper_path)
+        result = self.run_cpp_compiler(cpp_path, wrapper_path)
         assert result.returncode == 0
-        result = self.run_ld(cpp_path, wrapper_path)
-        stderr = result.stderr; result.stderr = None
-        assert result.returncode == 0, (result, stderr[:1024])
+        result = self.run_cpp_linker(cpp_path, wrapper_path)
+        assert result.returncode == 0
         os.chdir(cwd)
         return cpp_path.with_suffix('.py')
