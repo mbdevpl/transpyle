@@ -242,6 +242,16 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         super()._Call(t)
         # raise NotImplementedError('not supported yet')
 
+    def _Subscript(self, t):
+        if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Pointer':
+            if isinstance(t.slice, typed_ast3.Name) and t.slice.id == 'str':
+                self.write('char')
+            else:
+                self.dispatch(t.slice)
+            self.write('*')
+            return
+        super()._Subscript(t)
+
     def _arg(self, t):
         if t.annotation is None:
             self._unsupported_syntax(t, ' without annotation')

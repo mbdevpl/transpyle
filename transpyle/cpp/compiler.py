@@ -110,9 +110,12 @@ class SwigCompiler(Compiler):
         swig -c++ -python example.i
         """
         swig_cmd = ['swig', '-python', *args, str(interface_path)]
-        _LOG.warning('running %s', swig_cmd)
+        _LOG.info('running SWIG via %s', swig_cmd)
         result = subprocess.run(swig_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # _LOG.warning('result is %s', result)
+        if result.returncode != 0:
+            _LOG.error('SWIG failed: %s', result)
+        else:
+            _LOG.debug('SWIG succeeded: %s', result)
         return result
 
 
@@ -132,11 +135,14 @@ class CppSwigCompiler(SwigCompiler):
             self.py_config['CONFINCLUDEPY'], self.py_config['INCLUDEPY'],
             self.py_config['CFLAGS']).split()
         flags = [_.strip() for _ in flags if _.strip()]
-        gcc_cmd = ['g++', '-x', 'c++', '-O3', '-fPIC', *flags,
-                   '-c', str(path), str(wrapper_path),
-                   '-I{}'.format(PYTHON_LIB_PATH)]
+        gcc_cmd = ['g++', '-x', 'c++', '-O3', '-fPIC', #*flags,
+                   '-c', str(path), str(wrapper_path)#,
+                   #'-I{}'.format(PYTHON_LIB_PATH)
+                   ]
         _LOG.warning('running %s', gcc_cmd)
         result = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stderr = result.stderr; result.stderr = None
+        assert result.returncode == 0, (result, stderr[:1024])
         return result
 
     def run_ld(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
@@ -146,9 +152,9 @@ class CppSwigCompiler(SwigCompiler):
             self.py_config['LIBPL'], self.py_config['LIBDIR'], ldlibrary, self.py_config['LIBS'],
             self.py_config['SYSLIBS'], self.py_config['LINKFORSHARED']).split()
         flags = [_.strip() for _ in flags if _.strip()]
-        ld_cmd = ['g++', '-x', 'c++', '-O3', '-fPIC', *flags,
+        ld_cmd = ['g++', '-x', 'c++', '-O3', '-fPIC', #*flags,
                   '-shared', str(path.with_suffix('.o')), str(wrapper_path.with_suffix('.o')),
-                  '-o', '{}'.format(path.with_suffix('.so'))]
+                  '-o', '{}'.format(path.with_name('_' + path.name).with_suffix('.so'))]
         _LOG.warning('running %s', ld_cmd)
         result = subprocess.run(ld_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # _LOG.debug('result is %s', result)
@@ -171,13 +177,15 @@ class CppSwigCompiler(SwigCompiler):
         cwd = os.getcwd()
         os.chdir(str(output_folder))
         result = self.run_swig(swig_interface_path, '-c++')
-        stderr = result.stderr; result.stderr = None
-        assert result.returncode == 0, (result, stderr[:1024])
+        if result.returncode != 0:
+            raise RuntimeError('{} -- Failed to create SWIG interface for "{}":\n"""\n{}"""\n'
+                               'The header "{}" is:\n"""{}"""\nExamine folder "{}" for details'
+                               .format(result.args, path, result.stderr.decode(), hpp_path,
+                                       header_code, output_folder))
         result = self.run_gpp(cpp_path, wrapper_path)
-        stderr = result.stderr; result.stderr = None
-        assert result.returncode == 0, (result, stderr[:1024])
+        assert result.returncode == 0
         result = self.run_ld(cpp_path, wrapper_path)
         stderr = result.stderr; result.stderr = None
         assert result.returncode == 0, (result, stderr[:1024])
         os.chdir(cwd)
-        return cpp_path
+        return cpp_path.with_suffix('.py')

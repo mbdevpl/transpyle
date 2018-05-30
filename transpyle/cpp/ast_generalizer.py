@@ -133,7 +133,7 @@ class CppAstGeneralizer(XmlAstGeneralizer):
         arguments = typed_ast3.arguments(args=self.transform_all_subnodes(node), vararg=None,
                                          kwonlyargs=[], kwarg=None, defaults=[], kw_defaults=[])
         body = [typed_ast3.Ellipsis()]
-        returns = typed_ast3.NameConstant(None)
+        returns = self.fundamental_types[node.attrib['returns']]
         return typed_ast3.FunctionDef(name=name, args=arguments, body=body, decorator_list=[],
                                       returns=returns)
 
