@@ -10,7 +10,7 @@ def dgemm(a: st.ndarray[2, np.double, (100, 100)],
     y_max: np.int32 = a.shape(0)
     i_max: np.int32 = a.shape(1)
     x_max: np.int32 = b.shape(1)
-    c: st.ndarray[2, np.double, (100, 100)] = np.zeros((y_max, x_max), dtype=np.double)
+    c: st.ndarray[2, np.double, (100, 100)] = np.zeros((y_max, x_max), np.double)
 
     #pragma omp for
     for y in range(y_max):  # type: np.int32

@@ -227,6 +227,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 ('c', 'shape'): '???',
                 ('np', 'single'): 'int32_t',
                 ('np', 'double'): 'int64_t',
+                ('np', 'zeros'): 'boost::multi_array',
                 ('st', 'ndarray'): 'boost::multi_array'
                 }[t.value.id, t.attr]
             self.write(unparsed)
