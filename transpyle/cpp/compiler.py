@@ -6,6 +6,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import tempfile
 import typing as t
 
 import argunparse
@@ -167,6 +168,10 @@ class CppSwigCompiler(SwigCompiler):
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,
                 output_folder: t.Optional[pathlib.Path] = None, **kwargs) -> pathlib.Path:
+        if output_folder is None:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_folder = pathlib.Path(tmpdir)
+            output_folder.mkdir()
         header_code = self.create_header_file(path)
         hpp_path = output_folder.joinpath(path.name).with_suffix('.hpp')
         with hpp_path.open('w') as header_file:
@@ -192,4 +197,5 @@ class CppSwigCompiler(SwigCompiler):
         result = self.run_cpp_linker(cpp_path, wrapper_path)
         assert result.returncode == 0
         os.chdir(cwd)
+
         return cpp_path.with_suffix('.py')

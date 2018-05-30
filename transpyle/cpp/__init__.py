@@ -1,10 +1,15 @@
 """Support for C++ language."""
 
-from ..general import Language, Parser, AstGeneralizer, Unparser, Compiler
+from ..general import Language, Parser, AstGeneralizer, Unparser, Compiler, Binder
 from .parser import CppParser
 from .ast_generalizer import CppAstGeneralizer
 from .unparser import Cpp14Unparser
 from .compiler import CppSwigCompiler
+
+
+class CppBinder(Binder):
+
+    pass
 
 
 # Language.register(Language('C++11', ['.cpp', '.cxx', '.h', '.hpp', '.hxx']), ['C++11'])
@@ -19,3 +24,5 @@ AstGeneralizer.register(CppAstGeneralizer, (Language.find('C++14'),))
 Unparser.register(Cpp14Unparser, (Language.find('C++14'),))
 
 Compiler.register(CppSwigCompiler, (Language.find('C++14'),))
+
+Binder.register(Binder, (Language.find('C++14'),))

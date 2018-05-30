@@ -1,9 +1,14 @@
 """Tests for Binder class."""
 
+import logging
 import pathlib
+import sys
 import unittest
 
 from transpyle.general.binder import Binder
+from test.examples import EXAMPLES_ROOTS
+
+_LOG = logging.getLogger(__name__)
 
 
 class Tests(unittest.TestCase):
@@ -24,8 +29,10 @@ class Tests(unittest.TestCase):
         binding = binder.bind_object('unittest', 'TestCase')
         self.assertIs(binding, unittest.TestCase)
 
-        binding = binder.bind_object(pathlib.Path(__file__), 'Binder')
+        path = pathlib.Path(__file__)
+        binding = binder.bind_object(path, 'Binder')
         self.assertIs(binding, Binder)
+        del sys.modules[path.with_suffix('').name]
 
         with self.assertRaises(TypeError):
             binder.bind_object(3, 1415)
@@ -35,14 +42,16 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             binder.bind_object(pathlib.Path(__file__))
 
-        binding = binder.bind_object(pathlib.Path(__file__,).parent
-                                     .joinpath('..', 'examples', 'python3', 'matmul.py'))
+        binding = binder.bind_object(EXAMPLES_ROOTS['python3'].joinpath('matmul.py'))
         self.assertIsInstance(binding, object)
+        del sys.modules['matmul']
 
     def test_bind(self):
         binder = Binder()
-        binding = binder.bind(pathlib.Path(__file__))
+        path = pathlib.Path(__file__)
+        binding = binder.bind(path)
         self.assertIsNotNone(binding)
+        del sys.modules[path.with_suffix('').name]
 
         with self.assertRaises(ImportError):
-            binder.bind(pathlib.Path(__file__).parent.joinpath('..', 'examples', 'f77', 'matmul.f'))
+            binder.bind(EXAMPLES_ROOTS['f77'].joinpath('matmul.f'))
