@@ -178,7 +178,7 @@ class CppSwigCompiler(SwigCompiler):
             header_file.write(header_code)
         swig_interface = self.create_swig_interface(hpp_path.relative_to(output_folder))
         cpp_path = output_folder.joinpath(path.name)
-        shutil.copy2(path, cpp_path)
+        shutil.copy2(str(path), str(cpp_path))
         swig_interface_path = output_folder.joinpath(path.with_suffix('.i').name)
         with swig_interface_path.open('w') as swig_interface_file:
             swig_interface_file.write(swig_interface)
