@@ -71,7 +71,7 @@ class NativePythonParser(Parser):
 
         raise SyntaxError('all possible parser modes have been excluded:\n\n{}'.format('\n\n'.join([
             '*** {} ***\n\n{}'.format(mode, ''.join(traceback.format_exception(
-                type(error), str(error), None)))
+                type(error), error, None)))
             for mode, error in parse_errors.items()])))
 
     def _parse_scope_in_mode(self, code: str, filename: str, mode: str):
