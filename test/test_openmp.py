@@ -17,7 +17,10 @@ class Tests(unittest.TestCase):
     def test_fortran(self):
         transpiler = AutoTranspiler(Language.find('Python'), Language.find('Fortran'))
         self.assertIsNotNone(transpiler)
-        input_path = EXAMPLES_PY3_FILES[1]
+        for path in EXAMPLES_PY3_FILES:
+            if path.name == 'gemm_openmp.py':
+                input_path = path
+                break
         output_dir = pathlib.Path(
             EXAMPLES_RESULTS_ROOT, input_path.parent.name,
             'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
