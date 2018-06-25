@@ -7,6 +7,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 import pycparser.c_ast
+import static_typing
 import typed_ast.ast3
 import typed_astunparse
 
@@ -137,3 +138,5 @@ def basic_check_python_code(case: unittest.TestCase, path, code, **kwargs):
 def basic_check_python_ast(case: unittest.TestCase, path, tree, **kwargs):
     basic_check_ast(case, path, tree, typed_ast.ast3.AST, '-ast.py', typed_astunparse.dump,
                     **kwargs)
+    validator = static_typing.ast_manipulation.AstValidator[typed_ast.ast3]()
+    validator.visit(tree)

@@ -72,6 +72,16 @@ install:
     pip install -U dist/*.whl
     cd -
     set +e
+  # use static-typing from repo
+  - |
+    set -e
+    git clone "https://github.com/mbdevpl/static-typing" "../static-typing"
+    cd "../static-typing"
+    pip install -U -r dev_requirements.txt
+    python setup.py bdist_wheel
+    pip install -U dist/*.whl
+    cd -
+    set +e
   - pip install -U -r dev_requirements.txt
 
 script:
