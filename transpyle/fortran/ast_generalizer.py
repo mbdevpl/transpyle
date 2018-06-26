@@ -80,9 +80,9 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return directive_
 
     def _module(self, node: ET.Element):
-        _ = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
+        module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
         body = self.transform_all_subnodes(self.get_one(node, './body'))
-        conditional = _.body[0]
+        conditional = module.body[0]
         conditional.body = body
         members_node = node.find('./members')
         if members_node is None:

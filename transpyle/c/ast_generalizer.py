@@ -20,6 +20,7 @@ def _node_debug(node: c_ast.Node):
         return tuple([_node_debug(_) for _ in node])
     if isinstance(node, list):
         return [_node_debug(_) for _ in node]
+    raise NotImplementedError()
 
 
 def _node_str(node: c_ast.Node):
@@ -308,8 +309,8 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
                                        attr='ndarray', ctx=typed_ast3.Load()),
             slice=typed_ast3.ExtSlice(dims=[
                 typed_ast3.Index(value=typed_ast3.Ellipsis()),
-                typed_ast3.Index(value=type_)#,
-                #typed_ast3.Index(value=typed_ast3.Tuple(n=-1))
+                typed_ast3.Index(value=type_)  # ,
+                # typed_ast3.Index(value=typed_ast3.Tuple(n=-1))
                 ]),
             ctx=typed_ast3.Load())
 
@@ -384,8 +385,8 @@ class CAstGeneralizer(AstGeneralizer):
     def __init__(self):
         super().__init__(Language.find('C11'))
 
-    def generalize(self, tree):
-        assert isinstance(tree, c_ast.FileAST)
+    def generalize(self, syntax):
+        assert isinstance(syntax, c_ast.FileAST)
         backend = CAstGeneralizerBackend()
-        general_ast = backend.visit(tree)
+        general_ast = backend.visit(syntax)
         return general_ast
