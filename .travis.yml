@@ -75,7 +75,7 @@ install:
   # use static-typing from repo
   - |
     set -e
-    git clone "https://github.com/mbdevpl/static-typing" "../static-typing"
+    git clone "https://github.com/mbdevpl/static-typing" "../static-typing" --branch=devel
     cd "../static-typing"
     pip install -U -r dev_requirements.txt
     python setup.py bdist_wheel
