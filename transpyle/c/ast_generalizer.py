@@ -155,7 +155,9 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
                 iftrue = [iftrue]
             iftrue = fix_stmts_in_body(iftrue)
         iffalse = self.visit(node.iffalse)
-        if iffalse is not None:
+        if iffalse is None:
+            iffalse = []
+        else:
             if not isinstance(iffalse, list):
                 iffalse = [iffalse]
             iffalse = fix_stmts_in_body(iffalse)
@@ -289,7 +291,7 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
         name = names[0]
         assert isinstance(name, str)
         _ = self.visit(node.coord)
-        return typed_ast3.Name(id=name)
+        return typed_ast3.Name(id=name, ctx=typed_ast3.Load())
 
     def visit_ArrayDecl(  # pylint: disable=invalid-name
             self, node) -> t.Tuple[str, typed_ast3.Subscript]:

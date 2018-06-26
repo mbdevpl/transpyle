@@ -58,7 +58,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             body = self.import_statements + body
         else:
             return typed_ast3.Expr(value=typed_ast3.Call(
-                func=typed_ast3.Name(id='print'),
+                func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
                 args=[typed_ast3.Str(s='file'), typed_ast3.Str(s=node.attrib['path'])],
                 keywords=[]))
         return typed_ast3.Module(body=body, type_ignores=[])
@@ -169,7 +169,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if stop_code:
             _LOG.warning('ignoring exit code in """%s"""', ET.tostring(node).decode().rstrip())
             # args.append(int(stop_code))
-        return typed_ast3.Call(func=typed_ast3.Name(id='exit'), args=args, keywords=[])
+        return typed_ast3.Call(func=typed_ast3.Name(id='exit', ctx=typed_ast3.Load()),
+                               args=args, keywords=[])
 
     def _program(self, node: ET.Element) -> typed_ast3.AST:
         module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
@@ -209,7 +210,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return self._declaration_include(node)
         elif declaration_type in ('variable-dimensions', 'data', 'external'):
             return typed_ast3.Expr(value=typed_ast3.Call(
-                func=typed_ast3.Name(id='print'),
+                func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
                 args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
                 keywords=[]))
         details = self.transform_all_subnodes(node, ignored={})
@@ -225,16 +226,16 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             base_type = self.transform_one(self.get_one(node, './type'))
             letter_ranges = self.transform_one(self.get_one(node, './letter-ranges'))
             annotation = typed_ast3.Subscript(
-                value=typed_ast3.Attribute(value=typed_ast3.Name(id='Fortran',
-                                                                 ctx=typed_ast3.Load()),
-                                           attr='TypeByNamePrefix', ctx=typed_ast3.Load()),
+                value=typed_ast3.Attribute(
+                    value=typed_ast3.Name(id='Fortran', ctx=typed_ast3.Load()),
+                    attr='TypeByNamePrefix', ctx=typed_ast3.Load()),
                 slice=typed_ast3.Index(value=typed_ast3.Tuple(elts=[base_type, letter_ranges]),
                                        ctx=typed_ast3.Load()))
         else:
             raise SyntaxError('expecting only "none" or "some", but got "{}"'.format(subtype))
         return typed_ast3.AnnAssign(
-            target=typed_ast3.Name(id='implicit'), annotation=annotation, value=None,
-            simple=True)
+            target=typed_ast3.Name(id='implicit', ctx=typed_ast3.Store()), annotation=annotation,
+            value=None, simple=True)
 
     def _letter_ranges(self, node) -> t.List[typed_ast3.Str]:
         return self.transform_all_subnodes(node, ignored={
@@ -347,6 +348,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 'named-constant-def-list__begin', 'named-constant-def-list'})
         assignments = []
         for constant, value in constants:
+            assert isinstance(constant, typed_ast3.AST)
             assignment = typed_ast3.Assign(targets=[constant], value=value, type_comment=None)
             assignment.fortran_metadata = {'is_constant': True}
             assignments.append(assignment)
@@ -434,7 +436,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         comp_target, comp_iter = self._index_variable(index_variable)
         expressions = self.transform_all_subnodes(body_node, ignored={})
         assert len(expressions) > 0
-        elt = expressions[0] if len(expressions) == 1 else typed_ast3.Tuple(elts=expressions)
+        elt = expressions[0] if len(expressions) == 1 \
+            else typed_ast3.Tuple(elts=expressions, ctx=typed_ast3.Load())
         generator = typed_ast3.comprehension(
             target=comp_target, iter=comp_iter, ifs=[], is_async=0)
         return typed_ast3.ListComp(elt=elt, generators=[generator])
@@ -513,7 +516,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _goto_stmt(self, node):
         # TODO: make a better placeholder for goto
         return typed_ast3.Expr(value=typed_ast3.Call(
-            func=typed_ast3.Name(id='print'),
+            func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
             args=[typed_ast3.Str(s='goto'), typed_ast3.Str(s=node.attrib['target_label'])],
             keywords=[]))
 
@@ -646,7 +649,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         #            args=args, keywords=[])),
         #        typed_ast3.Pass()]
         return [
-            detail if isinstance(detail, (typed_ast3.Expr, typed_ast3.Assign, typed_ast3.AnnAssign))
+            detail if isinstance(detail, (typed_ast3.Expr, typed_ast3.Assign, typed_ast3.AnnAssign, typed_ast3.Return))
             else typed_ast3.Expr(value=detail)
             for detail in details]
 
@@ -665,11 +668,13 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                                           .format(type(expression.slice)))
             val = typed_ast3.Call(
                 func=typed_ast3.Attribute(
-                    value=typed_ast3.Name(id='np'), attr='zeros', ctx=typed_ast3.Load()),
-                args=[typed_ast3.Tuple(elts=sizes)],
+                    value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()), attr='zeros',
+                    ctx=typed_ast3.Load()),
+                args=[typed_ast3.Tuple(elts=sizes, ctx=typed_ast3.Load())],
                 keywords=[typed_ast3.keyword(arg='dtype', value=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='t', ctx=typed_ast3.Load()), attr='Any',
                     ctx=typed_ast3.Load()))])
+            assert isinstance(var, typed_ast3.AST)
             assignment = typed_ast3.Assign(targets=[var], value=val, type_comment=None)
             assignment.fortran_metadata = {'is_allocation': True}
             assignments.append(assignment)
@@ -747,6 +752,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 'ignoring remaining %i parameters of read call %s in"\n%s',
                 len(io_controls), [typed_astunparse.unparse(_) for _ in io_controls],
                 ET.tostring(node).decode().rstrip())
+        assert all(isinstance(input_, typed_ast3.AST) for input_ in inputs), inputs
         return [
             typed_ast3.Assign(
                 targets=[input_], value=typed_ast3.Call(
@@ -890,7 +896,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         assert isinstance(tree, typed_ast3.Call)
         assert tree.func.id.startswith('MPI_')
         assert len(tree.func.id) > 4
-        core_name = typed_ast3.Name(id='MPI')
+        core_name = typed_ast3.Name(id='MPI', ctx=typed_ast3.Load())
         mpi_function_name = tree.func.id[4] + tree.func.id[5:].lower()
         assert len(tree.args) > 0
         # extract last arg -- it's error var
@@ -912,11 +918,13 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             if mpi_function_name in ('Allreduce',):
                 arg_num = 1
             var = tree.args.pop(arg_num)
+            assert isinstance(var, typed_ast3.AST)
             tree = typed_ast3.Assign(targets=[var], value=tree, type_comment=None)
         error_var_assignment = typed_ast3.AnnAssign(
             target=error_var, value=None, annotation=typed_ast3.Str(s='MPI error code'), simple=1)
         error_var_assignment = typed_ast3.AnnAssign(
-            target=error_var, value=None, annotation=typed_ast3.Name(id='int'), simple=1)
+            target=error_var, value=None,
+            annotation=typed_ast3.Name(id='int', ctx=typed_ast3.Load()), simple=1)
         error_var_comment = horast_nodes.Comment(value=typed_ast3.Str(' MPI error code'), eol=False)
         return [tree, error_var_assignment, error_var_comment]
 
@@ -927,10 +935,14 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             raise SyntaxError(
                 'exactly 1 target expected but {} given {} in:\n{}'
                 .format(len(target), target, ET.tostring(node).decode().rstrip()))
+        target = target[0]
+        assert isinstance(target, typed_ast3.AST)
         if len(value) != 1:
             raise SyntaxError(
                 'exactly 1 value expected but {} given {} in:\n{}'
                 .format(len(value), value, ET.tostring(node).decode().rstrip()))
+        value = value[0]
+        assert isinstance(value, typed_ast3.AST)
         return typed_ast3.Assign(targets=[target], value=value, type_comment=None)
 
     def _pointer_assignment(self, node: ET.Element):
@@ -1160,10 +1172,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 _LOG.info(
                     'ignoring string length "%i" in:\n%s',
                     length, ET.tostring(node).decode().rstrip())
-            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, t.Any], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, t.Any], mode='eval').body
         elif length is not None:
             self.ensure_import('numpy', 'np')
-            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, length], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, length], mode='eval').body
         elif kind is not None:
             self.ensure_import('numpy', 'np')
             if isinstance(kind, typed_ast3.Num):
@@ -1171,7 +1183,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             if not isinstance(kind, int):
                 # _LOG.warning('%s', ET.tostring(node).decode().rstrip())
                 # raise NotImplementedError('non-literal kinds are not supported')
-                python_type = typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
+                python_type = typed_ast3.parse(
+                    FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval').body
                 self.ensure_import('static_typing', 'st')
                 static_type = typed_ast3.Attribute(
                     value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
@@ -1183,14 +1196,14 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 #    'real': lambda kind: 'st.float[0]'.format(kind)}[name](kind), mode='eval')
                 # custom_kind_type.
                 # return custom_kind_type
-            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, kind], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, kind], mode='eval').body
         else:
             if node.attrib['type'] == 'derived':
                 return typed_ast3.Call(func=typed_ast3.Name(id='type', ctx=typed_ast3.Load()),
                                        args=[typed_ast3.Name(id=name, ctx=typed_ast3.Load())],
                                        keywords=[])
             assert node.attrib['type'] == 'intrinsic'
-            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval')
+            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, None], mode='eval').body
         raise NotImplementedError(
             'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
@@ -1217,7 +1230,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             values = self.transform_all_subnodes(value_node, ignored={'initialization'})
             assert len(values) == 1, values
             value = values[0]
-        variable = typed_ast3.Name(id=node.attrib['name'])
+        variable = typed_ast3.Name(id=node.attrib['name'], ctx=typed_ast3.Load())
         metadata = {}
         dimensions_node = node.find('./dimensions')
         if dimensions_node is not None:
@@ -1359,7 +1372,9 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return subscripts
         if len(subscripts) == 1:
             return typed_ast3.Index(value=subscripts[0])
-        return typed_ast3.ExtSlice(dims=subscripts)
+        # assert all(isinstance(_, typed_ast3.Index) for _ in subscripts), subscripts
+        # return typed_ast3.ExtSlice(dims=subscripts)
+        return typed_ast3.Index(value=typed_ast3.Tuple(elts=subscripts, ctx=typed_ast3.Load()))
 
     def _subscript(self, node: ET.Element) -> t.Union[
             typed_ast3.Index, typed_ast3.Slice, typed_ast3.ExtSlice]:

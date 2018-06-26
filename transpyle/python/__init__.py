@@ -77,14 +77,25 @@ def make_st_ndarray(data_type: typed_ast3.AST,
         sizes = None
     else:
         dimensions = len(dimensions_or_sizes)
-        sizes = [_ for _ in dimensions_or_sizes]
+        # assert all(isinstance(_, typed_ast3.Index) for _ in dimensions_or_sizes), dimensions_or_sizes
+        # sizes = [_ for _ in dimensions_or_sizes]
+        sizes = []
+        for size in dimensions_or_sizes:
+            if isinstance(size, typed_ast3.Index):
+                size = size.value
+            # elif isinstance(size, typed_ast3.ExtSlice):
+            #    size = size.dims
+            else:
+                raise NotImplementedError('unsupported size type: "{}"'.format(type(size)))
+            sizes.append(size)
     return typed_ast3.Subscript(
         value=typed_ast3.Attribute(
             value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
             attr='ndarray', ctx=typed_ast3.Load()),
         slice=typed_ast3.Index(value=typed_ast3.Tuple(
-            elts=[typed_ast3.Num(n=dimensions), data_type] +
-            [typed_ast3.Tuple(elts=sizes)] if sizes else [])),
+            elts=[typed_ast3.Num(n=dimensions), data_type] + [
+                typed_ast3.Tuple(elts=sizes, ctx=typed_ast3.Load())] if sizes else [],
+            ctx=typed_ast3.Load())),
         ctx=typed_ast3.Load())
 
 
@@ -98,6 +109,8 @@ STANDALONE_EXPRESSION_TYPES = (
 
 def fix_stmts_in_body(stmts: t.List[typed_ast3.AST]) -> t.List[typed_ast3.AST]:
     assert isinstance(stmts, list)
+    if not stmts:
+        return [typed_ast3.Pass()]
     return [typed_ast3.Expr(value=stmt) if isinstance(stmt, STANDALONE_EXPRESSION_TYPES)
             else stmt for stmt in stmts]
 
