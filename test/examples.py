@@ -3,6 +3,7 @@
 import io
 import itertools
 import pathlib
+import sys
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -138,5 +139,6 @@ def basic_check_python_code(case: unittest.TestCase, path, code, **kwargs):
 def basic_check_python_ast(case: unittest.TestCase, path, tree, **kwargs):
     basic_check_ast(case, path, tree, typed_ast.ast3.AST, '-ast.py', typed_astunparse.dump,
                     **kwargs)
-    validator = static_typing.ast_manipulation.AstValidator[typed_ast.ast3]()
-    validator.visit(tree)
+    if sys.version_info[:2] >= (3, 6):
+        validator = static_typing.ast_manipulation.AstValidator[typed_ast.ast3]()
+        validator.visit(tree)
