@@ -115,6 +115,18 @@ def fix_stmts_in_body(stmts: t.List[typed_ast3.AST]) -> t.List[typed_ast3.AST]:
             else stmt for stmt in stmts]
 
 
+def separate_args_and_keywords(args_and_keywords):
+    args = []
+    keywords = []
+    for arg in args_and_keywords:
+        if isinstance(arg, typed_ast3.keyword):
+            keywords.append(arg)
+        else:
+            args.append(arg)
+    assert all(not isinstance(_, typed_ast3.keyword) for _ in args), args
+    return args, keywords
+
+
 def transpile(function_or_class, to_language: Language, *args, **kwargs):
     """Instantiate Python transpiler to transpile one function or class.
 

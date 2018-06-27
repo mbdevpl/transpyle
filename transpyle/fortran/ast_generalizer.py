@@ -16,7 +16,7 @@ import typed_astunparse
 
 from ..general.exc import ContinueIteration
 from ..general import Language, XmlAstGeneralizer
-from ..python import make_numpy_constructor, make_st_ndarray
+from ..python import make_numpy_constructor, make_st_ndarray, separate_args_and_keywords
 from .definitions import \
     FORTRAN_PYTHON_TYPE_PAIRS, FORTRAN_PYTHON_OPERATORS, INTRINSICS_FORTRAN_TO_PYTHON, \
     INTRINSICS_SPECIAL_CASES
@@ -649,7 +649,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         #            args=args, keywords=[])),
         #        typed_ast3.Pass()]
         return [
-            detail if isinstance(detail, (typed_ast3.Expr, typed_ast3.Assign, typed_ast3.AnnAssign, typed_ast3.Return))
+            detail if isinstance(detail, (typed_ast3.Expr, typed_ast3.Assign, typed_ast3.AnnAssign,
+                                          typed_ast3.Return))
             else typed_ast3.Expr(value=detail)
             for detail in details]
 
@@ -730,9 +731,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             # string
             pass
         args += written
+        args, keywords = separate_args_and_keywords(args)
         return typed_ast3.Expr(value=typed_ast3.Call(
             func=typed_ast3.Name(id='write', ctx=typed_ast3.Load()),
-            args=args, keywords=[]))
+            args=args, keywords=keywords))
 
     def _read(self, node: ET.Element):
         file_handle = self._create_file_handle_var()
@@ -771,6 +773,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         args = []
         if outputs_node is not None:
             args = self.transform_one(outputs_node)
+            assert all(not isinstance(_, typed_ast3.keyword) for _ in args), args
             if format_ is not None:
                 if isinstance(format_, typed_ast3.Num):
                     name = 'format_label_{}'.format(format_.n)
@@ -782,6 +785,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 args = [typed_ast3.Call(
                     func=typed_ast3.Attribute(value=value, attr='format', ctx=typed_ast3.Load()),
                     args=args, keywords=[])]
+        # assert all(not isinstance(_, typed_ast3.keyword) for _ in args), args
         return typed_ast3.Expr(value=typed_ast3.Call(
             func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
             args=args, keywords=[]))
@@ -1251,9 +1255,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def _intrinsic_getenv(self, call):
         assert isinstance(call, typed_ast3.Call), type(call)
-        assert len(call.args) == 2, call.args
+        assert len(call.args) + len(call.keywords) == 2, (call.args, call.keywords)
         self.ensure_import('os')
-        target = call.args[1]
+        args_and_keywords = call.args + call.keywords
+        target = args_and_keywords[1]
         if isinstance(target, typed_ast3.keyword):
             target = target.value
         return typed_ast3.Assign(
@@ -1261,7 +1266,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             value=typed_ast3.Subscript(
                 value=typed_ast3.Attribute(value=typed_ast3.Name(id='os', ctx=typed_ast3.Load()),
                                            attr='environ', ctx=typed_ast3.Load()),
-                slice=typed_ast3.Index(value=call.args[0]), ctx=typed_ast3.Load()),
+                slice=typed_ast3.Index(value=args_and_keywords[0]), ctx=typed_ast3.Load()),
             type_comment=None)
 
     def _intrinsic_trim(self, call):
@@ -1330,7 +1335,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         subscripts_node = node.find('./subscripts')
         try:
             args = self._subscripts(subscripts_node, postprocess=False) if subscripts_node else []
-            call = typed_ast3.Call(func=name, args=args, keywords=[])
+            args, keywords = separate_args_and_keywords(args)
+            call = typed_ast3.Call(func=name, args=args, keywords=keywords)
             if is_intrinsic:
                 if subscripts_node is None:
                     _LOG.warning('found intrinsic name "%s" without any subscripts', name_str)

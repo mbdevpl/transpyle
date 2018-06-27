@@ -245,7 +245,8 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _Subscript(self, t):
         if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Pointer':
-            if isinstance(t.slice, typed_ast3.Name) and t.slice.id == 'str':
+            if isinstance(t.slice, typed_ast3.Index) \
+                    and isinstance(t.slice.value, typed_ast3.Name) and t.slice.value.id == 'str':
                 self.write('char')
             else:
                 self.dispatch(t.slice)

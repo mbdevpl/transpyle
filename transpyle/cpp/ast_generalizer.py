@@ -133,7 +133,8 @@ class CppAstGeneralizer(XmlAstGeneralizer):
         name = node.attrib['name']
         arguments = typed_ast3.arguments(args=self.transform_all_subnodes(node), vararg=None,
                                          kwonlyargs=[], kwarg=None, defaults=[], kw_defaults=[])
-        body = [typed_ast3.Ellipsis()]
+
+        body = [typed_ast3.Expr(value=typed_ast3.Ellipsis())]
         returns = self.fundamental_types[node.attrib['returns']]
         return typed_ast3.FunctionDef(name=name, args=arguments, body=body, decorator_list=[],
                                       returns=returns)
@@ -160,8 +161,10 @@ class CppAstGeneralizer(XmlAstGeneralizer):
             # _LOG.debug()
             base_type = typed_ast3.Str(s=type_)
         type_info = typed_ast3.Subscript(
-            value=typed_ast3.Name(id='Pointer', ctx=typed_ast3.Load()), slice=base_type)
+            value=typed_ast3.Name(id='Pointer', ctx=typed_ast3.Load()),
+            slice=typed_ast3.Index(base_type), ctx=typed_ast3.Load())
         if is_const:
             type_info = typed_ast3.Subscript(
-                value=typed_ast3.Name(id='Const', ctx=typed_ast3.Load()), slice=type_info)
+                value=typed_ast3.Name(id='Const', ctx=typed_ast3.Load()),
+                slice=typed_ast3.Index(type_info), ctx=typed_ast3.Load())
         return (id_, type_info)

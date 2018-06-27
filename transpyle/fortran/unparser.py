@@ -187,8 +187,6 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     def _Assign(self, t):
         metadata = getattr(t, 'fortran_metadata', {})
-        if not metadata:
-            return super()._Assign(t)
         if metadata.get('is_allocation', False):
             self.fill('allocate(')
             for i, target in enumerate(t.targets):
@@ -200,7 +198,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.write(')')
             self.write(')')
             return
-        else:
+        if metadata.get('is_pointer_assignment', False):
             self.fill()
             assert len(t.targets) == 1
             self.dispatch(t.targets[0])
@@ -209,7 +207,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             return
         self.fill()
         if t.type_comment:
-            self.dispatch_var_type(t.type_comment)
+            self.dispatch_var_type(t.resolved_type_comment)
         for key, value in metadata.items():
             self.write(', ')
             if value is True:
@@ -220,8 +218,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.write(value)
                 self.write(')')
         # raise NotImplementedError('Assign with Fortran metadata: {}'.format(metadata))
+        if t.type_comment or metadata:
+            self.write(' :: ')
         assert len(t.targets) == 1
-        self.write(' :: ')
         self.dispatch(t.targets[0])
         if t.value:
             self.write(" = ")
