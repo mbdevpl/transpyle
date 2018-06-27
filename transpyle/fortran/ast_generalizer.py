@@ -1376,10 +1376,16 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         assert len(subscripts) == int(node.attrib['count'])
         if not postprocess:
             return subscripts
+        if any(isinstance(_, typed_ast3.Slice) for _ in subscripts):
+            if len(subscripts) == 1:
+                return subscripts[0]
+            return typed_ast3.ExtSlice(dims=[
+                (_ if isinstance(_, (typed_ast3.Index, typed_ast3.Slice))
+                 else typed_ast3.Index(value=_)) for _ in subscripts])
+        assert all(not isinstance(_, (typed_ast3.Index, typed_ast3.Slice, typed_ast3.ExtSlice))
+                   for _ in subscripts), subscripts
         if len(subscripts) == 1:
             return typed_ast3.Index(value=subscripts[0])
-        # assert all(isinstance(_, typed_ast3.Index) for _ in subscripts), subscripts
-        # return typed_ast3.ExtSlice(dims=subscripts)
         return typed_ast3.Index(value=typed_ast3.Tuple(elts=subscripts, ctx=typed_ast3.Load()))
 
     def _subscript(self, node: ET.Element) -> t.Union[
