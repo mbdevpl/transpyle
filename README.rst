@@ -5,11 +5,12 @@
     :language: python
 
 
+=========
 transpyle
 =========
 
 .. image:: https://img.shields.io/pypi/v/transpyle.svg
-    :target: https://pypi.python.org/pypi/transpyle
+    :target: https://pypi.org/project/transpyle
     :alt: package version from PyPI
 
 .. image:: https://travis-ci.org/mbdevpl/transpyle.svg?branch=master
@@ -30,9 +31,12 @@ The main aim of transpyle is to let everyone who can code well enough in Python,
 benefit from modern high-performing computer hardware without need to reimplement their application
 in one of traditional efficient languages such as C or Fortran.
 
+.. contents::
+    :backlinks: none
 
-framework design
-----------------
+
+Framework design
+================
 
 Framework consists of mainly the following kinds of modules:
 
@@ -77,7 +81,24 @@ The intermediate meeting point which effectively allows code to actually be tran
 languages, is the extended Python AST.
 
 
-language support
+Features
+========
+
+Using Python AST as the intermediate representation, enables the AST to be directly manipulated,
+and certain performance-oriented transformations can be applied. Current transpiler implementation
+aims at:
+
+*   inlining selected calls
+*   decorating selected loops with compiler-extension pragmas
+
+More optimizations will be introduced in the future.
+
+Some (if not all) of the above optimizations may have very limited (if not no) performance impact
+in Python, however when C, C++ or Fortran code is generated, the performance gains can be
+much greater.
+
+
+Language support
 ----------------
 
 Transpyle intends to support selected subsets of: C, C++, Cython, Fortran, OpenCL and Python.
@@ -165,25 +186,8 @@ Python 3.6 with whole-line comments outside expressions is fully supported.
 Presence of end-of-line comments or comments in expressions might result in errors.
 
 
-fetures
--------
-
-Using Python AST as the intermediate representation, enables the AST to be directly manipulated,
-and certain performance-oriented transformations can be applied. Current transpiler implementation
-aims at:
-
-- inlining selected calls
-- decorating selected loops with compiler-extension pragmas
-
-More optimizations will be introduced in the future.
-
-Some (if not all) of the above optimizations may have very limited (if not no) performance impact
-in Python, however when C, C++ or Fortran code is generated, the performance gains can be
-much greater.
-
-
-requirements
-------------
+Requirements
+============
 
 Python >= 3.5.
 
@@ -219,7 +223,7 @@ Additionally, support for some languages requires the following software to be i
 *   Fortran: a modern Fortran compiler with executable `gfortran`
 
 
-docker image
+Docker image
 ------------
 
 There is a docker image prepared so that you can easily try the transpiler.
