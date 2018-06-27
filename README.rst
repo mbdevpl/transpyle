@@ -98,6 +98,53 @@ in Python, however when C, C++ or Fortran code is generated, the performance gai
 much greater.
 
 
+Command-line interface
+----------------------
+
+The command-line interface (CLI) of transpyle allows one to translate source code files
+in supported languages.
+
+
+
+API highlights
+--------------
+
+The API of transpyle allows using it to make your Python code faster.
+
+The most notable part of the API is the ``transpile`` decorator, which in it's most basic form
+is not very different from Numba's ``jit`` decorator.
+
+.. code:: python
+
+    import transpyle
+
+    @transpyle.transpile('Fortran')
+    def my_function(a: int, b: int) -> int:
+        return a + b
+
+
+Additionally, you can use each of the modules of the transpiler individually, therefore transpyle
+can support any transformation sequence you are able to express:
+
+.. code:: python
+
+    import pathlib
+    import transpyle
+
+    path = pathlib.Path('my_script.py')
+    code_reader = transpyle.CodeReader()
+    code = code_reader.read_file(path)
+
+    from_language = transpyle.Language.find('Python 3.6')
+    to_language = transpyle.Language.find('Fortran 95')
+    translator = transpyle.AutoTranslator(from_language, to_language)
+    fortran_code = translator.translate(code, path)
+    print(fortran_code)
+
+
+As transpyle is under heavy development, the API might change significantly between versions.
+
+
 Language support
 ----------------
 
@@ -129,7 +176,7 @@ subset of basic types and basic syntax is supported.
 Python AST to C++
 ~~~~~~~~~~~~~~~~~
 
-Not implemented yet.
+Only very basic supported currently.
 
 
 Cython to Python AST
@@ -221,6 +268,17 @@ Additionally, support for some languages requires the following software to be i
 *   C, C++: SWIG (Simplified Wrapper and Interface Generator) with executable `swig`
 
 *   Fortran: a modern Fortran compiler with executable `gfortran`
+
+
+Installation
+============
+
+pip
+---
+
+.. code:: bash
+
+    pip3 install transpyle[all]
 
 
 Docker image
