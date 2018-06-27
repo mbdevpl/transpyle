@@ -15,9 +15,10 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
 from ..general.exc import ContinueIteration
-from ..general.misc import flatten_sequence, flatten_syntax
+from ..general.misc import flatten_sequence
 from ..general import Language, XmlAstGeneralizer
-from ..python import make_numpy_constructor, make_st_ndarray, separate_args_and_keywords
+from ..python import \
+    make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, separate_args_and_keywords
 from .definitions import \
     FORTRAN_PYTHON_TYPE_PAIRS, FORTRAN_PYTHON_OPERATORS, INTRINSICS_FORTRAN_TO_PYTHON, \
     INTRINSICS_SPECIAL_CASES
@@ -431,6 +432,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         body_node = self.get_one(node, './body')
         target, iter_ = self._index_variable(index_variable)
         body = self.transform_all_subnodes(body_node, ignored={'block'})
+        body = fix_stmts_in_body(body)
         return typed_ast3.For(target=target, iter=iter_, body=body, orelse=[])
 
     def _loop_implied_do(self, node: ET.Element) -> typed_ast3.ListComp:
@@ -667,9 +669,22 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         #            func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
         #            args=args, keywords=[])),
         #        typed_ast3.Pass()]
+
+        # ast_module.FunctionDef, ast_module.AsyncFunctionDef, ast_module.ClassDef,
+        # ast_module.Return, ast_module.Delete, ast_module.Assign, ast_module.AugAssign,
+        # ast_module.AnnAssign, ast_module.For, ast_module.AsyncFor, ast_module.While,
+        # ast_module.If, ast_module.With, ast_module.AsyncWith, ast_module.Raise, ast_module.Try,
+        # ast_module.Assert, ast_module.Import, ast_module.ImportFrom, ast_module.Global,
+        # ast_module.Nonlocal, ast_module.Expr, ast_module.Pass, ast_module.Break,
+        # ast_module.Continue
         return [
-            detail if isinstance(detail, (typed_ast3.Expr, typed_ast3.Assign, typed_ast3.AnnAssign,
-                                          typed_ast3.Return, typed_ast3.Pass))
+            detail if isinstance(detail, (
+                typed_ast3.Return, typed_ast3.Delete, typed_ast3.Assign, typed_ast3.AugAssign,
+                typed_ast3.AnnAssign, typed_ast3.For, typed_ast3.While,
+                typed_ast3.If, typed_ast3.With,
+                typed_ast3.Assert,
+                typed_ast3.Expr, typed_ast3.Pass, typed_ast3.Break,
+                typed_ast3.Continue))
             else typed_ast3.Expr(value=detail)
             for detail in details]
 
