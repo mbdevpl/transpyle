@@ -42,11 +42,11 @@ class Tests(unittest.TestCase):
                     self.assertIn(path.suffix, extensions)
                     self.assertIsNotNone(contents)
 
-    def test_read_current_folder(self):
+    def test_read_project_folder(self):
         for name, extensions in EXAMPLES_EXTENSIONS.items():
             with self.subTest(name=name, extensions=extensions):
                 reader = CodeReader(extensions)
-                results = reader.read_folder(pathlib.Path('.'))
+                results = reader.read_folder(_HERE.parent)
                 self.assertGreater(len(results), 0, msg=EXAMPLES_ROOTS[name])
                 for path, contents in results.items():
                     self.assertIn(path.suffix, extensions)

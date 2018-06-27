@@ -1,6 +1,7 @@
 """Setup script for transpyle package."""
 
 import json
+import pathlib
 import setup_boilerplate
 
 
@@ -35,6 +36,8 @@ class Package(setup_boilerplate.Package):
 
 
 if __name__ == '__main__':
-    with open('extras_requirements.json') as json_file:
+    _HERE = pathlib.Path(__file__).parent
+    _EXTRAS = pathlib.Path(_HERE, 'extras_requirements.json')
+    with _EXTRAS.open() as json_file:
         Package.extras_require = json.load(json_file)
     Package.setup()
