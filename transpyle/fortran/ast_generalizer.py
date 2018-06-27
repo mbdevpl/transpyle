@@ -650,7 +650,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         #        typed_ast3.Pass()]
         return [
             detail if isinstance(detail, (typed_ast3.Expr, typed_ast3.Assign, typed_ast3.AnnAssign,
-                                          typed_ast3.Return))
+                                          typed_ast3.Return, typed_ast3.Pass))
             else typed_ast3.Expr(value=detail)
             for detail in details]
 
