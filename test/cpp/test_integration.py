@@ -1,5 +1,6 @@
 """Integration tests for translating between C++ and other languages."""
 
+import sys
 import unittest
 
 from transpyle.general.code_reader import CodeReader
@@ -11,6 +12,7 @@ from test.examples import EXAMPLES_PY3_FILES, basic_check_cpp_code
 
 class Tests(unittest.TestCase):
 
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
     def test_python_to_cpp(self):
         language_from = Language.find('Python')
         language_to = Language.find('C++')

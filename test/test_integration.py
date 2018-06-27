@@ -1,6 +1,7 @@
 """Integration tests for transpiling between different languages."""
 
 import itertools
+import sys
 import unittest
 
 from transpyle.general.code_reader import CodeReader
@@ -48,6 +49,7 @@ class Tests(unittest.TestCase):
                 self.assertIsInstance(translator, Translator)
                 # transpiler = AutoTranspiler(from_language, to_language)
 
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
     def test_auto_processing(self):
         for language_codename, paths in EXAMPLES_FILES.items():
             language_name = EXAMPLES_LANGS_NAMES[language_codename]

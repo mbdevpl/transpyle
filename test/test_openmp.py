@@ -2,6 +2,7 @@
 
 import datetime
 import pathlib
+import sys
 import tempfile
 import unittest
 
@@ -14,6 +15,7 @@ from .examples import EXAMPLES_PY3_FILES, EXAMPLES_RESULTS_ROOT
 
 class Tests(unittest.TestCase):
 
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
     def test_fortran(self):
         transpiler = AutoTranspiler(Language.find('Python'), Language.find('Fortran'))
         self.assertIsNotNone(transpiler)
