@@ -23,7 +23,8 @@ class Tests(unittest.TestCase):
             code = code_reader.read_file(path)
             tree = parser.parse(code, path)
             basic_check_cpp_ast(self, path, tree)
-            tree = ast_generalizer.generalize(tree)
-            basic_check_python_ast(self, path, tree)
-            _LOG.debug('%s', typed_astunparse.dump(tree))
-            _LOG.debug('%s', typed_astunparse.unparse(tree))
+            with self.subTest(path=path):
+                tree = ast_generalizer.generalize(tree)
+                basic_check_python_ast(self, path, tree)
+                _LOG.debug('%s', typed_astunparse.dump(tree))
+                _LOG.debug('%s', typed_astunparse.unparse(tree))
