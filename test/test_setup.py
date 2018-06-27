@@ -11,7 +11,7 @@ import tempfile
 import typing as t
 import unittest
 
-__updated__ = '2017-09-03'
+__updated__ = '2018-02-14'
 
 
 def run_program(*args, glob: bool = False):
@@ -51,7 +51,7 @@ def import_module_member(module_name: str, member_name: str) -> t.Any:
     return getattr(module, member_name)
 
 
-#def import_module_members(module_name: str, member_names: t.Iterable[str]) -> t.List[t.Any]:
+# def import_module_members(module_name: str, member_names: t.Iterable[str]) -> t.List[t.Any]:
 #    module = import_module(module_name)
 #    return [getattr(module, member_name) for member_name in member_names]
 
@@ -105,7 +105,7 @@ CLASSIFIERS_PYTHON_VERSIONS_COMBINATIONS = tuple((_,) for _ in CLASSIFIERS_PYTHO
 
 CLASSIFIERS_PYTHON_IMPLEMENTATIONS_TUPLES = tuple((_,) for _ in CLASSIFIERS_PYTHON_IMPLEMENTATIONS)
 
-#CLASSIFIERS_VARIOUS_PERMUTATIONS = tuple(itertools.chain.from_iterable(
+# CLASSIFIERS_VARIOUS_PERMUTATIONS = tuple(itertools.chain.from_iterable(
 #    itertools.permutations(..., n)
 #    for n in range(...)
 #    ))
@@ -120,23 +120,28 @@ ALL_CLASSIFIERS_VARIANTS = [
     for implementations in CLASSIFIERS_PYTHON_IMPLEMENTATIONS_TUPLES
     for various in CLASSIFIERS_VARIOUS_COMBINATIONS]
 
+LINK_EXAMPLES = [
+    (None, 'setup.py', True), ('this file', 'setup.py', True), (None, 'test/test_setup.py', True),
+    (None, 'http://site.com', False), (None, '../something/else', False), (None, 'no.thing', False),
+    (None, '/my/abs/path', False)]
 
-class Tests(unittest.TestCase):
-    """Test """
 
-    def get_package_folder_name(self):
-        """Attempt to guess the built package name."""
-        cwd = pathlib.Path.cwd()
-        directories = [
-            path for path in cwd.iterdir() if pathlib.Path(cwd, path).is_dir() \
-                and pathlib.Path(cwd, path, '__init__.py').is_file() \
-                and path.name != 'test']
-        self.assertEqual(len(directories), 1, directories)
-        return directories[0].name
+def get_package_folder_name():
+    """Attempt to guess the built package name."""
+    cwd = pathlib.Path.cwd()
+    directories = [
+        path for path in cwd.iterdir() if pathlib.Path(cwd, path).is_dir()
+        and pathlib.Path(cwd, path, '__init__.py').is_file() and path.name != 'test']
+    assert len(directories) == 1, directories
+    return directories[0].name
+
+
+class UnitTests(unittest.TestCase):
+    """Test basic functionalities of the setup boilerplate."""
 
     def test_find_version(self):
         find_version = import_module_member('setup_boilerplate', 'find_version')
-        result = find_version(self.get_package_folder_name())
+        result = find_version(get_package_folder_name())
         self.assertIsInstance(result, str)
 
     def test_find_packages(self):
@@ -146,19 +151,13 @@ class Tests(unittest.TestCase):
         for result in results:
             self.assertIsInstance(result, str)
 
-    def test_parse_readme(self):
-        parse_readme = import_module_member('setup_boilerplate', 'parse_readme')
-        result = parse_readme()
-        self.assertIsInstance(result, str)
-
-    def test_parse_requirements(self):
+    def test_requirements(self):
         parse_requirements = import_module_member('setup_boilerplate', 'parse_requirements')
         results = parse_requirements()
         self.assertIsInstance(results, list)
-        for result in results:
-            self.assertIsInstance(result, str)
+        self.assertTrue(all(isinstance(result, str) for result in results), msg=results)
 
-    def test_parse_requirements_empty(self):
+    def test_requirements_empty(self):
         parse_requirements = import_module_member('setup_boilerplate', 'parse_requirements')
         reqs_file = tempfile.NamedTemporaryFile('w', delete=False)
         reqs_file.close()
@@ -167,7 +166,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(len(results), 0)
         os.remove(reqs_file.name)
 
-    def test_parse_requirements_comments(self):
+    def test_requirements_comments(self):
         parse_requirements = import_module_member('setup_boilerplate', 'parse_requirements')
         reqs = ['# comment', 'numpy', '', '# another comment', 'scipy', '', '# one more comment']
         reqs_file = tempfile.NamedTemporaryFile('w', delete=False)
@@ -180,7 +179,7 @@ class Tests(unittest.TestCase):
         self.assertLess(len(results), len(reqs))
         os.remove(reqs_file.name)
 
-    def test_find_required_python_ver(self):
+    def test_python_versions(self):
         find_required_python_version = import_module_member(
             'setup_boilerplate', 'find_required_python_version')
         for variant in ALL_CLASSIFIERS_VARIANTS:
@@ -189,13 +188,34 @@ class Tests(unittest.TestCase):
                 if result is not None:
                     self.assertIsInstance(result, str)
 
-    def test_find_required_py_ver_none(self):
+    def test_python_versions_combined(self):
+        find_required_python_version = import_module_member(
+            'setup_boilerplate', 'find_required_python_version')
+        classifiers = [
+            'Programming Language :: Python :: 3 :: Only',
+            'Programming Language :: Python :: 3.5']
+        req = find_required_python_version(classifiers)
+        self.assertEqual(req, '>=3.5')
+
+    def test_python_versions_reversed(self):
+        find_required_python_version = import_module_member(
+            'setup_boilerplate', 'find_required_python_version')
+        classifiers = [
+            'Programming Language :: Python :: 3.4',
+            'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6']
+        req = find_required_python_version(classifiers)
+        self.assertEqual(req, '>=3.4')
+        req = find_required_python_version(reversed(classifiers))
+        self.assertEqual(req, '>=3.4')
+
+    def test_python_versions_none(self):
         find_required_python_version = import_module_member(
             'setup_boilerplate', 'find_required_python_version')
         result = find_required_python_version([])
         self.assertIsNone(result)
 
-    def test_find_required_py_ver_many_only(self):
+    def test_python_versions_many_only(self):
         find_required_python_version = import_module_member(
             'setup_boilerplate', 'find_required_python_version')
         classifiers = [
@@ -204,7 +224,7 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             find_required_python_version(classifiers)
 
-    def test_find_required_py_ver_conflict(self):
+    def test_python_versions_conflict(self):
         find_required_python_version = import_module_member(
             'setup_boilerplate', 'find_required_python_version')
         classifier_variants = [
@@ -216,77 +236,134 @@ class Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 find_required_python_version(classifiers)
 
-    def test_package(self):
+
+class PackageTests(unittest.TestCase):
+
+    """Test methods of Package class."""
+
+    def test_try_fields(self):
         package = import_module_member('setup_boilerplate', 'Package')
-        class Package(package):
+
+        class Package(package):  # pylint: disable=too-few-public-methods
             name = 'package name'
             description = 'package description'
-        self.assertIsNone(Package.try_fields())
         self.assertEqual(Package.try_fields('name', 'description'), 'package name')
         self.assertEqual(Package.try_fields('bad_field', 'description'), 'package description')
+        with self.assertRaises(AttributeError):
+            self.assertIsNone(Package.try_fields())
+        with self.assertRaises(AttributeError):
+            Package.try_fields('bad_field', 'another_bad_field')
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
+    def test_parse_readme(self):
+        package = import_module_member('setup_boilerplate', 'Package')
+
+        class Package(package):  # pylint: disable=too-few-public-methods
+            name = 'package name'
+            description = 'package description'
+            version = '1.2.3.4'
+            download_url = 'https://github.com/example'
+
+        with tempfile.NamedTemporaryFile('w', suffix='.md', delete=False) as temp_file:
+            temp_file.write('test test test')
+        result = Package.parse_readme(temp_file.name)
+        os.remove(temp_file.name)
+        self.assertIsInstance(result, str)
+
+        prefix = 'https://github.com/example/blob/v1.2.3.4/'
+        for name, link, done in LINK_EXAMPLES:
+            name = '' if name is None else name + ' '
+            text = 'Please see `{}<{}>`_ for details.'.format(name, link)
+            with tempfile.NamedTemporaryFile('w', suffix='.rst', delete=False) as temp_file:
+                temp_file.write(text)
+            result = Package.parse_readme(temp_file.name)
+            os.remove(temp_file.name)
+            self.assertIsInstance(result, str)
+            if not done:
+                self.assertEqual(result, text)
+                continue
+            if name == '':
+                name = link + ' '
+            self.assertIn('`{}<{}{}>`_'.format(name, prefix, link), result)
+
+    def test_prepare(self):
+        package = import_module_member('setup_boilerplate', 'Package')
+
+        version_ = '1.2.3.4.5.6.7'
+        long_description_ = 'long package description'
+
+        class Package(package):  # pylint: disable=too-few-public-methods, missing-docstring
+            name = 'package name'
+            version = version_
+            description = 'package description'
+            long_description = long_description_
+            packages = []
+            install_requires = []
+            python_requires = ''
+
+        self.assertEqual(Package.version, version_)
+        self.assertEqual(Package.long_description, long_description_)
+        Package.prepare()
+        self.assertEqual(Package.version, version_)
+        self.assertEqual(Package.long_description, long_description_)
+
+        Package.long_description = None
+        Package.packages = None
+        Package.install_requires = None
+        Package.python_requires = None
+        Package.prepare()
+
+        Package.version = None
+        with self.assertRaises(ImportError):
+            Package.prepare()
+
+
+@unittest.skipUnless(os.environ.get('TEST_PACKAGING') or os.environ.get('CI'),
+                     'skipping packaging tests for actual package')
+class IntergrationTests(unittest.TestCase):
+
+    """Test if the boilerplate can actually create a valid package."""
+
+    pkg_name = get_package_folder_name()
+
     def test_build_binary(self):
         run_module('setup', 'bdist')
         self.assertTrue(os.path.isdir('dist'))
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
     def test_build_wheel(self):
         run_module('setup', 'bdist_wheel')
         self.assertTrue(os.path.isdir('dist'))
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
     def test_build_source(self):
         run_module('setup', 'sdist', '--formats=gztar,zip')
         self.assertTrue(os.path.isdir('dist'))
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
-    def test_clean(self):
-        run_module('setup', 'bdist')
-        self.assertTrue(os.path.isdir('build'))
-        package = import_module_member('setup_boilerplate', 'Package')
-        package.clean()
-        os.mkdir('build')
-        package.clean()
-        package.clean()
-        self.assertFalse(os.path.isdir('build'))
-
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
     def test_install_code(self):
         run_pip('install', '.')
-        run_pip('uninstall', '-y', self.get_package_folder_name())
+        run_pip('uninstall', '-y', self.pkg_name)
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
     def test_install_source_tar(self):
-        name = self.get_package_folder_name()
         find_version = import_module_member('setup_boilerplate', 'find_version')
-        version = find_version(name)
+        version = find_version(self.pkg_name)
         run_pip('install', 'dist/*-{}.tar.gz'.format(version), glob=True)
-        run_pip('uninstall', '-y', name)
+        run_pip('uninstall', '-y', self.pkg_name)
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
     def test_install_source_zip(self):
-        name = self.get_package_folder_name()
         find_version = import_module_member('setup_boilerplate', 'find_version')
-        version = find_version(name)
+        version = find_version(self.pkg_name)
         run_pip('install', 'dist/*-{}.zip'.format(version), glob=True)
-        run_pip('uninstall', '-y', name)
+        run_pip('uninstall', '-y', self.pkg_name)
 
-    @unittest.skipUnless(os.environ.get('TEST_PACKAGING'), 'skipping packaging test')
     def test_install_wheel(self):
-        name = self.get_package_folder_name()
         find_version = import_module_member('setup_boilerplate', 'find_version')
-        version = find_version(name)
+        version = find_version(self.pkg_name)
         run_pip('install', 'dist/*-{}-*.whl'.format(version), glob=True)
-        run_pip('uninstall', '-y', name)
+        run_pip('uninstall', '-y', self.pkg_name)
 
     def test_pip_error(self):
         with self.assertRaises(AssertionError):
             run_pip('wrong_pip_command')
 
-    def test_setup_do_nothing(self):
+    def test_setup_do_nothing_or_error(self):
         run_module('setup', 'wrong_setup_command', run_name='__not_main__')
-
-    def test_setup_error(self):
         with self.assertRaises(SystemExit):
             run_module('setup', 'wrong_setup_command')
