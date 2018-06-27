@@ -22,6 +22,7 @@ CPP_PYTHON_TYPE_PAIRS = {
     'char': 'str',  # incorrect
     'signed char': 'str',  # incorrect
     'unsigned char': 'str',  # incorrect
+    'char16_t': 'str',  # incorrect
     'wchar_t': 'str',  # incorrect
     # pointers
     # other
