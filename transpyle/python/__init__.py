@@ -83,6 +83,20 @@ def make_st_ndarray(data_type: typed_ast3.AST,
         for size in dimensions_or_sizes:
             if isinstance(size, typed_ast3.Index):
                 size = size.value
+            elif isinstance(size, typed_ast3.Slice):
+                lower, upper, step = size.lower, size.upper, size.step
+                if lower is None and step is None and upper is None:
+                    size = typed_ast3.Call(typed_ast3.Name('slice', typed_ast3.Load()), [], [])
+                elif lower is None and step is None:
+                    size = size.upper
+                else:
+                    raise NotImplementedError('unsupported size form: "{}"'
+                                              .format(typed_ast3.dump(size)))
+                # assert size.lower is None \
+                #    or isinstance(size.lower, typed_ast3.Num) and size.lower.n == 0, size.lower
+                # assert size.step is None \
+                #    or isinstance(size.step, typed_ast3.Num) and size.step.n == 1, size.step
+                # assert size.upper is not None, typed_ast3.dump(size)
             # elif isinstance(size, typed_ast3.ExtSlice):
             #    size = size.dims
             else:

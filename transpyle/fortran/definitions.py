@@ -206,7 +206,8 @@ PYTHON_FORTRAN_INTRINSICS = {
     '{expression}.sum': None,
     'Fortran.file_handles[{name}].read': None,
     'Fortran.file_handles[{name}].close': None,
-    '{name}.rstrip': None
+    '{name}.rstrip': None,
+    'slice': lambda call: typed_ast3.Slice(*call.args)
     }
 
 INTRINSICS_SPECIAL_CASES = {'getenv', 'trim', 'count'}

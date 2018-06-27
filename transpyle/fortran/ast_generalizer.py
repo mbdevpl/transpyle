@@ -15,6 +15,7 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
 from ..general.exc import ContinueIteration
+from ..general.misc import flatten_sequence, flatten_syntax
 from ..general import Language, XmlAstGeneralizer
 from ..python import make_numpy_constructor, make_st_ndarray, separate_args_and_keywords
 from .definitions import \
@@ -225,12 +226,14 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         elif subtype == 'some':
             base_type = self.transform_one(self.get_one(node, './type'))
             letter_ranges = self.transform_one(self.get_one(node, './letter-ranges'))
+            letter_ranges = typed_ast3.Tuple(elts=letter_ranges, ctx=typed_ast3.Load())
             annotation = typed_ast3.Subscript(
                 value=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='Fortran', ctx=typed_ast3.Load()),
                     attr='TypeByNamePrefix', ctx=typed_ast3.Load()),
-                slice=typed_ast3.Index(value=typed_ast3.Tuple(elts=[base_type, letter_ranges]),
-                                       ctx=typed_ast3.Load()))
+                slice=typed_ast3.Index(
+                    value=typed_ast3.Tuple(elts=[base_type, letter_ranges], ctx=typed_ast3.Load()),
+                    ctx=typed_ast3.Load()), ctx=typed_ast3.Load())
         else:
             raise SyntaxError('expecting only "none" or "some", but got "{}"'.format(subtype))
         return typed_ast3.AnnAssign(
@@ -530,10 +533,15 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 outermost_if = self._if_if(header, body)
                 current_if = outermost_if
                 continue
-            new_if = self._if_else(body) if header is None \
-                else self._if_elif(header, body)
-            current_if.orelse.append(new_if)
-            current_if = current_if.orelse[-1]
+            assert current_if is not None
+            if header is None:
+                else_body = self._if_else(body)
+                current_if.orelse += else_body
+                current_if = None
+            else:
+                else_if = self._if_elif(header, body)
+                current_if.orelse.append(else_if)
+                current_if = else_if  # current_if.orelse[-1]
         return outermost_if
 
     def _if_if(self, header_node: ET.Element, body_node: ET.Element) -> typed_ast3.If:
@@ -547,15 +555,19 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
         return if_
 
-    def _if_body(self, body_node: ET.Element) -> typed_ast3.If:
-        return self.transform_all_subnodes(body_node, skip_empty=True, ignored={'block'})
+    def _if_body(self, body_node: ET.Element) -> t.List[typed_ast3.AST]:
+        body = self.transform_all_subnodes(body_node, skip_empty=True, ignored={'block'})
+        flatten_sequence(body)
+        for stmt in body:
+            assert not isinstance(stmt, list), stmt
+        return body
 
     def _if_elif(self, header_node: ET.Element, body_node: ET.Element) -> typed_ast3.If:
         assert header_node.attrib['type'] == 'else-if'
         assert body_node.attrib['type'] == 'else-if'
         return self._if_if(header_node, body_node)
 
-    def _if_else(self, body_node: ET.Element):
+    def _if_else(self, body_node: ET.Element) -> t.List[typed_ast3.AST]:
         assert body_node.attrib['type'] == 'else'
         return self._if_body(body_node)
 
@@ -569,7 +581,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         prev_case = None
         for case in cases:
             if not isinstance(case, typed_ast3.If):
-                items.append(case)
+                if isinstance(case, list):
+                    flatten_sequence(case)
+                    items += case
+                else:
+                    assert isinstance(case, typed_ast3.AST), type(case)
+                    items.append(case)
                 _LOG.debug('accumulated %s', [horast.unparse(_) for _ in items])
                 continue
             case.test = typed_ast3.Compare(left=var, ops=[typed_ast3.Eq()], comparators=[case.test])
@@ -580,6 +597,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             if first_case is None:
                 first_case = case
             if prev_case is not None:
+                assert isinstance(case, typed_ast3.AST), type(case)
                 prev_case.orelse.append(case)
             prev_case = case
         if items:
@@ -594,7 +612,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         header = self.transform_all_subnodes(header_node, ignored={
             'executable-construct', 'execution-part-construct'})
         if len(header) > 1:
-            _LOG.warning('many case values: %s', [typed_astunparse.unparse(_).rstrip() for _ in header])
+            _LOG.warning('many case values: %s',
+                         [typed_astunparse.unparse(_).rstrip() for _ in header])
             header = [header]
         body = self._if_body(body_node)
         if_ = typed_ast3.If(test=header[0], body=body, orelse=[])

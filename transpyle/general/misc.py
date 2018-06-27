@@ -7,10 +7,11 @@ import typed_ast.ast3 as typed_ast3
 
 
 def flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
-    """Transform a given list of lists into a flat list in-place."""
+    """Transform a given list of lists of lists (...) of lists into a flat list in-place."""
     assert isinstance(sequence, collections.abc.MutableSequence), type(sequence)
     for i, elem in enumerate(sequence):
         if isinstance(elem, collections.abc.MutableSequence):
+            flatten_sequence(elem)
             for value in reversed(elem):
                 sequence.insert(i, value)
             del sequence[i + len(elem)]

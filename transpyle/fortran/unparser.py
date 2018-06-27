@@ -739,12 +739,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 self.dispatch(t.slice)
             elif attr == 'TypeByNamePrefix':
                 base_type, letter_ranges = t.slice.value.elts
-                assert isinstance(letter_ranges, list), type(letter_ranges)
+                assert isinstance(letter_ranges, typed_ast3.Tuple), type(letter_ranges)
                 # _LOG.warning('%s', type(letter_ranges))
                 # assert False, (type(letter_ranges), letter_ranges)
                 self.dispatch_var_type(base_type)
                 self.write(' (')
-                interleave(lambda: self.write(', '), lambda _: _.s[1:-1], letter_ranges)
+                interleave(lambda: self.write(', '), lambda _: _.s[1:-1], letter_ranges.elts)
                 self.write(')')
             else:
                 raise NotImplementedError('Fortran.{}[] cannot be handled yet.'.format(attr))
