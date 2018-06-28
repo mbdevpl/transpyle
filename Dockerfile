@@ -5,6 +5,8 @@ MAINTAINER Mateusz Bysiek <mateusz.bysiek.spam@gmail.com>
 USER user
 WORKDIR /home/user
 
+RUN mkdir -p "/home/user/.local/bin"
+
 RUN mkdir -p Projects
 
 #
@@ -17,7 +19,7 @@ RUN git clone https://github.com/CodethinkLabs/ofc open-fortran-compiler
 WORKDIR /home/user/Projects/open-fortran-compiler
 
 RUN CC=gcc-5 make
-RUN export PATH="$(pwd):${PATH}"
+RUN ln -s "$(pwd)/ofc" "/home/user/.local/bin/ofc"
 
 #
 # Open Fortran Paresr
@@ -52,7 +54,7 @@ WORKDIR /home/user/Projects/CastXML
 
 RUN cmake .
 RUN make
-RUN export PATH="$(pwd)/bin:${PATH}"
+RUN ln -s "$(pwd)/bin/castxml" "/home/user/.local/bin/castxml"
 
 #
 # apps
@@ -68,7 +70,9 @@ RUN git clone https://github.com/mbdevpl/miranda_io
 #
 
 COPY . /home/user/Projects/transpyle
-RUN sudo chown -R user:user /home/user/Projects/transpyle
+USER root
+RUN chown -R user:user /home/user/Projects/transpyle
+USER user
 
 WORKDIR /home/user/Projects/transpyle
 RUN git clean -f -d -x
