@@ -6,13 +6,15 @@ import pathlib
 import unittest
 
 from transpyle.general import Language, Parser, AstGeneralizer, Unparser
-from .examples import \
+from test.examples import \
     APPS_RESULTS_ROOT, basic_check_fortran_code, basic_check_fortran_ast, \
     basic_check_python_code, basic_check_python_ast
 
 # _LOG = logging.getLogger(__name__)
 
 _HERE = pathlib.Path(__file__).resolve().parent
+
+_ROOT = _HERE.parent.parent
 
 _FORTRAN_SUFFIXES = ('.f', '.F', '.f90', '.F90')
 
@@ -33,13 +35,13 @@ _APPS_ROOT_PATHS = {
 _APPS_OPTIONAL = {'FLASH-4.5', 'FLASH-SUBSET', 'FLASH-SUBSET-hydro'}
 
 _APPS_ROOT_PATHS = {
-    app: (pathlib.Path('..', path) if _HERE.parent.joinpath('..', path).is_dir()
+    app: (pathlib.Path('..', path) if _ROOT.joinpath('..', path).is_dir()
           else pathlib.Path('..', '..', _APPS_PARENT_PATHS[app], path))
     for app, path in _APPS_ROOT_PATHS.items()}
 
 _APPS_ROOT_PATHS = {
-    app: _HERE.parent.joinpath(path).resolve() for app, path in _APPS_ROOT_PATHS.items()
-    if app not in _APPS_OPTIONAL or _HERE.parent.joinpath(path).is_dir()}
+    app: _ROOT.joinpath(path).resolve() for app, path in _APPS_ROOT_PATHS.items()
+    if app not in _APPS_OPTIONAL or _ROOT.joinpath(path).is_dir()}
 
 _FLASH_COMMON_PATHS = [
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',

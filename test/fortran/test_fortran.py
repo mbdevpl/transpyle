@@ -14,7 +14,7 @@ from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
 from transpyle.fortran.unparser import Fortran77Unparser
 from transpyle.fortran.compiler import F2PyCompiler
 from transpyle.fortran.binder import F2PyBinder
-from .examples import \
+from test.examples import \
     EXAMPLES_RESULTS_ROOT, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, basic_check_fortran_code, \
     basic_check_fortran_ast, basic_check_python_ast
 
