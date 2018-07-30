@@ -124,7 +124,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         header_node = self.get_one(node, './header')
         arguments_node = header_node.find('./arguments')
         if arguments_node is None:
-            arguments = []
+            arguments = typed_ast3.arguments(args=[], vararg=None, kwonlyargs=[], kwarg=None,
+                                             defaults=[], kw_defaults=[])
         else:
             arguments = self.transform_one(arguments_node)
         body = self.transform_all_subnodes(self.get_one(node, './body'))
