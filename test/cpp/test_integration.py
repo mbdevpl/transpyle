@@ -7,7 +7,7 @@ from transpyle.general.code_reader import CodeReader
 from transpyle.general.language import Language
 from transpyle.general.translator import AutoTranslator
 
-from test.examples import EXAMPLES_PY3_FILES, basic_check_cpp_code
+from test.common import EXAMPLES_PY3_FILES, basic_check_cpp_code
 
 
 class Tests(unittest.TestCase):

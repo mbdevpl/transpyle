@@ -5,7 +5,8 @@ import unittest
 
 from transpyle.general.code_reader import CodeReader
 from transpyle.cpp.parser import CppParser
-from ..examples import EXAMPLES_CPP14_FILES, basic_check_cpp_ast
+
+from test.common import EXAMPLES_CPP14_FILES, basic_check_cpp_ast
 
 # _LOG = logging.getLogger(__name__)
 

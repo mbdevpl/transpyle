@@ -4,7 +4,8 @@ import pathlib
 import unittest
 
 from transpyle.general.code_writer import CodeWriter
-from ..examples import EXAMPLES_EXTENSIONS
+
+from test.common import EXAMPLES_EXTENSIONS
 
 
 class Tests(unittest.TestCase):

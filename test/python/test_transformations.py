@@ -13,7 +13,7 @@ import static_typing as st
 from transpyle.general import CodeReader, Language, Parser
 from transpyle.python.transformations import inline_syntax, inline
 
-from .examples_inlining import \
+from test.examples_inlining import \
     buy_products, buy, buy_products_inlined, \
     just_return, return_me, just_return_inlined, \
     just_assign, just_assign_inlined, \

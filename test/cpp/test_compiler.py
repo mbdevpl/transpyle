@@ -7,7 +7,8 @@ import unittest
 
 from transpyle.general.binder import Binder
 from transpyle.cpp.compiler import CppSwigCompiler
-from ..examples import EXAMPLES_RESULTS_ROOT, EXAMPLES_CPP14_FILES
+
+from test.common import EXAMPLES_RESULTS_ROOT, EXAMPLES_CPP14_FILES
 
 # _LOG = logging.getLogger(__name__)
 

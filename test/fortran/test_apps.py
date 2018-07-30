@@ -6,7 +6,8 @@ import pathlib
 import unittest
 
 from transpyle.general import Language, Parser, AstGeneralizer, Unparser
-from test.examples import \
+
+from test.common import \
     APPS_RESULTS_ROOT, basic_check_fortran_code, basic_check_fortran_ast, \
     basic_check_python_code, basic_check_python_ast
 

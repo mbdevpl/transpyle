@@ -8,7 +8,7 @@ from transpyle.general.parser import Parser
 from transpyle.general.ast_generalizer import AstGeneralizer
 from transpyle.general.unparser import Unparser
 
-from test.examples import EXAMPLES_C11_FILES, basic_check_python_code
+from test.common import EXAMPLES_C11_FILES, basic_check_python_code
 
 
 class Tests(unittest.TestCase):

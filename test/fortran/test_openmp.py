@@ -10,7 +10,7 @@ from transpyle.general.code_reader import CodeReader
 from transpyle import Language
 from transpyle import AutoTranspiler
 
-from .examples import EXAMPLES_PY3_FILES, EXAMPLES_RESULTS_ROOT
+from test.common import EXAMPLES_PY3_FILES, EXAMPLES_RESULTS_ROOT
 
 
 class Tests(unittest.TestCase):

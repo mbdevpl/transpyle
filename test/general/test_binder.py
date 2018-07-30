@@ -6,7 +6,8 @@ import sys
 import unittest
 
 from transpyle.general.binder import Binder
-from test.examples import EXAMPLES_ROOTS
+
+from test.common import EXAMPLES_ROOTS
 
 _LOG = logging.getLogger(__name__)
 

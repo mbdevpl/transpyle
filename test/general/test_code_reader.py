@@ -5,7 +5,8 @@ import pathlib
 import unittest
 
 from transpyle.general.code_reader import CodeReader
-from ..examples import _HERE, EXAMPLES_EXTENSIONS, EXAMPLES_ROOTS, EXAMPLES_FILES
+
+from test.common import _HERE, EXAMPLES_EXTENSIONS, EXAMPLES_ROOTS, EXAMPLES_FILES
 
 
 class Tests(unittest.TestCase):

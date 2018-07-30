@@ -9,7 +9,8 @@ from transpyle.python.parser import \
     NativePythonParser, TypedPythonParser, TypedPythonParserWithComments
 from transpyle.python.unparser import \
     NativePythonUnparser, TypedPythonUnparser, TypedPythonUnparserWithComments
-from test.examples import EXAMPLES_PY3
+
+from test.common import EXAMPLES_PY3
 
 PARSER_CLASSES = (NativePythonParser, TypedPythonParser, TypedPythonParserWithComments)
 

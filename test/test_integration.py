@@ -11,7 +11,7 @@ from transpyle.general.ast_generalizer import AstGeneralizer
 from transpyle.general.unparser import Unparser
 from transpyle.general.translator import Translator, AutoTranslator
 
-from .examples import EXAMPLES_LANGS_NAMES, EXAMPLES_FILES
+from .common import EXAMPLES_LANGS_NAMES, EXAMPLES_FILES
 
 NOT_PARSED_LANGS = ('C++14', 'Cython')
 

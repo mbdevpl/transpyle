@@ -8,7 +8,8 @@ import typed_astunparse
 from transpyle.general.code_reader import CodeReader
 from transpyle.cpp.parser import CppParser
 from transpyle.cpp.ast_generalizer import CppAstGeneralizer
-from ..examples import EXAMPLES_CPP14_FILES, basic_check_cpp_ast, basic_check_python_ast
+
+from test.common import EXAMPLES_CPP14_FILES, basic_check_cpp_ast, basic_check_python_ast
 
 _LOG = logging.getLogger(__name__)
 

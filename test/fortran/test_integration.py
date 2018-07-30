@@ -14,7 +14,7 @@ from transpyle.fortran.unparser import Fortran77Unparser
 from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
 
-from test.examples import EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES
+from test.common import EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES
 
 
 class Tests(unittest.TestCase):

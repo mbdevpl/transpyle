@@ -5,7 +5,8 @@ import unittest
 
 from transpyle.general.code_reader import CodeReader
 from transpyle.c.parser import C99Parser
-from test.examples import EXAMPLES_C11_FILES, basic_check_c_ast
+
+from test.common import EXAMPLES_C11_FILES, basic_check_c_ast
 
 _LOG = logging.getLogger(__name__)
 
