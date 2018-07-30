@@ -7,6 +7,7 @@ import logging
 import os
 import pathlib
 import subprocess
+import tempfile
 import typing as t
 
 import argunparse
@@ -58,6 +59,11 @@ class F2PyCompiler(Compiler):
         mpi=True -- enable MPI support,
         openmp=True -- enable OpenMP support.
         """
+        if output_folder is None:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_folder = pathlib.Path(tmpdir)
+            output_folder.mkdir()
+
         assert isinstance(code, str), type(code)
         assert isinstance(path, pathlib.Path), type(path)
         assert path.is_file(), path
