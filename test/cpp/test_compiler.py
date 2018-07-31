@@ -3,6 +3,7 @@
 import datetime
 # import logging
 import pathlib
+import platform
 import unittest
 
 from transpyle.general.binder import Binder
@@ -15,6 +16,7 @@ from test.common import EXAMPLES_RESULTS_ROOT, EXAMPLES_CPP14_FILES
 
 class Tests(unittest.TestCase):
 
+    @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     def test_compile_examples(self):
         compiler = CppSwigCompiler()
         for input_path in EXAMPLES_CPP14_FILES:
@@ -23,7 +25,7 @@ class Tests(unittest.TestCase):
                 'swig_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
             if not output_dir.is_dir():
                 output_dir.mkdir()
-            with open(str(input_path)) as input_file:
+            with input_path.open() as input_file:
                 code = input_file.read()
             with self.subTest(input_path=input_path):
                 output_path = compiler.compile(code, input_path, output_dir)

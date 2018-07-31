@@ -1,8 +1,10 @@
 """Transpilation of source code."""
 
 import pathlib
+import tempfile
 
 from .registry import Registry
+from .code_reader import CodeReader
 from .code_writer import CodeWriter
 from .language import Language
 from .compiler import Compiler
@@ -13,6 +15,8 @@ from .translator import Translator, AutoTranslator
 class Transpiler(Registry):
 
     """Translate a function to another language, compile and create binding for the result."""
+
+    _reader = None
 
     def __init__(self, translator: Translator, compiler: Compiler, binder: Binder):
         self.translator = translator
@@ -34,6 +38,23 @@ class Transpiler(Registry):
         binding = self.binder.bind(compiled_path)
         return binding
 
+    def transpile_file(self, path: pathlib.Path):
+        if self._reader is None:
+            self._reader = CodeReader()
+        code = self._reader.read_file(path)
+
+        translated_path = None
+        with tempfile.NamedTemporaryFile(suffix='.py') as translated_file:
+            # TODO: this leaves garbage behind in /tmp/ but is neeeded by some transpiler passes
+            translated_path = pathlib.Path(translated_file.name)
+
+        compile_folder = None
+        with tempfile.TemporaryDirectory() as compile_dir_name:
+            compile_folder = pathlib.Path(compile_dir_name)
+        if not compile_folder.is_dir():
+            compile_folder.mkdir()
+
+        return self.transpile(code, path, translated_path, compile_folder)
 
 class AutoTranspiler(Transpiler):
 

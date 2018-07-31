@@ -150,7 +150,7 @@ class CppSwigCompiler(SwigCompiler):
             self.py_config['CONFINCLUDEPY'], self.py_config['INCLUDEPY'],
             self.py_config['CFLAGS']).split()
         flags = [_.strip() for _ in flags if _.strip()]
-        gcc_args = ['-fPIC', *flags,
+        gcc_args = [*self.cpp_flags, *flags,
                     '-c', str(path), str(wrapper_path)]
         return self.run_gpp(*gcc_args)
 
@@ -161,7 +161,7 @@ class CppSwigCompiler(SwigCompiler):
             self.py_config['LIBPL'], self.py_config['LIBDIR'], ldlibrary, self.py_config['LIBS'],
             self.py_config['SYSLIBS'], self.py_config['LINKFORSHARED']).split()
         flags = [_.strip() for _ in flags if _.strip()]
-        linker_args = ['-fPIC', *flags,
+        linker_args = [*self.cpp_flags, *flags,
                        '-shared', str(path.with_suffix('.o')), str(wrapper_path.with_suffix('.o')),
                        '-o', '{}'.format(path.with_name('_' + path.name).with_suffix('.so'))]
         return self.run_gpp(*linker_args)
