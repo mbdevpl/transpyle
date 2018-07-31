@@ -1,5 +1,6 @@
 cython
 docutils
+encrypted-config
 nuitka
 numpy
 open-fortran-parser
@@ -9,5 +10,6 @@ pycparser
 pygments
 #pyopencl
 setuptools >= 20.5
+timing
 wheel
 -rrequirements.txt
