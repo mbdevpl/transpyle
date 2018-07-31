@@ -7,7 +7,7 @@ from transpyle.general.code_reader import CodeReader
 from transpyle.general.language import Language
 from transpyle.general.translator import AutoTranslator
 
-from test.common import EXAMPLES_PY3_FILES, basic_check_cpp_code
+from test.common import EXAMPLES_PY3_FILES, EXAMPLES_ROOTS, basic_check_cpp_code
 
 
 class Tests(unittest.TestCase):
@@ -17,13 +17,8 @@ class Tests(unittest.TestCase):
         language_from = Language.find('Python')
         language_to = Language.find('C++')
         reader = CodeReader()
-        # parser = Parser.find(language_from)()
-        # ast_generalizer = AstGeneralizer.find(language_from)()
-        # unparser = Unparser.find(python_language)()
-        # writer = CodeWriter('.py')
-        for input_path in EXAMPLES_PY3_FILES:
-            if input_path.name in {'matmul.py'}:
-                continue
+        root = EXAMPLES_ROOTS['python3']
+        for input_path in {root.joinpath('do_nothing.py'), root.joinpath('gemm.py')}:
             translator = AutoTranslator(language_from, language_to)
             with self.subTest(input_path=input_path):
                 python_code = reader.read_file(input_path)
