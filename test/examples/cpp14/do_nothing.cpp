@@ -1,0 +1,4 @@
+
+void do_nothing() {
+  ;
+}
