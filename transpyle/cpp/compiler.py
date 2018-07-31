@@ -4,6 +4,7 @@ from distutils.sysconfig import get_python_inc, get_config_vars
 import logging
 import os
 import pathlib
+import platform
 import shutil
 import subprocess
 import tempfile
@@ -131,7 +132,8 @@ class CppSwigCompiler(SwigCompiler):
         super().__init__(Language.find('C++'))
 
     def run_gpp(self, *args):
-        gcc_cmd = ['g++', *args]
+        compiler = {'Linux': 'g++', 'Darwin': 'clang++'}[platform.system()]
+        gcc_cmd = [compiler, *args]
         _LOG.warning('running C++ compiler: %s', gcc_cmd)
         result = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode != 0:
@@ -146,9 +148,9 @@ class CppSwigCompiler(SwigCompiler):
 
     def run_cpp_compiler(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
         # gcc -c example.c example_wrap.c -I/usr/local/include/python2.1
-        flags = '-I{} -I{} {}'.format(
-            self.py_config['CONFINCLUDEPY'], self.py_config['INCLUDEPY'],
-            self.py_config['CFLAGS']).split()
+        flags = '-I{} {} {}'.format(
+            self.py_config['INCLUDEPY'],
+            self.py_config['BASECFLAGS'], self.py_config['BASECPPFLAGS']).split()
         flags = [_.strip() for _ in flags if _.strip()]
         gcc_args = [*self.cpp_flags, *flags,
                     '-c', str(path), str(wrapper_path)]
@@ -157,8 +159,8 @@ class CppSwigCompiler(SwigCompiler):
     def run_cpp_linker(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
         # ld -shared example.o example_wrap.o -o _example.so
         ldlibrary = pathlib.Path(self.py_config['LDLIBRARY'].lstrip('lib')).with_suffix('')
-        flags = '-L{} -L{} -l{} {} {} {}'.format(
-            self.py_config['LIBPL'], self.py_config['LIBDIR'], ldlibrary, self.py_config['LIBS'],
+        flags = '-L{} -l{} {} {} {}'.format(
+            self.py_config['LIBDIR'], ldlibrary, self.py_config['LIBS'],
             self.py_config['SYSLIBS'], self.py_config['LINKFORSHARED']).split()
         flags = [_.strip() for _ in flags if _.strip()]
         linker_args = [*self.cpp_flags, *flags,
