@@ -45,7 +45,7 @@ class Tests(unittest.TestCase):
         for variant, path in variants.items():
             with binder.tempoararily_bind(path) as binding:
                 with self.subTest(variant=variant, path=path):
-                    for _ in _TIME.measure_many('{}.{}'.format(name, variant), 50):
+                    for _ in _TIME.measure_many('{}.{}'.format(name, variant), 1000):
                         binding.do_nothing()
                     # with _TIME.measure('{}.{}'.format(name, variant)) as timer:
                     #    # timer = _TIME.start('{}.{}'.format(name, variant))
@@ -87,10 +87,9 @@ class Tests(unittest.TestCase):
             with binder.tempoararily_bind(path) as binding:
                 for segments in segments_list:
                     with self.subTest(variant=variant, path=path, segments=segments):
-                        with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
-                            # timer = _TIME.start('{}.{}.{}'.format(name, segments, variant))
+                        # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
+                        for _ in _TIME.measure_many('{}.{}.{}'.format(name, segments, variant), 1000):
                             value = binding.compute_pi(segments)
-                            # timer.stop()
                         if segments >= 17:
                             self.assertAlmostEqual(value, np.pi, places=5)
                         elif segments > 10:
