@@ -2,6 +2,7 @@ cython
 docutils
 encrypted-config
 nuitka
+numba
 numpy
 open-fortran-parser
 pcpp

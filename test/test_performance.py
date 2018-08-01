@@ -6,6 +6,7 @@ import unittest
 
 # from encrypted_config.path_tools import normalize_path
 from encrypted_config.json_io import json_to_file
+import numba
 import numpy as np
 import timing
 
@@ -35,18 +36,22 @@ class Tests(unittest.TestCase):
 
         name = 'do_nothing'
         variants = {}
-        variants['py'] = EXAMPLES_ROOTS['python3'].joinpath(name + '.py')
+        variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
         path_f95 = EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')
-        variants['f95'] = compiler_f95.compile_file(path_f95)
+        variants['f95'] = (compiler_f95.compile_file(path_f95), None)
         if platform.system() == 'Linux':
             path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
-            variants['cpp'] = compiler_cpp.compile_file(path_cpp)
+            variants['cpp'] = (compiler_cpp.compile_file(path_cpp), None)
+        variants['py_numba'] = (variants['py'][0], numba.jit)
 
-        for variant, path in variants.items():
+        for variant, (path, transform) in variants.items():
             with binder.temporarily_bind(path) as binding:
+                tested_function = binding.do_nothing
+                if transform:
+                    tested_function = transform(tested_function)
                 with self.subTest(variant=variant, path=path):
                     for _ in _TIME.measure_many('{}.{}'.format(name, variant), 1000):
-                        binding.do_nothing()
+                        tested_function()
                     # with _TIME.measure('{}.{}'.format(name, variant)) as timer:
                     #    # timer = _TIME.start('{}.{}'.format(name, variant))
                     #    binding.do_nothing()
@@ -72,12 +77,14 @@ class Tests(unittest.TestCase):
 
         name = 'compute_pi'
         variants = {}
-        variants['py'] = EXAMPLES_ROOTS['python3'].joinpath(name + '.py')
+        variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
         if platform.system() == 'Linux':
             path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
-            variants['cpp'] = compiler_cpp.compile_file(path_cpp)
+            variants['cpp'] = (compiler_cpp.compile_file(path_cpp), None)
         # variants['py_to_cpp'] = transpiler_py_to_cpp.transpile_file(variants['py'])
-        variants['py_to_f95'] = transpiler_py_to_f95.transpile_file(variants['py'])
+        # variants['f95'] = EXAMPLES_ROOTS['f95']
+        variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
+        variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
 
         segments_list = [_ for _ in range(0, 20)]
 
@@ -85,13 +92,16 @@ class Tests(unittest.TestCase):
         for segments in segments_list:
             values[segments] = {}
 
-        for variant, path in variants.items():
+        for variant, (path, transform) in variants.items():
             with binder.temporarily_bind(path) as binding:
+                tested_function = binding.compute_pi
+                if transform:
+                    tested_function = transform(tested_function)
                 for segments in segments_list:
                     with self.subTest(variant=variant, path=path, segments=segments):
                         # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
                         for _ in _TIME.measure_many('{}.{}.{}'.format(name, segments, variant), 1000):
-                            value = binding.compute_pi(segments)
+                            value = tested_function(segments)
                         if segments >= 17:
                             self.assertAlmostEqual(value, np.pi, places=5)
                         elif segments > 10:
@@ -113,3 +123,6 @@ class Tests(unittest.TestCase):
         #    vals = list(values[segments].values())
         #    for val in vals:
         #        self.assertEqual(vals[0], val)
+
+    def test_matmul(self):
+        pass
