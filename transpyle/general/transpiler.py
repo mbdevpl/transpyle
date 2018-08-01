@@ -18,13 +18,14 @@ class Transpiler(Registry):
 
     _reader = None
 
-    def __init__(self, translator: Translator, compiler: Compiler, binder: Binder):
+    def __init__(self, translator: Translator, compiler: Compiler#, binder: Binder
+                 ):
         self.translator = translator
         self.compiler = compiler
-        self.binder = binder
+        # self.binder = binder
 
     def transpile(self, code: str, path: pathlib.Path = None, translated_path: pathlib.Path = None,
-                  compile_folder: pathlib.Path = None):
+                  compile_folder: pathlib.Path = None) -> pathlib.Path:
         """Transpile given code."""
         assert isinstance(path, pathlib.Path), type(path)
         assert path.is_file(), path
@@ -35,8 +36,9 @@ class Transpiler(Registry):
         code_writer = CodeWriter(translated_path.suffix)
         code_writer.write_file(translated_code, translated_path)
         compiled_path = self.compiler.compile(translated_code, translated_path, compile_folder)
-        binding = self.binder.bind(compiled_path)
-        return binding
+        return compiled_path
+        # binding = self.binder.bind(compiled_path)
+        # return binding
 
     def transpile_file(self, path: pathlib.Path):
         if self._reader is None:
@@ -44,7 +46,7 @@ class Transpiler(Registry):
         code = self._reader.read_file(path)
 
         translated_path = None
-        with tempfile.NamedTemporaryFile(suffix='.py') as translated_file:
+        with tempfile.NamedTemporaryFile(suffix=self.to_language.default_file_extension) as translated_file:
             # TODO: this leaves garbage behind in /tmp/ but is neeeded by some transpiler passes
             translated_path = pathlib.Path(translated_file.name)
 
@@ -62,7 +64,8 @@ class AutoTranspiler(Transpiler):
 
     def __init__(self, from_language: Language, to_language: Language):
         super().__init__(AutoTranslator(from_language, to_language),
-                         Compiler.find(to_language)(),
-                         Binder.find(to_language)())
+                         Compiler.find(to_language)()#,
+                         #Binder.find(to_language)()
+                         )
         self.from_language = from_language
         self.to_language = to_language

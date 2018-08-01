@@ -37,4 +37,5 @@ class Tests(unittest.TestCase):
             # code_writer.write_file(target_inlined_code, target_inlined_path)
             output_path = pathlib.Path(output_file.name)
 
-        transpiler.transpile(reader.read_file(input_path), input_path, output_path, output_dir)
+        compiled_path = transpiler.transpile(reader.read_file(input_path), input_path, output_path, output_dir)
+        # TODO: run it
