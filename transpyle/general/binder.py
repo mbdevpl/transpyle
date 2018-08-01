@@ -43,6 +43,10 @@ class Binder(Registry):
         _LOG.info('successfully imported module "%s"', module.__name__)
         return module
 
+    def _unbind_module(self, module: types.ModuleType) -> None:
+        assert sys.modules[module.__name__] is module
+        del sys.modules[module.__name__]
+
     def bind_path(self, path: pathlib.Path) -> types.ModuleType:
         """Bind a module by path."""
         assert isinstance(path, pathlib.Path), type(path)
@@ -64,10 +68,10 @@ class Binder(Registry):
 
     @contextlib.contextmanager
     def temporarily_bind(self, module_name_or_path):
+        """Bind a module and then automatically unbind it when the context ends."""
         module = self.bind(module_name_or_path)
         yield module
-        assert sys.modules[module.__name__] is module
-        del sys.modules[module.__name__]
+        self._unbind_module(module)
 
     def _bind_object(self, module: types.ModuleType, object_name: t.Optional[str]) -> object:
         object_names = [var for var in vars(module) if not var.startswith('__')]
@@ -91,9 +95,8 @@ class Binder(Registry):
 
     @contextlib.contextmanager
     def temporarily_bind_object(self, module_name_or_path, object_name=None):
+        """Bind a module to get an object from it and then unbind it when the context ends."""
         module = self.bind(module_name_or_path)
-        return self._bind_object(module, object_name)
         obj = self.bind_object(module_name_or_path, object_name)
         yield obj
-        assert sys.modules[module.__name__] is module
-        del sys.modules[module.__name__]
+        self._unbind_module(module)

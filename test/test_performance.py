@@ -29,15 +29,15 @@ class Tests(unittest.TestCase):
 
     def test_empty_funciton(self):
         # reader = CodeReader()
-        compiler_f = F2PyCompiler()
+        compiler_f95 = F2PyCompiler()
         compiler_cpp = CppSwigCompiler()
         binder = Binder()
 
         name = 'do_nothing'
         variants = {}
         variants['py'] = EXAMPLES_ROOTS['python3'].joinpath(name + '.py')
-        path_f = EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')
-        variants['f'] = compiler_f.compile_file(path_f)
+        path_f95 = EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')
+        variants['f95'] = compiler_f95.compile_file(path_f95)
         if platform.system() == 'Linux':
             path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
             variants['cpp'] = compiler_cpp.compile_file(path_cpp)
@@ -58,7 +58,7 @@ class Tests(unittest.TestCase):
         _LOG.info('%s', summary)
         json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
-        self.assertAlmostEqual(summary['py']['median'], summary['f']['median'], places=6)
+        self.assertAlmostEqual(summary['py']['median'], summary['f95']['median'], places=6)
         if platform.system() == 'Linux':
             self.assertAlmostEqual(summary['py']['median'], summary['cpp']['median'], places=6)
 
