@@ -9,7 +9,7 @@ from encrypted_config.json_io import json_to_file
 import numpy as np
 import timing
 
-# from transpyle.general import CodeReader, Language, AutoTranspiler
+from transpyle.general import Language, AutoTranspiler
 from transpyle.general import Binder
 from transpyle.cpp import CppSwigCompiler
 from transpyle.fortran import F2PyCompiler
@@ -66,6 +66,7 @@ class Tests(unittest.TestCase):
     def test_compute_pi(self):
         # reader = CodeReader()
         compiler_cpp = CppSwigCompiler()
+        transpiler_py_to_f95 = AutoTranspiler(Language.find('Python 3'), Language.find('Fortran 95'))
         # transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
         binder = Binder()
 
@@ -76,6 +77,7 @@ class Tests(unittest.TestCase):
             path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
             variants['cpp'] = compiler_cpp.compile_file(path_cpp)
         # variants['py_to_cpp'] = transpiler_py_to_cpp.transpile_file(variants['py'])
+        variants['py_to_f95'] = transpiler_py_to_f95.transpile_file(variants['py'])
 
         segments_list = [_ for _ in range(0, 20)]
 
