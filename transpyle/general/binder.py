@@ -63,7 +63,7 @@ class Binder(Registry):
         return module
 
     @contextlib.contextmanager
-    def tempoararily_bind(self, module_name_or_path):
+    def temporarily_bind(self, module_name_or_path):
         module = self.bind(module_name_or_path)
         yield module
         assert sys.modules[module.__name__] is module
@@ -90,7 +90,7 @@ class Binder(Registry):
         return self._bind_object(module, object_name)
 
     @contextlib.contextmanager
-    def tempoararily_bind_object(self, module_name_or_path, object_name=None):
+    def temporarily_bind_object(self, module_name_or_path, object_name=None):
         module = self.bind(module_name_or_path)
         return self._bind_object(module, object_name)
         obj = self.bind_object(module_name_or_path, object_name)

@@ -31,7 +31,7 @@ class Tests(unittest.TestCase):
                 output_path = compiler.compile(code, input_path, output_dir)
                 self.assertIsInstance(output_path, pathlib.Path)
                 binder = Binder()
-                with binder.tempoararily_bind(output_path) as binding:
+                with binder.temporarily_bind(output_path) as binding:
                     self.assertIsNotNone(binding)
                 output_path.unlink()
             try:
