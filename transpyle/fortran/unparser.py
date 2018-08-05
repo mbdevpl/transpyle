@@ -270,9 +270,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         assert self._context is not None
         function = self._context
         if t.value:
-            self.fill(function.name)
-            self.write(' = ')
-            self.dispatch(t.value)
+            if function_returns(function) and returns_array(function):
+                pass
+            else:
+                self.fill(function.name)
+                self.write(' = ')
+                self.dispatch(t.value)
         self.fill("return")
 
     def _Pass(self, t):
@@ -332,12 +335,58 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.write('\n')
         if t.decorator_list:
             self._unsupported_syntax(t)
-        returns_something = t.returns is not None \
-            and not isinstance(t.returns, typed_ast3.NameConstant)
-        function_kind = 'function' if returns_something else 'subroutine'
+        function_kind = 'function' if function_returns(t) and not returns_array(t) else 'subroutine'
         # function_kind = 'subroutine'  # TODO: temporary
+
+        from_python = False
+        if t.args:
+            # try:
+            annotated_args = [arg for arg in t.args.args if arg.annotation]
+            # except:
+            #    raise ValueError(horast.dump(t.args))
+            if annotated_args:
+                from_python = True
+        if from_python:
+            try:
+                static_t = st.augment(t, eval_=False)
+            except:
+                import ipdb; ipdb.set_trace()
+            assert isinstance(static_t,
+                              st.nodes.StaticallyTypedFunctionDef[typed_ast3]), type(static_t)
+
+        # move return type into arguments
+        if function_kind == 'subroutine' and t.returns is not None:
+
+            class Visitor(st.ast_manipulation.RecursiveAstVisitor[typed_ast3]):
+                return_expressions = []
+
+                def visit_node(self, node):
+                    if isinstance(node, typed_ast3.Return) and node.value is not None:
+                        self.return_expressions.append(node.value)
+            visitor = Visitor()
+            visitor.visit(static_t)
+            _LOG.warning('return expressions: %s', visitor.return_expressions)
+            if not visitor.return_expressions:
+                raise SyntaxError('expected return statements in function "{}" but zero found'
+                                  .format(t.name))
+            returned_name = None
+            for return_expression in visitor.return_expressions:
+                assert isinstance(return_expression, typed_ast3.Name), \
+                    'only simple name can be returned'
+                if returned_name is None:
+                    returned_name = return_expression.id
+                else:
+                    assert returned_name == return_expression.id, \
+                        'all return statements must return the same name'
+            # raise NotImplementedError('there are {} return expressions'
+            #                          .format(len(visitor.return_expressions)))
+            assert isinstance(returned_name, str)
+
         self.fill('{} {} ('.format(function_kind, t.name))
         self.dispatch(t.args)
+        if function_kind == 'subroutine' and t.returns is not None:
+            self.write(', ')
+            self.write(returned_name)
         self.write(')')
         self.enter()
 
@@ -351,7 +400,29 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                     self.write(docstring)
                     break
 
-        if returns_something:
+        if from_python:
+            self._context_input_args = True
+            self.fill('! input arguments')
+            for arg in annotated_args:
+                self.fill()
+                self.dispatch_var_type(arg.annotation)
+                self.write(', intent(in)')
+                self.write(' :: ')
+                self.write(arg.arg)
+            self.write('\n')
+            self._context_input_args = False
+
+        if function_kind == 'subroutine':
+            if t.returns is not None:
+                self.fill('! output arguments')
+                self.fill()
+                self.dispatch_var_type(t.returns)
+                self.write(', intent(out)')
+                self.write(' :: ')
+                self.write(returned_name)
+                self.write('\n')
+
+        elif function_kind == 'function':
             # _LOG.warning('ignoring return annotation on %s', t.name)
             self.fill('! return type')
             self.fill()
@@ -362,59 +433,36 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             # raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
             # self.write(' result ')
             # self.dispatch(t.returns)
+        else:
+            raise SyntaxError('function of kind "{}" cannot be unparsed'.format(function_kind))
         # if isinstance(t, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
         #    for param, type_info in self._params.items():
-        from_python = False
-        if t.args:
-            # try:
-            annotated_args = [arg for arg in t.args.args if arg.annotation]
-            # except:
-            #    raise ValueError(horast.dump(t.args))
-            if annotated_args:
-                from_python = True
-                self._context_input_args = True
-                self.fill('! parameters')
-                for arg in annotated_args:
-                    self.fill()
-                    self.dispatch_var_type(arg.annotation)
-                    self.write(', intent(in)')
-                    self.write(' :: ')
-                    self.write(arg.arg)
-                self.write('\n')
-                self._context_input_args = False
 
-        if from_python:
-            try:
-                static_t = st.augment(t, eval_=False)
-            except:
-                import ipdb; ipdb.set_trace()
-            assert isinstance(static_t,
-                              st.nodes.StaticallyTypedFunctionDef[typed_ast3]), type(static_t)
-            if static_t._local_vars:
-                self.fill('! local vars')
-                for var in static_t._local_vars:
+        if from_python and static_t._local_vars:
+            self.fill('! local vars')
+            for var in static_t._local_vars:
 
-                    class Visitor(st.ast_manipulation.RecursiveAstVisitor[typed_ast3]):
-                        def visit_node(self, node):
-                            if isinstance(node, typed_ast3.For) and node.target.id == var \
-                                    and node.type_comment is not None:
-                                node.type_comment = None
-                                declaration = typed_ast3.AnnAssign(
-                                    target=node.target, value=None, annotation=node.resolved_type_comment)
-                                raise ValueError(declaration)
-                    visitor = Visitor()
-                    try:
-                        visitor.visit(static_t)
-                        self.fill('! oh la la')
-                    except ValueError as err:
-                        self.dispatch(err.args[0])
-                    # for stmt in static_t.body:
-                    #    if isinstance(stmt, typed_ast3.For) and stmt.type_comment is not None:
-                    #        stmt.type_comment = None
-                    #        print('bleh')
-                    # self.dispatch(typed_ast3.AnnAssign(target=t.target, value=None,
-                    #                                   annotation=t.resolved_type_comment))
-                self.write('\n')
+                class Visitor(st.ast_manipulation.RecursiveAstVisitor[typed_ast3]):
+                    def visit_node(self, node):
+                        if isinstance(node, typed_ast3.For) and node.target.id == var \
+                                and node.type_comment is not None:
+                            node.type_comment = None
+                            declaration = typed_ast3.AnnAssign(
+                                target=node.target, value=None, annotation=node.resolved_type_comment)
+                            raise ValueError(declaration)
+                visitor = Visitor()
+                try:
+                    visitor.visit(static_t)
+                    self.fill('! oh la la')
+                except ValueError as err:
+                    self.dispatch(err.args[0])
+                # for stmt in static_t.body:
+                #    if isinstance(stmt, typed_ast3.For) and stmt.type_comment is not None:
+                #        stmt.type_comment = None
+                #        print('bleh')
+                # self.dispatch(typed_ast3.AnnAssign(target=t.target, value=None,
+                #                                   annotation=t.resolved_type_comment))
+            self.write('\n')
 
         self._context = t
         # self.dispatch(t.body)

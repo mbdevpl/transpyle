@@ -28,10 +28,9 @@ if not PERFORMANCE_RESULTS_ROOT.is_dir():
 
 class Tests(unittest.TestCase):
 
-    def test_empty_funciton(self):
+    def test_do_nothing(self):
         # reader = CodeReader()
         compiler_f95 = F2PyCompiler()
-        compiler_cpp = CppSwigCompiler()
         binder = Binder()
 
         name = 'do_nothing'
@@ -40,22 +39,20 @@ class Tests(unittest.TestCase):
         path_f95 = EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')
         variants['f95'] = (compiler_f95.compile_file(path_f95), None)
         if platform.system() == 'Linux':
+            compiler_cpp = CppSwigCompiler()
             path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
             variants['cpp'] = (compiler_cpp.compile_file(path_cpp), None)
         variants['py_numba'] = (variants['py'][0], numba.jit)
 
         for variant, (path, transform) in variants.items():
             with binder.temporarily_bind(path) as binding:
-                tested_function = binding.do_nothing
+                tested_function = getattr(binding, name)
                 if transform:
                     tested_function = transform(tested_function)
                 with self.subTest(variant=variant, path=path):
+                    # with _TIME.measure('{}.{}'.format(name, variant)) as timer:
                     for _ in _TIME.measure_many('{}.{}'.format(name, variant), 1000):
                         tested_function()
-                    # with _TIME.measure('{}.{}'.format(name, variant)) as timer:
-                    #    # timer = _TIME.start('{}.{}'.format(name, variant))
-                    #    binding.do_nothing()
-                    #    # timer.stop()
                     # _LOG.warning('timing: %s', timer)
 
         timings_name = '.'.join([__name__, name])
@@ -94,12 +91,11 @@ class Tests(unittest.TestCase):
 
         for variant, (path, transform) in variants.items():
             with binder.temporarily_bind(path) as binding:
-                tested_function = binding.compute_pi
+                tested_function = getattr(binding, name)
                 if transform:
                     tested_function = transform(tested_function)
                 for segments in segments_list:
                     with self.subTest(variant=variant, path=path, segments=segments):
-                        # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
                         for _ in _TIME.measure_many('{}.{}.{}'.format(name, segments, variant), 1000):
                             value = tested_function(segments)
                         if segments >= 17:
