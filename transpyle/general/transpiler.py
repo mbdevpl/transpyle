@@ -8,7 +8,6 @@ from .code_reader import CodeReader
 from .code_writer import CodeWriter
 from .language import Language
 from .compiler import Compiler
-from .binder import Binder
 from .translator import Translator, AutoTranslator
 
 
@@ -18,11 +17,9 @@ class Transpiler(Registry):
 
     _reader = None
 
-    def __init__(self, translator: Translator, compiler: Compiler#, binder: Binder
-                 ):
+    def __init__(self, translator: Translator, compiler: Compiler):
         self.translator = translator
         self.compiler = compiler
-        # self.binder = binder
 
     def transpile(self, code: str, path: pathlib.Path = None, translated_path: pathlib.Path = None,
                   compile_folder: pathlib.Path = None) -> pathlib.Path:
@@ -37,8 +34,6 @@ class Transpiler(Registry):
         code_writer.write_file(translated_code, translated_path)
         compiled_path = self.compiler.compile(translated_code, translated_path, compile_folder)
         return compiled_path
-        # binding = self.binder.bind(compiled_path)
-        # return binding
 
     def transpile_file(self, path: pathlib.Path):
         if self._reader is None:
@@ -46,7 +41,8 @@ class Transpiler(Registry):
         code = self._reader.read_file(path)
 
         translated_path = None
-        with tempfile.NamedTemporaryFile(suffix=self.to_language.default_file_extension) as translated_file:
+        with tempfile.NamedTemporaryFile(
+                suffix=self.translator.to_language.default_file_extension) as translated_file:
             # TODO: this leaves garbage behind in /tmp/ but is neeeded by some transpiler passes
             translated_path = pathlib.Path(translated_file.name)
 
@@ -58,14 +54,12 @@ class Transpiler(Registry):
 
         return self.transpile(code, path, translated_path, compile_folder)
 
+
 class AutoTranspiler(Transpiler):
 
     """Translate a function to another language, compile and create binding for the result."""
 
     def __init__(self, from_language: Language, to_language: Language):
-        super().__init__(AutoTranslator(from_language, to_language),
-                         Compiler.find(to_language)()#,
-                         #Binder.find(to_language)()
-                         )
+        super().__init__(AutoTranslator(from_language, to_language), Compiler.find(to_language)())
         self.from_language = from_language
         self.to_language = to_language
