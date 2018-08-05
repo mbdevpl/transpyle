@@ -14,11 +14,11 @@ import static_typing as st
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
+from ..pair import \
+    make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, separate_args_and_keywords
 from ..general.exc import ContinueIteration
 from ..general.misc import flatten_sequence
 from ..general import Language, XmlAstGeneralizer
-from ..python import \
-    make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, separate_args_and_keywords
 from .definitions import \
     FORTRAN_PYTHON_TYPE_PAIRS, FORTRAN_PYTHON_OPERATORS, INTRINSICS_FORTRAN_TO_PYTHON, \
     INTRINSICS_SPECIAL_CASES

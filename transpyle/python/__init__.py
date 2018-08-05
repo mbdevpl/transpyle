@@ -10,6 +10,7 @@ import typing as t
 
 import typed_ast.ast3 as typed_ast3
 
+from ..pair import make_range_call, make_numpy_constructor, make_st_ndarray
 from ..general import \
     CodeReader, Language, Parser, AstGeneralizer, IdentityAstGeneralizer, Unparser, Translator, \
     AutoTranspiler, Binder
@@ -41,104 +42,6 @@ Unparser.register(TypedPythonUnparserWithComments,
                   (Language.find('Python 3.5'), Language.find('Python 3.6')))
 
 Translator.register(PythonTranslator, (Language.find('Python 3.5'), Language.find('Python 3.6')))
-
-
-def make_range_call(begin: t.Optional[typed_ast3.AST] = None, end: typed_ast3.AST = None,
-                    step: t.Optional[typed_ast3.AST] = None) -> typed_ast3.Call:
-    """Create a typed_ast node equivalent to: range(begin, end, step)."""
-    assert isinstance(end, typed_ast3.AST)
-    if step is None:
-        if begin is None:
-            args = [end]
-        else:
-            args = [begin, end]
-    else:
-        assert isinstance(step, typed_ast3.AST)
-        assert isinstance(begin, typed_ast3.AST)
-        args = [begin, end, step]
-    return typed_ast3.Call(func=typed_ast3.Name(id='range', ctx=typed_ast3.Load()),
-                           args=args, keywords=[])
-
-
-def make_numpy_constructor(function: str, arg: typed_ast3.AST,
-                           data_type: typed_ast3.AST) -> typed_ast3.Call:
-    return typed_ast3.Call(
-        func=typed_ast3.Attribute(
-            value=typed_ast3.Name(id='np'), attr=function, ctx=typed_ast3.Load()),
-        args=[arg],
-        keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
-
-
-def make_st_ndarray(data_type: typed_ast3.AST,
-                    dimensions_or_sizes: t.Union[int, list]) -> typed_ast3.Subscript:
-    """Create a typed_ast node equivalent to: st.ndarray[dimensions, data_type, sizes]."""
-    if isinstance(dimensions_or_sizes, int):
-        dimensions = dimensions_or_sizes
-        sizes = None
-    else:
-        dimensions = len(dimensions_or_sizes)
-        # assert all(isinstance(_, typed_ast3.Index) for _ in dimensions_or_sizes), dimensions_or_sizes
-        # sizes = [_ for _ in dimensions_or_sizes]
-        sizes = []
-        for size in dimensions_or_sizes:
-            if isinstance(size, typed_ast3.Index):
-                size = size.value
-            elif isinstance(size, typed_ast3.Slice):
-                lower, upper, step = size.lower, size.upper, size.step
-                if lower is None and step is None and upper is None:
-                    size = typed_ast3.Call(typed_ast3.Name('slice', typed_ast3.Load()), [], [])
-                elif lower is None and step is None:
-                    size = size.upper
-                else:
-                    raise NotImplementedError('unsupported size form: "{}"'
-                                              .format(typed_ast3.dump(size)))
-                # assert size.lower is None \
-                #    or isinstance(size.lower, typed_ast3.Num) and size.lower.n == 0, size.lower
-                # assert size.step is None \
-                #    or isinstance(size.step, typed_ast3.Num) and size.step.n == 1, size.step
-                # assert size.upper is not None, typed_ast3.dump(size)
-            # elif isinstance(size, typed_ast3.ExtSlice):
-            #    size = size.dims
-            else:
-                raise NotImplementedError('unsupported size type: "{}"'.format(type(size)))
-            sizes.append(size)
-    return typed_ast3.Subscript(
-        value=typed_ast3.Attribute(
-            value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
-            attr='ndarray', ctx=typed_ast3.Load()),
-        slice=typed_ast3.Index(value=typed_ast3.Tuple(
-            elts=[typed_ast3.Num(n=dimensions), data_type] + [
-                typed_ast3.Tuple(elts=sizes, ctx=typed_ast3.Load())] if sizes else [],
-            ctx=typed_ast3.Load())),
-        ctx=typed_ast3.Load())
-
-
-STANDALONE_EXPRESSION_TYPES = (
-    typed_ast3.Call, typed_ast3.UnaryOp, typed_ast3.BinOp, typed_ast3.BoolOp,
-    typed_ast3.Compare, typed_ast3.IfExp, typed_ast3.Attribute, typed_ast3.Name,
-    typed_ast3.Subscript, typed_ast3.Num, typed_ast3.Str, typed_ast3.FormattedValue,
-    typed_ast3.JoinedStr, typed_ast3.Bytes, typed_ast3.List, typed_ast3.Tuple,
-    typed_ast3.Set, typed_ast3.Dict, typed_ast3.Ellipsis, typed_ast3.NameConstant)
-
-
-def fix_stmts_in_body(stmts: t.List[typed_ast3.AST]) -> t.List[typed_ast3.AST]:
-    assert isinstance(stmts, list)
-    if not stmts:
-        return [typed_ast3.Pass()]
-    return [typed_ast3.Expr(value=stmt) if isinstance(stmt, STANDALONE_EXPRESSION_TYPES)
-            else stmt for stmt in stmts]
-
-
-def separate_args_and_keywords(args_and_keywords):
-    args = []
-    keywords = []
-    for arg in args_and_keywords:
-        if isinstance(arg, typed_ast3.keyword):
-            keywords.append(arg)
-        else:
-            args.append(arg)
-    assert all(not isinstance(_, typed_ast3.keyword) for _ in args), args
-    return args, keywords
 
 
 def transpile(function_or_class, to_language: Language, *args, **kwargs):

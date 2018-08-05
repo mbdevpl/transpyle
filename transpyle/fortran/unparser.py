@@ -14,25 +14,12 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 from typed_astunparse.unparser import interleave
 
+from ..pair import \
+    function_returns, syntax_matches, _match_array, _match_io, returns_array
 from ..general import Language, Unparser
 from .definitions import PYTHON_FORTRAN_TYPE_PAIRS, PYTHON_FORTRAN_INTRINSICS
 
 _LOG = logging.getLogger(__name__)
-
-
-def _match_subscripted_attributed_name(tree, name: str, attr: str) -> bool:
-    return isinstance(tree, typed_ast3.Subscript) \
-        and isinstance(tree.value, typed_ast3.Attribute) \
-        and isinstance(tree.value.value, typed_ast3.Name) \
-        and tree.value.value.id == name and tree.value.attr == attr
-
-
-def _match_array(tree) -> bool:
-    return _match_subscripted_attributed_name(tree, 'st', 'ndarray')
-
-
-def _match_io(tree) -> bool:
-    return _match_subscripted_attributed_name(tree, 't', 'IO')
 
 
 class Fortran77UnparserBackend(horast.unparser.Unparser):
