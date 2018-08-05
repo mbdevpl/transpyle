@@ -6,9 +6,8 @@ import typing as t
 import pycparser.c_ast as c_ast
 import typed_ast.ast3 as typed_ast3
 
+from ..pair import make_range_call, fix_stmts_in_body
 from ..general import Language, AstGeneralizer
-from ..python import make_range_call, fix_stmts_in_body
-
 
 _LOG = logging.getLogger(__name__)
 
