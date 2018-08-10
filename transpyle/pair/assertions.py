@@ -11,5 +11,9 @@ def function_returns(function: typed_ast3.FunctionDef):
 
 
 def syntax_matches(syntax, target):
-    raise TypeError()
-    return False
+    _01 = typed_ast3.dump(syntax)
+    _02 = typed_ast3.dump(target)
+    return _01 == _02
+    # import ipdb; ipdb.set_trace()
+    # raise TypeError()
+    # return False

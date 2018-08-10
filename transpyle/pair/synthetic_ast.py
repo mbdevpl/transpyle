@@ -25,7 +25,8 @@ def make_numpy_constructor(function: str, arg: typed_ast3.AST,
                            data_type: typed_ast3.AST) -> typed_ast3.Call:
     return typed_ast3.Call(
         func=typed_ast3.Attribute(
-            value=typed_ast3.Name(id='np'), attr=function, ctx=typed_ast3.Load()),
+            value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()),
+            attr=function, ctx=typed_ast3.Load()),
         args=[arg],
         keywords=[typed_ast3.keyword(arg='dtype', value=data_type)])
 
@@ -46,10 +47,16 @@ def make_st_ndarray(data_type: typed_ast3.AST,
                 size = size.value
             elif isinstance(size, typed_ast3.Slice):
                 lower, upper, step = size.lower, size.upper, size.step
-                if lower is None and step is None and upper is None:
+                if lower is None and upper is None and step is None:
                     size = typed_ast3.Call(typed_ast3.Name('slice', typed_ast3.Load()), [], [])
-                elif lower is None and step is None:
-                    size = size.upper
+                elif lower is None and upper is not None and step is None:
+                    size = upper
+                elif lower is not None and upper is not None and step is None:
+                    size = typed_ast3.Call(typed_ast3.Name('slice', typed_ast3.Load()),
+                                           [lower, upper], [])
+                elif lower is not None and upper is None and step is None:
+                    size = typed_ast3.Call(typed_ast3.Name('slice', typed_ast3.Load()),
+                                           [lower, typed_ast3.NameConstant(None)], [])
                 else:
                     raise NotImplementedError('unsupported size form: "{}"'
                                               .format(typed_ast3.dump(size)))

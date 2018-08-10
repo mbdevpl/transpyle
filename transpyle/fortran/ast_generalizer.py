@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 
 import horast
 import horast.nodes as horast_nodes
+import numpy as np
 import static_typing as st
 import typed_ast.ast3 as typed_ast3
 import typed_astunparse
@@ -46,7 +47,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
     def generalize(self, syntax: ET.Element):
         self._now_parsing_file = False
-        return super().generalize(syntax)
+        generalized = super().generalize(syntax)
+        return st.augment(generalized, eval_=False, locals_={'np': np, 'st': st})
 
     def _ofp(self, node: ET.Element):
         assert len(node) == 1
@@ -579,6 +581,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'executable-construct', 'execution-part-construct'})
         cases = self.transform_all_subnodes(self.get_one(node, './body'))
         assert cases, 'encountered select without cases'
+        assert len(var) == 1, var
+        var = var[0]
         items = []
         first_case = None
         prev_case = None
@@ -592,7 +596,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                     items.append(case)
                 _LOG.debug('accumulated %s', [horast.unparse(_) for _ in items])
                 continue
-            case.test = typed_ast3.Compare(left=var, ops=[typed_ast3.Eq()], comparators=[case.test])
+            assert not isinstance(case.test, list), case.test
+            if isinstance(case.test, typed_ast3.Tuple):
+                op_ = typed_ast3.In()
+            else:
+                op_ = typed_ast3.Eq()
+            case.test = typed_ast3.Compare(left=var, ops=[op_], comparators=[case.test])
             if items:
                 _LOG.debug('prepending %s', [horast.unparse(_) for _ in items])
                 case.body = items + case.body
@@ -617,7 +626,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if len(header) > 1:
             _LOG.warning('many case values: %s',
                          [typed_astunparse.unparse(_).rstrip() for _ in header])
-            header = [header]
+            header = [typed_ast3.Tuple(elts=header, ctx=typed_ast3.Load())]
         body = self._if_body(body_node)
         if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
         return if_
@@ -697,6 +706,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             var = expression.value
             if isinstance(expression.slice, typed_ast3.Index):
                 sizes = [expression.slice.value]
+            elif isinstance(expression.slice, typed_ast3.Slice):
+                sizes = None
+                raise NotImplementedError('slice({}, {}, {}) cannot be handled'.format(
+                    expression.slice.lower, expression.slice.upper, expression.slice.step))
             elif isinstance(expression.slice, typed_ast3.ExtSlice):
                 sizes = expression.slice.dims
             else:
@@ -874,7 +887,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 len(input_), ET.tostring(node).decode().rstrip()))
         return input_[0]
 
-    def _create_file_handle_var(self):
+    def _create_file_handle_var(self) -> typed_ast3.Subscript:
         return typed_ast3.Subscript(
             value=typed_ast3.Attribute(value=typed_ast3.Name(id='Fortran', ctx=typed_ast3.Load()),
                                        attr='file_handles', ctx=typed_ast3.Load()),
@@ -1077,6 +1090,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         assert len(operators_and_operands) == 3, operators_and_operands
         left_operand, (operation_type, operator_type), right_operand = operators_and_operands
         assert operation_type is typed_ast3.Compare
+        assert not isinstance(right_operand, list), right_operand
         return typed_ast3.Compare(
             left=left_operand, ops=[operator_type()], comparators=[right_operand])
 

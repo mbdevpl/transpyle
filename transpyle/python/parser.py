@@ -101,8 +101,10 @@ class TypedPythonParserWithComments(TypedPythonParser):
         super().__init__(*args, **kwargs)
         self.parse_function = horast.parse
         self.resolver = st.ast_manipulation.TypeHintResolver[typed_ast3, typed_ast3](eval_=False)
+        self.typer = st.static_typer.StaticTyper[typed_ast3]()
 
     def _parse_scope_in_mode(self, code: str, filename: str, mode: str):
         syntax = super()._parse_scope_in_mode(code, filename, mode)
         syntax = self.resolver.visit(syntax)
+        syntax = self.typer.visit(syntax)
         return syntax

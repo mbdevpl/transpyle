@@ -37,6 +37,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._max_line_len = max_line_len
         self._context = None
         self._context_input_args = False
+        self._syntax = args[0]
         super().__init__(*args, **kwargs)
 
     def fill(self, text='', continuation: bool = False):
@@ -100,14 +101,21 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                 if not self._context_input_args:
                     self.dispatch(elts[2])
                 else:
-                    _LOG.warning('coercing indices to 0-based')
+                    assert isinstance(elts[2], typed_ast3.Tuple)
+                    _LOG.warning('coercing indices of %i dims to 0-based', len(elts[2].elts))
                     # _LOG.warning('coercing indices of %s in %s to 0-based', arg.arg, t.name)
-                    tup = elts[2]
-                    tup = typed_ast3.Tuple(
-                        elts=[typed_ast3.Slice(lower=typed_ast3.Num(n=0),
-                                               upper=typed_ast3.Num(n=elt.n - 1),
-                                               step=None) for elt in elts[2].elts],
-                        ctx=typed_ast3.Load())
+                    tup_elts = []
+                    for elt in elts[2].elts:
+                        if isinstance(elt, typed_ast3.Num):
+                            assert isinstance(elt.n, int)
+                            upper = typed_ast3.Num(n=elt.n - 1)
+                        else:
+                            assert isinstance(elt, typed_ast3.Name)
+                            upper = typed_ast3.BinOp(
+                                left=elt, op=typed_ast3.Sub(), right=typed_ast3.Num(n=1))
+                        tup_elts.append(typed_ast3.Slice(
+                            lower=typed_ast3.Num(n=0), upper=upper, step=None))
+                    tup = typed_ast3.Tuple(elts=tup_elts, ctx=typed_ast3.Load())
                     self.dispatch(tup)
 
             self.write(')')
@@ -333,13 +341,37 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             #    raise ValueError(horast.dump(t.args))
             if annotated_args:
                 from_python = True
+        '''
         if from_python:
+            assert isinstance(t, st.nodes.StaticallyTypedFunctionDef[typed_ast3])
             try:
                 static_t = st.augment(t, eval_=False)
             except:
                 import ipdb; ipdb.set_trace()
             assert isinstance(static_t,
                               st.nodes.StaticallyTypedFunctionDef[typed_ast3]), type(static_t)
+        '''
+        static_t = t
+
+        _LOG.warning('%s', type(self._syntax))
+        _LOG.warning('%s', self._syntax._module_vars)
+        ##for var in self._syntax._module_vars:
+        #    if var._
+        #_LOG.warning('%s', type(t))
+        generic_var_formulas = {}
+        for arg in t.args.args:
+            if _match_array(arg.resolved_annotation):
+                shape = arg.resolved_annotation.slice.value.elts[2]
+                for index, value in enumerate(shape.elts):
+                    if isinstance(value, typed_ast3.Name):
+                        assert len(shape.elts) == 1 and index == 0, 'only 1D generic arrays supported'
+                        generic_var_formulas[value.id] = typed_ast3.Attribute(
+                            value=typed_ast3.Name(id=arg.arg, ctx=typed_ast3.Load()),
+                            attr='size', ctx=typed_ast3.Load())
+                        _LOG.warning('generic size %s', arg.resolved_annotation.slice.value.elts[2])
+            #self._syntax
+            #_LOG.warning('%s', arg.resolved_annotation)
+            #_LOG.warning('%s', typed_ast3.dump(arg.resolved_annotation))
 
         # move return type into arguments
         if function_kind == 'subroutine' and t.returns is not None:
@@ -539,9 +571,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.fill('case (')
         assert isinstance(case.test, typed_ast3.Compare), type(case.test)
         assert len(case.test.ops) == 1
-        assert isinstance(case.test.ops[0], typed_ast3.Eq)
+        op_ = case.test.ops[0]
+        assert isinstance(op_, (typed_ast3.Eq, typed_ast3.In))
         assert len(case.test.comparators) == 1
         case_value = case.test.comparators[0]
+        if isinstance(op_, typed_ast3.In):
+            assert isinstance(case_value, typed_ast3.Tuple), type(case_value)
         self.dispatch(case_value)
         self.write(')')
         self.enter()
@@ -684,6 +719,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Fortran':
             raise NotImplementedError('Fortran.{} can be handled only when subscripted.'
                                       .format(t.attr))
+        if isinstance(t.value, typed_ast3.Name) and t.attr == 'size':
+            call = typed_ast3.Call(func=typed_ast3.Name(id='size', ctx=typed_ast3.Load()),
+                                   args=[t.value], keywords=[])
+            self._Call(call)
+            return
         self._unsupported_syntax(t)
         '''
         code = typed_astunparse.unparse(t).strip()
