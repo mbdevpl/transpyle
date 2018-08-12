@@ -4,6 +4,8 @@ import typing as t
 
 import typed_ast.ast3 as typed_ast3
 
+from ..pair import make_slice_from_call
+
 FORTRAN_PYTHON_TYPE_PAIRS = {
     ('logical', None): 'bool',
     ('integer', None): 'int',
@@ -207,9 +209,7 @@ PYTHON_FORTRAN_INTRINSICS = {
     'Fortran.file_handles[{name}].read': None,
     'Fortran.file_handles[{name}].close': None,
     '{name}.rstrip': None,
-    'slice': lambda call: {
-        0: typed_ast3.Slice(lower=None, upper=None, step=None),
-        3: typed_ast3.Slice(*call.args)}[len(call.args)]
+    'slice': make_slice_from_call
     }
 
 INTRINSICS_SPECIAL_CASES = {'getenv', 'trim', 'count'}

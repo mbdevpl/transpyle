@@ -48,8 +48,6 @@ before_install:
 
 install:
   - pip install -U pip
-  - pip install ply # workaround for broken packaging of pcpp
-  - pip install git+https://github.com/ned14/pcpp.git # workaround for broken packaging of pcpp
   # CastXML
   - |
     set -e

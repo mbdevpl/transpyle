@@ -153,6 +153,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.dispatch(step)
 
     def _Module(self, tree):
+        assert isinstance(tree, st.nodes.StaticallyTyped[typed_ast3])
         docstring = typed_ast3.get_docstring(tree)
         for stmt in tree.body:
             if docstring is not None and isinstance(stmt, typed_ast3.Expr) \
@@ -355,12 +356,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
         _LOG.warning('%s', type(self._syntax))
         _LOG.warning('%s', self._syntax._module_vars)
-        ##for var in self._syntax._module_vars:
+        # for var in self._syntax._module_vars:
         #    if var._
-        #_LOG.warning('%s', type(t))
         generic_var_formulas = {}
         for arg in t.args.args:
-            if _match_array(arg.resolved_annotation):
+            if hasattr(arg, 'resolved_annotation') and _match_array(arg.resolved_annotation):
                 shape = arg.resolved_annotation.slice.value.elts[2]
                 for index, value in enumerate(shape.elts):
                     if isinstance(value, typed_ast3.Name):
@@ -369,12 +369,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                             value=typed_ast3.Name(id=arg.arg, ctx=typed_ast3.Load()),
                             attr='size', ctx=typed_ast3.Load())
                         _LOG.warning('generic size %s', arg.resolved_annotation.slice.value.elts[2])
-            #self._syntax
-            #_LOG.warning('%s', arg.resolved_annotation)
-            #_LOG.warning('%s', typed_ast3.dump(arg.resolved_annotation))
+            # _LOG.warning('%s', arg.resolved_annotation)
+            # _LOG.warning('%s', typed_ast3.dump(arg.resolved_annotation))
 
         # move return type into arguments
-        if function_kind == 'subroutine' and t.returns is not None:
+        if function_kind == 'subroutine' and function_returns(t):
 
             class Visitor(st.ast_manipulation.RecursiveAstVisitor[typed_ast3]):
                 return_expressions = []
@@ -403,7 +402,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
         self.fill('{} {} ('.format(function_kind, t.name))
         self.dispatch(t.args)
-        if function_kind == 'subroutine' and t.returns is not None:
+        if function_kind == 'subroutine' and function_returns(t):
             self.write(', ')
             self.write(returned_name)
         self.write(')')
@@ -432,7 +431,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self._context_input_args = False
 
         if function_kind == 'subroutine':
-            if t.returns is not None:
+            if function_returns(t):
                 self.fill('! output arguments')
                 self.fill()
                 self.dispatch_var_type(t.returns)

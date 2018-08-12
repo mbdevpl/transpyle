@@ -21,7 +21,7 @@ transpyle
     :target: https://codecov.io/gh/mbdevpl/transpyle
     :alt: test coverage from Codecov
 
-.. image:: https://img.shields.io/pypi/l/transpyle.svg
+.. image:: https://img.shields.io/github/license/mbdevpl/transpyle.svg
     :target: https://github.com/mbdevpl/transpyle/blob/master/NOTICE
     :alt: license
 

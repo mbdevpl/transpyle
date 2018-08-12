@@ -16,7 +16,8 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
 from ..pair import \
-    make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, separate_args_and_keywords
+    make_expression_from_slice, make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, \
+    separate_args_and_keywords
 from ..general.exc import ContinueIteration
 from ..general.misc import flatten_sequence
 from ..general import Language, XmlAstGeneralizer
@@ -704,23 +705,13 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         for expression in expressions:
             assert isinstance(expression, typed_ast3.Subscript), type(expression)
             var = expression.value
-            if isinstance(expression.slice, typed_ast3.Index):
-                sizes = [expression.slice.value]
-            elif isinstance(expression.slice, typed_ast3.Slice):
-                sizes = None
-                raise NotImplementedError('slice({}, {}, {}) cannot be handled'.format(
-                    expression.slice.lower, expression.slice.upper, expression.slice.step))
-            elif isinstance(expression.slice, typed_ast3.ExtSlice):
-                sizes = expression.slice.dims
-            else:
-                raise NotImplementedError('unrecognized slice type: "{}"'
-                                          .format(type(expression.slice)))
+            sizes = make_expression_from_slice(expression.slice)
+            if not isinstance(sizes, typed_ast3.Tuple):
+                sizes = typed_ast3.Tuple(elts=[sizes], ctx=typed_ast3.Load())
             val = typed_ast3.Call(
-                func=typed_ast3.Attribute(
-                    value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()), attr='zeros',
-                    ctx=typed_ast3.Load()),
-                args=[typed_ast3.Tuple(elts=sizes, ctx=typed_ast3.Load())],
-                keywords=[typed_ast3.keyword(arg='dtype', value=typed_ast3.Attribute(
+                func=typed_ast3.Attribute(value=typed_ast3.Name(id='np', ctx=typed_ast3.Load()),
+                                          attr='zeros', ctx=typed_ast3.Load()),
+                args=[sizes], keywords=[typed_ast3.keyword(arg='dtype', value=typed_ast3.Attribute(
                     value=typed_ast3.Name(id='t', ctx=typed_ast3.Load()), attr='Any',
                     ctx=typed_ast3.Load()))])
             assert isinstance(var, typed_ast3.AST)
