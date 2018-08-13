@@ -354,8 +354,8 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         '''
         static_t = t
 
-        _LOG.warning('%s', type(self._syntax))
-        _LOG.warning('%s', self._syntax._module_vars)
+        # _LOG.warning('%s', type(self._syntax))
+        # _LOG.warning('%s', self._syntax._module_vars)
         # for var in self._syntax._module_vars:
         #    if var._
         generic_var_formulas = {}
