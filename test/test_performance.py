@@ -136,6 +136,7 @@ class Tests(unittest.TestCase):
         variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
         variants['f95'] = (
             compiler_f95.compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')), None)
+        # variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
         variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
         variants['numpy'] = (variants['py'][0], lambda f: np.copy)
 
@@ -147,8 +148,10 @@ class Tests(unittest.TestCase):
                 tested_function = getattr(binding, name)
                 if transform:
                     tested_function = transform(tested_function)
+                # import ipdb; ipdb.set_trace()
                 for array in arrays:
                     with self.subTest(variant=variant, path=path, array_size=array.size):
+                        # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
                         for _ in _TIME.measure_many('{}.{}.{}'.format(name, array.size, variant), 50):
                             array_copy = tested_function(array)
                         self.assertListEqual(array.tolist(), array_copy.tolist())

@@ -206,6 +206,7 @@ PYTHON_FORTRAN_INTRINSICS = {
     'MPI.Allreduce': 'MPI_Allreduce',
     'MPI.Finalize': 'MPI_Finalize',
     '{expression}.sum': None,
+    '{expression}.size': None,
     'Fortran.file_handles[{name}].read': None,
     'Fortran.file_handles[{name}].close': None,
     '{name}.rstrip': None,
