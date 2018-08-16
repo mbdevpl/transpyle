@@ -160,7 +160,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
             inlined_statements.append(horast_nodes.Comment(
                 value=typed_ast3.Str(s=' inlined {}'.format(call_code)), eol=False))
         for stmt in self._inlined_function.body:
-            stmt = st.augment(copy.deepcopy(stmt))
+            stmt = st.augment(copy.deepcopy(stmt), eval_=False)
             for replacer in replacers:
                 stmt = replacer.visit(stmt)
             inlined_statements.append(stmt)
@@ -169,7 +169,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
                 value=typed_ast3.Str(s=' end of inlined {}'.format(call_code)), eol=False))
         _LOG.warning('inlining a call %s using replacers %s', call_code, replacers)
         # inlined_call.body = scope
-        # return st.augment(inlined_call)
+        # return st.augment(inlined_call), eval_=False)
         assert inlined_statements
         if len(inlined_statements) == 1:
             return inlined_statements[0]

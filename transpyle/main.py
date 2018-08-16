@@ -72,7 +72,7 @@ def parse_args(args=None):
                         help='only given line scopes are transpiled')
     parser.add_argument('--objects', '--object', '--obj', metavar='pattern', type=str, nargs='*',
                         default=None,
-                        help='transpile only selected object(s) within the file (acceps regular'
+                        help='transpile only selected object(s) within the file (accepts regular'
                         ' expressions), whole file is transpiled if not provided')
     parser.add_argument('--keep', action='store_true',
                         help='do not discard not-transpiled scopes of the code')

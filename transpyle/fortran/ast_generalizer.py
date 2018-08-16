@@ -121,7 +121,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
         return typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
-            returns=typed_ast3.NameConstant(None))
+            returns=typed_ast3.NameConstant(None), type_comment=None)
 
     def _subroutine(self, node: ET.Element) -> typed_ast3.FunctionDef:
         header_node = self.get_one(node, './header')
@@ -134,7 +134,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         body = self.transform_all_subnodes(self.get_one(node, './body'))
         function_def = typed_ast3.FunctionDef(
             name=node.attrib['name'], args=arguments, body=body, decorator_list=[],
-            returns=typed_ast3.NameConstant(None))
+            returns=typed_ast3.NameConstant(None), type_comment=None)
         members_node = node.find('./members')
         if members_node is not None:
             members = self.transform_all_subnodes(members_node, ignored={
@@ -241,9 +241,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                     ctx=typed_ast3.Load()), ctx=typed_ast3.Load())
         else:
             raise SyntaxError('expecting only "none" or "some", but got "{}"'.format(subtype))
-        return typed_ast3.AnnAssign(
+        implicit = typed_ast3.AnnAssign(
             target=typed_ast3.Name(id='implicit', ctx=typed_ast3.Store()), annotation=annotation,
             value=None, simple=True)
+        implicit.fortran_metadata = {'is_declaration': True}
+        return implicit
 
     def _letter_ranges(self, node) -> t.List[typed_ast3.Str]:
         return self.transform_all_subnodes(node, ignored={
@@ -309,7 +311,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         else:
             values = [val for _, val in variables_and_values]
 
-        metadata = {}
+        metadata = {'is_declaration': True}
         intent_node = node.find('./intent')
         if intent_node is not None:
             metadata['intent'] = intent_node.attrib['type']
