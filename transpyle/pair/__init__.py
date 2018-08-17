@@ -6,6 +6,7 @@ import typed_ast.ast3 as typed_ast3
 
 from .assertions import function_returns, is_ast_none, syntax_matches
 from .manipulate import fix_stmts_in_body, separate_args_and_keywords
+from .code_manipulation import replace_line, replace_scope
 from .synthetic_ast import \
     make_range_call, make_call_from_slice, make_expression_from_slice, make_slice_from_call, \
     make_numpy_constructor, make_st_ndarray

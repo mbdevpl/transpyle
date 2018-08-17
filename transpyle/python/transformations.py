@@ -58,8 +58,33 @@ def replace_name(arg, value, name):
     return name
 
 
+def delete_declaration(declaration):
+    if not isinstance(declaration, (typed_ast3.Assign, typed_ast3.AnnAssign)):
+        return declaration
+    intent = getattr(declaration, 'fortran_metadata', {}).get('intent', None)
+    if intent in {'in', 'out', 'inout'}:
+        return horast_nodes.Comment(
+            typed_ast3.Str(' skipping intent({}) declaration when inlining'.format(intent)),
+            eol=False)
+    if getattr(declaration, 'fortran_metadata', {}).get('is_declaration', False):
+        # TODO: it's a hack
+        return horast_nodes.Comment(
+            typed_ast3.Str(' skipping a declaration when inlining'), eol=False)
+    return declaration
+
+def names_equivalent(arg: str, value: typed_ast3.AST):
+    if isinstance(value, typed_ast3.Name):
+        return arg == value.id
+    if isinstance(value, typed_ast3.Subscript):
+        _LOG.warning('ignoring indices when checking name equivalence')
+        return names_equivalent(arg, value.value)
+    # import ipdb; ipdb.set_trace()
+    raise NotImplementedError('cannot check name equivalence of {}'.format(type(value)))
+
+
 def create_name_replacers(values, replacements):
-    args_mapping = {arg: value for arg, value in zip(values, replacements)}
+    args_mapping = {arg: value for arg, value in zip(values, replacements)
+                    if not names_equivalent(arg, value)}
     return [Replacer(functools.partial(replace_name, arg, value))
             for arg, value in args_mapping.items()]
 
@@ -147,6 +172,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         assert self._is_valid_target_for_inlining(call)
 
         replacers = []
+        replacers.append(Replacer(delete_declaration))
         replacers += create_name_replacers(self._inlined_args, call.args)
 
         return self._inline_call(call, replacers)
@@ -163,7 +189,8 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
             stmt = st.augment(copy.deepcopy(stmt), eval_=False)
             for replacer in replacers:
                 stmt = replacer.visit(stmt)
-            inlined_statements.append(stmt)
+            if stmt is not None:
+                inlined_statements.append(stmt)
         if self._verbose:
             inlined_statements.append(horast_nodes.Comment(
                 value=typed_ast3.Str(s=' end of inlined {}'.format(call_code)), eol=False))

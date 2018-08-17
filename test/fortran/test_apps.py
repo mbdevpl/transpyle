@@ -1,17 +1,24 @@
 """Integration tests based on various scientific applications."""
 
-# import logging
+import logging
 import os
 import pathlib
 import unittest
+import xml.etree.ElementTree as ET
 
-from transpyle.general import Language, Parser, AstGeneralizer, Unparser
+import static_typing as st
+import typed_ast.ast3 as typed_ast3
+import typed_astunparse
+
+from transpyle.general import Language, CodeReader, Parser, AstGeneralizer, Unparser, CodeWriter
+from transpyle.python.transformations import inline_syntax
+from transpyle.pair import replace_scope
 
 from test.common import \
-    APPS_RESULTS_ROOT, basic_check_fortran_code, basic_check_fortran_ast, \
+    RESULTS_ROOT, APPS_RESULTS_ROOT, basic_check_fortran_code, basic_check_fortran_ast, \
     basic_check_python_code, basic_check_python_ast
 
-# _LOG = logging.getLogger(__name__)
+_LOG = logging.getLogger(__name__)
 
 _HERE = pathlib.Path(__file__).resolve().parent
 
@@ -164,6 +171,77 @@ class Tests(unittest.TestCase):
     def test_roundtrip_flash_subset_hydro(self):
         self._test_app('FLASH-SUBSET-hydro', _prepare_roundtrip(self, Language.find('Fortran')),
                        _roundtrip_fortran)
+
+    @unittest.skipUnless(os.environ.get('TEST_FLASH'), 'skipping test on FLASH code')
+    def test_inline_flash_subset_hydro(self):
+        app_name = 'FLASH-SUBSET'
+        language = Language.find('Fortran')
+        reader = CodeReader()
+        parser = Parser.find(language)()
+        ast_generalizer = AstGeneralizer.find(language)()
+        f_unparser = Unparser.find(language)()
+        py_unparser = Unparser.find(Language.find('Python'))()
+        writer = CodeWriter()
+
+        dir_name = app_name.lower()
+        results_path = pathlib.Path(RESULTS_ROOT, 'transformations', 'inlining', dir_name)
+        results_path.mkdir(parents=True, exist_ok=True)
+
+        inlined_path = pathlib.Path(
+            _APPS_ROOT_PATHS[app_name], 'source',
+            'physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux_loop.F90')
+        target_path = pathlib.Path(
+            _APPS_ROOT_PATHS[app_name], 'source',
+            'physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux.F90')
+
+        output_inlined_path = results_path.joinpath(inlined_path.name)
+        output_target_path = results_path.joinpath(target_path.name)
+        output_path = results_path.joinpath('hy_upwindTransverseFlux_inlined.F90')
+
+        inlined_xml = parser.parse('', inlined_path)
+        inlined_xml = inlined_xml.find('.//subroutine')
+        writer.write_file(ET.tostring(inlined_xml, 'utf-8').decode(),
+                          output_inlined_path.with_suffix('.xml'))
+
+        inlined_syntax = ast_generalizer.generalize(inlined_xml)
+        writer.write_file(typed_astunparse.dump(inlined_syntax),
+                          output_inlined_path.with_suffix('.ast.py'))
+        writer.write_file(py_unparser.unparse(inlined_syntax),
+                          output_inlined_path.with_suffix('.py'))
+        writer.write_file(f_unparser.unparse(inlined_syntax),
+                          output_inlined_path.with_suffix('.f95'))
+
+        target_code = reader.read_file(target_path)
+        target_xml = parser.parse(target_code, target_path)
+        # import ipdb; ipdb.set_trace()
+        target_xml = target_xml.findall('.//call')[1]
+        writer.write_file(ET.tostring(target_xml, 'utf-8').decode(),
+                          output_target_path.with_suffix('.xml'))
+
+        target_syntax = ast_generalizer.generalize(target_xml)
+        writer.write_file(typed_astunparse.dump(target_syntax),
+                          output_target_path.with_suffix('.ast.py'))
+        writer.write_file(py_unparser.unparse(target_syntax),
+                          output_target_path.with_suffix('.py'))
+        writer.write_file(f_unparser.unparse(target_syntax),
+                          output_target_path.with_suffix('.f95'))
+
+        mock_function = typed_ast3.FunctionDef(
+            'f', typed_ast3.arguments([], None, [], None, [], []),
+            [typed_ast3.Expr(target_syntax)], [], None, None)
+        output_syntax = inline_syntax(mock_function, inlined_syntax, globals_=globals())
+        output_syntax = st.augment(typed_ast3.Module(output_syntax.body, []), eval_=False)
+        writer.write_file(typed_astunparse.dump(output_syntax),
+                          output_path.with_suffix('.ast.py'))
+        writer.write_file(py_unparser.unparse(output_syntax),
+                          output_path.with_suffix('.py'))
+        output_code = f_unparser.unparse(output_syntax)
+        writer.write_file(output_code, output_path.with_suffix('.f95'))
+
+        _LOG.warning('[%s %s] <- %i', target_xml.attrib['line_begin'], target_xml.attrib['line_end'], len(output_code))
+        # target_path
+        total_code = replace_scope(target_code, int(target_xml.attrib['line_begin']), int(target_xml.attrib['line_end']) + 1, output_code)
+        writer.write_file(total_code, output_path)
 
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
     def test_roundtrip_ffbmini(self):
