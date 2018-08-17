@@ -53,7 +53,8 @@ class Tests(unittest.TestCase):
 
     def test_compile(self):
         compiler = F2PyCompiler()
-        for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
+        for input_path in [_ for _ in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES
+                           if _.name in ('addition.f90', 'do_nothing.f90')]:
             output_dir = pathlib.Path(
                 EXAMPLES_RESULTS_ROOT, input_path.parent.name,
                 'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
@@ -73,7 +74,8 @@ class Tests(unittest.TestCase):
     def test_bind(self):
         compiler = F2PyCompiler()
         binder = F2PyBinder()
-        for input_path in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES:
+        for input_path in [_ for _ in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES
+                           if _.name in ('addition.f90', 'do_nothing.f90')]:
             output_dir = pathlib.Path(
                 EXAMPLES_RESULTS_ROOT, input_path.parent.name,
                 'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
