@@ -204,9 +204,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.fill()
         if t.type_comment:
             self.dispatch_var_type(t.resolved_type_comment)
-        else:
-            assert not metadata, metadata
-        self._write_assignment_metadata(metadata)
+        self._write_assignment_metadata(metadata, first=t.type_comment is None)
         if t.type_comment or metadata:
             self.write(' :: ')
         assert len(t.targets) == 1
@@ -215,11 +213,14 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(" = ")
             self.dispatch(t.value)
 
-    def _write_assignment_metadata(self, metadata):
+    def _write_assignment_metadata(self, metadata, first: bool=True):
         for key, value in metadata.items():
             if key == 'is_declaration':
                 continue
-            self.write(', ')
+            if first:
+                first = False
+            else:
+                self.write(', ')
             if value is True:
                 self.write(key[3:])
             else:
@@ -253,7 +254,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if metadata.get('is_allocation', False):
             raise NotImplementedError('allocation')
         self.dispatch_var_type(t.annotation)
-        self._write_assignment_metadata(metadata)
+        self._write_assignment_metadata(metadata, first=False)
         self.write(' :: ')
         self.dispatch(t.target)
         if t.value:
