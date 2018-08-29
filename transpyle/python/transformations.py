@@ -59,6 +59,10 @@ def replace_name(arg, value, name):
 
 
 def delete_declaration(declaration):
+    if isinstance(declaration, (typed_ast3.Import, typed_ast3.ImportFrom)):
+        # TODO: it's a hack
+        return horast_nodes.Comment(
+            typed_ast3.Str(' skipping a "use" statement when inlining'), eol=False)
     if not isinstance(declaration, (typed_ast3.Assign, typed_ast3.AnnAssign)):
         return declaration
     intent = getattr(declaration, 'fortran_metadata', {}).get('intent', None)
@@ -71,6 +75,7 @@ def delete_declaration(declaration):
         return horast_nodes.Comment(
             typed_ast3.Str(' skipping a declaration when inlining'), eol=False)
     return declaration
+
 
 def names_equivalent(arg: str, value: typed_ast3.AST):
     if isinstance(value, typed_ast3.Name):
