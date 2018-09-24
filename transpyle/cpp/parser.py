@@ -2,27 +2,32 @@
 
 import logging
 import pathlib
-import subprocess
+# import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
+import argunparse
+
 from ..general import Parser
+from ..general.tools import run_tool
 
 _LOG = logging.getLogger(__name__)
 
+CASTXML_PATH = pathlib.Path('castxml')
+
 
 def run_castxml(input_path: pathlib.Path, output_path: pathlib.Path, gcc: bool = False):
-    """Run CastXML with given arguments"""
-    castxml = pathlib.Path('castxml')
-    output_version = '--castxml-gccxml' if gcc else '--castxml-output=1'
-    result = subprocess.run(
-        [str(castxml), output_version, '-o', str(output_path), str(input_path),
-         '--castxml-cc-gnu', 'g++'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if result.returncode != 0:
-        _LOG.error('%s', result)
-        raise RuntimeError('could not parse {}'.format(input_path))
-    return result
+    """Run CastXML with given arguments."""
+    args = [input_path]
+    kwargs = {}
+    if gcc:
+        kwargs['castxml-gccxml'] = True
+    else:
+        kwargs['castxml-output=1'] = True
+    kwargs['castxml-cc-gnu'] = 'g++'
+    kwargs['o'] = str(output_path)
+    return run_tool(CASTXML_PATH, args, kwargs,
+                    argunparser=argunparse.ArgumentUnparser(opt_value=' '))
 
 
 class CppParser(Parser):

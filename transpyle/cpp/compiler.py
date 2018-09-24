@@ -15,6 +15,7 @@ import argunparse
 # import typed_ast.ast3 as typed_ast3
 
 from ..general import Language, CodeReader, Parser, AstGeneralizer, Unparser, Compiler
+from ..general.tools import run_tool
 
 PYTHON_LIB_PATH = pathlib.Path(get_python_inc(plat_specific=1))
 
@@ -113,12 +114,7 @@ class SwigCompiler(Compiler):
         """
         swig_cmd = ['swig', '-python', *args, str(interface_path)]
         _LOG.info('running SWIG via %s', swig_cmd)
-        result = subprocess.run(swig_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            _LOG.error('SWIG failed: %s', result)
-        else:
-            _LOG.debug('SWIG succeeded: %s', result)
-        return result
+        return run_tool(pathlib.Path(swig_cmd[0]), swig_cmd[1:])
 
 
 class CppSwigCompiler(SwigCompiler):
@@ -131,22 +127,14 @@ class CppSwigCompiler(SwigCompiler):
     def __init__(self):
         super().__init__(Language.find('C++'))
 
-    def run_gpp(self, *args):
+    def run_gpp(self, *args) -> subprocess.CompletedProcess:
         compiler = {'Linux': 'g++', 'Darwin': 'clang++'}[platform.system()]
         gcc_cmd = [compiler, *args]
         _LOG.warning('running C++ compiler: %s', gcc_cmd)
-        result = subprocess.run(gcc_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            stderr, result.stderr = result.stderr, None
-            _LOG.error('C++ compiler failed: %s', result)
-            result.stderr = stderr
-            stderr = result.stderr.decode('utf-8', 'ignore')
-            _LOG.error('C++ compiler stderr is: %s', stderr[:2048])
-        else:
-            _LOG.debug('C++ compiler succeeded: %s', result)
-        return result
+        return run_tool(pathlib.Path(compiler), args)
 
-    def run_cpp_compiler(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
+    def run_cpp_compiler(self, path: pathlib.Path,
+                         wrapper_path: pathlib.Path = None) -> subprocess.CompletedProcess:
         # gcc -c example.c example_wrap.c -I/usr/local/include/python2.1
         flags = '-I{} {} {}'.format(
             self.py_config['INCLUDEPY'],
@@ -156,7 +144,8 @@ class CppSwigCompiler(SwigCompiler):
                     '-c', str(path), str(wrapper_path)]
         return self.run_gpp(*gcc_args)
 
-    def run_cpp_linker(self, path: pathlib.Path, wrapper_path: pathlib.Path = None):
+    def run_cpp_linker(self, path: pathlib.Path,
+                       wrapper_path: pathlib.Path = None) -> subprocess.CompletedProcess:
         # ld -shared example.o example_wrap.o -o _example.so
         ldlibrary = pathlib.Path(self.py_config['LDLIBRARY'].lstrip('lib')).with_suffix('')
         flags = '-L{} -l{} {} {} {}'.format(
