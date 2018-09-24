@@ -18,6 +18,7 @@ CPP_PYTHON_TYPE_PAIRS = {
     'float': 'float',
     'double': 'np.double',
     'long double': 'np.double',  # incorrect
+    '__float128': 'np.float128',
     # characters and strings
     'char': 'str',  # incorrect
     'signed char': 'str',  # incorrect

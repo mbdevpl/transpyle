@@ -64,14 +64,14 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(summary['py']['median'], summary['f95']['median'],
                                places=5 if os.environ.get('CI') else 6)
         if platform.system() == 'Linux':
-            self.assertAlmostEqual(summary['py']['median'], summary['cpp']['median'],
-                                   places=5 if os.environ.get('CI') else 6)
+            self.assertGreater(summary['py']['median'], summary['cpp']['median'])
 
     # @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     def test_compute_pi(self):
         # reader = CodeReader()
         compiler_cpp = CppSwigCompiler()
-        transpiler_py_to_f95 = AutoTranspiler(Language.find('Python 3'), Language.find('Fortran 95'))
+        transpiler_py_to_f95 = AutoTranspiler(
+            Language.find('Python 3'), Language.find('Fortran 95'))
         # transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
         binder = Binder()
 
@@ -99,7 +99,8 @@ class Tests(unittest.TestCase):
                     tested_function = transform(tested_function)
                 for segments in segments_list:
                     with self.subTest(variant=variant, path=path, segments=segments):
-                        for _ in _TIME.measure_many('{}.{}.{}'.format(name, segments, variant), 1000):
+                        for _ in _TIME.measure_many(
+                                '{}.{}.{}'.format(name, segments, variant), 1000):
                             value = tested_function(segments)
                         if segments >= 17:
                             self.assertAlmostEqual(value, np.pi, places=5)

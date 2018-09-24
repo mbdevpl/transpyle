@@ -16,7 +16,8 @@ def run_castxml(input_path: pathlib.Path, output_path: pathlib.Path, gcc: bool =
     castxml = pathlib.Path('castxml')
     output_version = '--castxml-gccxml' if gcc else '--castxml-output=1'
     result = subprocess.run(
-        [str(castxml), output_version, '-o', str(output_path), str(input_path)],
+        [str(castxml), output_version, '-o', str(output_path), str(input_path),
+         '--castxml-cc-gnu', 'g++'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
         _LOG.error('%s', result)

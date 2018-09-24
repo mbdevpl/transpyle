@@ -24,14 +24,16 @@ _HERE = pathlib.Path(__file__).resolve().parent
 
 _ROOT = _HERE.parent.parent
 
+_APPS_ROOT = pathlib.Path(os.environ.get('TEST_APPS_ROOT', _ROOT.parent)).resolve()
+
 _FORTRAN_SUFFIXES = ('.f', '.F', '.f90', '.F90')
 
-_APPS_PARENT_PATHS = {
-    'miranda_io': pathlib.Path('fortran'),
-    'FLASH-4.5': pathlib.Path('fortran'),
-    'FLASH-SUBSET': pathlib.Path('fortran'),
-    'FLASH-SUBSET-hydro': pathlib.Path('fortran'),
-    'FFB-MINI': pathlib.Path('fortran')}
+# _APPS_PARENT_PATHS = {
+#     'miranda_io': pathlib.Path('fortran'),
+#     'FLASH-4.5': pathlib.Path('fortran'),
+#     'FLASH-SUBSET': pathlib.Path('fortran'),
+#     'FLASH-SUBSET-hydro': pathlib.Path('fortran'),
+#     'FFB-MINI': pathlib.Path('fortran')}
 
 _APPS_ROOT_PATHS = {
     'miranda_io': pathlib.Path('miranda_io'),
@@ -42,14 +44,14 @@ _APPS_ROOT_PATHS = {
 
 _APPS_OPTIONAL = {'FLASH-4.5', 'FLASH-SUBSET', 'FLASH-SUBSET-hydro'}
 
-_APPS_ROOT_PATHS = {
-    app: (pathlib.Path('..', path) if _ROOT.joinpath('..', path).is_dir()
-          else pathlib.Path('..', '..', _APPS_PARENT_PATHS[app], path))
-    for app, path in _APPS_ROOT_PATHS.items()}
+# _APPS_ROOT_PATHS = {
+#     app: (pathlib.Path('..', path) if _APPS_ROOT.joinpath('..', path).is_dir()
+#           else pathlib.Path('..', '..', _APPS_PARENT_PATHS[app], path))
+#     for app, path in _APPS_ROOT_PATHS.items()}
 
 _APPS_ROOT_PATHS = {
-    app: _ROOT.joinpath(path).resolve() for app, path in _APPS_ROOT_PATHS.items()
-    if app not in _APPS_OPTIONAL or _ROOT.joinpath(path).is_dir()}
+    app: _APPS_ROOT.joinpath(path).resolve() for app, path in _APPS_ROOT_PATHS.items()
+    if app not in _APPS_OPTIONAL or _APPS_ROOT.joinpath(path).is_dir()}
 
 _FLASH_COMMON_PATHS = [
     'physics/Hydro/HydroMain/split/MHD_8Wave/hy_8wv_interpolate.F90',
@@ -175,6 +177,8 @@ class Tests(unittest.TestCase):
     @unittest.skipUnless(os.environ.get('TEST_FLASH'), 'skipping test on FLASH code')
     def test_inline_flash_subset_hydro(self):
         app_name = 'FLASH-SUBSET'
+        if app_name not in _APPS_ROOT_PATHS and app_name in _APPS_OPTIONAL:
+            self.skipTest('{} directory not found'.format(app_name))
         language = Language.find('Fortran')
         reader = CodeReader()
         parser = Parser.find(language)()

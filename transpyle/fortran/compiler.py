@@ -45,9 +45,9 @@ class F2PyCompiler(Compiler):
             with contextlib.redirect_stderr(stderr):
                 returncode = numpy.f2py.compile(
                     source=code, modulename=module_name, extra_args=extra_args,
-                    verbose=False, source_fn=str(path), extension=path.suffix)
+                    verbose=False, source_fn='{}'.format(path).replace(' ', '\\ '), extension=path.suffix)
         result = subprocess.CompletedProcess(
-            args='f2py -c -m {} {} {}'.format(module_name, extra_args, str(path)),
+            args='f2py -c -m {} {} "{}"'.format(module_name, extra_args, path),
             returncode=returncode, stdout=stdout.getvalue(), stderr=stderr.getvalue())
         return result
 
