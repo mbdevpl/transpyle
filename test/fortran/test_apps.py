@@ -187,61 +187,68 @@ class Tests(unittest.TestCase):
         results_path = pathlib.Path(RESULTS_ROOT, 'transformations', 'inlining', dir_name)
         results_path.mkdir(parents=True, exist_ok=True)
 
-        inlined_path = pathlib.Path(
-            _APPS_ROOT_PATHS[app_name], 'source',
-            'physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux_loop.F90')
-        target_path = pathlib.Path(
-            _APPS_ROOT_PATHS[app_name], 'source',
-            'physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux.F90')
+        path_pairs = [
+            (pathlib.Path('physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux_loop.F90'),
+             pathlib.Path('physics/Hydro/HydroMain/unsplit/hy_upwindTransverseFlux.F90'),
+             (1, 1)),
+            (pathlib.Path('physics/Eos/EosMain/Eos_getData_loop1.F90'),
+             pathlib.Path('physics/Eos/EosMain/Eos_getData.F90'),
+             (1, 2))]
 
-        output_inlined_path = results_path.joinpath(inlined_path.name)
-        output_target_path = results_path.joinpath(target_path.name)
-        output_path = results_path.joinpath('hy_upwindTransverseFlux_inlined.F90')
+        for inlined_path, target_path, (index, extra_lines) in path_pairs:
+            inlined_path = pathlib.Path(_APPS_ROOT_PATHS[app_name], 'source', inlined_path)
+            target_path = pathlib.Path(_APPS_ROOT_PATHS[app_name], 'source', target_path)
 
-        inlined_xml = parser.parse('', inlined_path)
-        inlined_xml = inlined_xml.find('.//subroutine')
-        writer.write_file(ET.tostring(inlined_xml, 'utf-8').decode(),
-                          output_inlined_path.with_suffix('.xml'))
+            output_inlined_path = results_path.joinpath(inlined_path.name)
+            output_target_path = results_path.joinpath(target_path.name)
+            output_path = results_path.joinpath(target_path.with_suffix('').name + '_inlined.F90')
 
-        inlined_syntax = ast_generalizer.generalize(inlined_xml)
-        writer.write_file(typed_astunparse.dump(inlined_syntax),
-                          output_inlined_path.with_suffix('.ast.py'))
-        writer.write_file(py_unparser.unparse(inlined_syntax),
-                          output_inlined_path.with_suffix('.py'))
-        writer.write_file(f_unparser.unparse(inlined_syntax),
-                          output_inlined_path.with_suffix('.f95'))
+            inlined_xml = parser.parse('', inlined_path)
+            inlined_xml = inlined_xml.find('.//subroutine')
+            writer.write_file(ET.tostring(inlined_xml, 'utf-8').decode(),
+                              output_inlined_path.with_suffix('.xml'))
 
-        target_code = reader.read_file(target_path)
-        target_xml = parser.parse(target_code, target_path)
-        # import ipdb; ipdb.set_trace()
-        target_xml = target_xml.findall('.//call')[1]
-        writer.write_file(ET.tostring(target_xml, 'utf-8').decode(),
-                          output_target_path.with_suffix('.xml'))
+            inlined_syntax = ast_generalizer.generalize(inlined_xml)
+            writer.write_file(typed_astunparse.dump(inlined_syntax),
+                              output_inlined_path.with_suffix('.ast.py'))
+            writer.write_file(py_unparser.unparse(inlined_syntax),
+                              output_inlined_path.with_suffix('.py'))
+            writer.write_file(f_unparser.unparse(inlined_syntax),
+                              output_inlined_path.with_suffix('.f95'))
 
-        target_syntax = ast_generalizer.generalize(target_xml)
-        writer.write_file(typed_astunparse.dump(target_syntax),
-                          output_target_path.with_suffix('.ast.py'))
-        writer.write_file(py_unparser.unparse(target_syntax),
-                          output_target_path.with_suffix('.py'))
-        writer.write_file(f_unparser.unparse(target_syntax),
-                          output_target_path.with_suffix('.f95'))
+            target_code = reader.read_file(target_path)
+            target_xml = parser.parse(target_code, target_path)
+            # import ipdb; ipdb.set_trace()
+            target_xml = target_xml.findall('.//call')[index]
+            writer.write_file(ET.tostring(target_xml, 'utf-8').decode(),
+                              output_target_path.with_suffix('.xml'))
 
-        mock_function = typed_ast3.FunctionDef(
-            'f', typed_ast3.arguments([], None, [], None, [], []),
-            [typed_ast3.Expr(target_syntax)], [], None, None)
-        output_syntax = inline_syntax(mock_function, inlined_syntax, globals_=globals())
-        output_syntax = st.augment(typed_ast3.Module(output_syntax.body, []), eval_=False)
-        writer.write_file(typed_astunparse.dump(output_syntax),
-                          output_path.with_suffix('.ast.py'))
-        writer.write_file(py_unparser.unparse(output_syntax),
-                          output_path.with_suffix('.py'))
-        output_code = f_unparser.unparse(output_syntax)
-        writer.write_file(output_code, output_path.with_suffix('.f95'))
+            target_syntax = ast_generalizer.generalize(target_xml)
+            writer.write_file(typed_astunparse.dump(target_syntax),
+                              output_target_path.with_suffix('.ast.py'))
+            writer.write_file(py_unparser.unparse(target_syntax),
+                              output_target_path.with_suffix('.py'))
+            writer.write_file(f_unparser.unparse(target_syntax),
+                              output_target_path.with_suffix('.f95'))
 
-        _LOG.warning('[%s %s] <- %i', target_xml.attrib['line_begin'], target_xml.attrib['line_end'], len(output_code))
-        # target_path
-        total_code = replace_scope(target_code, int(target_xml.attrib['line_begin']), int(target_xml.attrib['line_end']) + 1, output_code)
-        writer.write_file(total_code, output_path)
+            mock_function = typed_ast3.FunctionDef(
+                'f', typed_ast3.arguments([], None, [], None, [], []),
+                [typed_ast3.Expr(target_syntax)], [], None, None)
+            output_syntax = inline_syntax(mock_function, inlined_syntax, globals_=globals())
+            output_syntax = st.augment(typed_ast3.Module(output_syntax.body, []), eval_=False)
+            writer.write_file(typed_astunparse.dump(output_syntax),
+                              output_path.with_suffix('.ast.py'))
+            writer.write_file(py_unparser.unparse(output_syntax),
+                              output_path.with_suffix('.py'))
+            output_code = f_unparser.unparse(output_syntax)
+            writer.write_file(output_code, output_path.with_suffix('.f95'))
+
+            _LOG.warning('[%s %s] <- %i', target_xml.attrib['line_begin'],
+                         target_xml.attrib['line_end'], len(output_code))
+            total_code = replace_scope(
+                target_code, int(target_xml.attrib['line_begin']),
+                int(target_xml.attrib['line_end']) + extra_lines, output_code)
+            writer.write_file(total_code, output_path)
 
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
     def test_roundtrip_ffbmini(self):
