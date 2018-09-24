@@ -47,7 +47,7 @@ class F2PyCompiler(Compiler):
                 'source': code, 'modulename': module_name, 'extra_args': extra_args,
                 'verbose': False, 'source_fn': '{}'.format(path).replace(' ', '\\ '),
                 'extension': path.suffix},
-            wd=output_folder,
+            cwd=output_folder,
             commandline_equivalent='f2py -c -m {} {} "{}"'.format(module_name, extra_args, path))
 
     def compile(self, code: str, path: t.Optional[pathlib.Path] = None,

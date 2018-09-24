@@ -43,7 +43,7 @@ def redirect_stdout_and_stderr(stdout, stderr):
             yield
 
 
-def run_tool(executable: pathlib.Path, args=(), kwargs=None, wd: pathlib.Path = None,
+def run_tool(executable: pathlib.Path, args=(), kwargs=None, cwd: pathlib.Path = None,
              argunparser: argunparse.ArgumentUnparser = None) -> subprocess.CompletedProcess:
     """Run a given executable with given arguments."""
     if kwargs is None:
@@ -52,8 +52,8 @@ def run_tool(executable: pathlib.Path, args=(), kwargs=None, wd: pathlib.Path = 
         argunparser = argunparse.ArgumentUnparser()
     command = [str(executable)] + argunparser.unparse_options_and_args(kwargs, args, to_list=True)
     run_kwargs = {'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE}
-    if wd is not None:
-        run_kwargs['wd'] = str(wd)
+    if cwd is not None:
+        run_kwargs['cwd'] = str(cwd)
     result = subprocess.run(command, **run_kwargs)
     _LOG.debug('return code of "%s" tool: %s', executable, result)
     _postprocess_result(result)
@@ -63,7 +63,7 @@ def run_tool(executable: pathlib.Path, args=(), kwargs=None, wd: pathlib.Path = 
     return result
 
 
-def call_tool(function, args=(), kwargs=None, wd: pathlib.Path = None,
+def call_tool(function, args=(), kwargs=None, cwd: pathlib.Path = None,
               commandline_equivalent: str = None) -> subprocess.CompletedProcess:
     """Call a given function with given arguments and report result as if it was a subprocess.
 
@@ -73,18 +73,16 @@ def call_tool(function, args=(), kwargs=None, wd: pathlib.Path = None,
         kwargs = {}
     stdout = io.StringIO()
     stderr = io.StringIO()
-    with temporarily_change_dir(wd):
+    with temporarily_change_dir(cwd):
         with redirect_stdout_and_stderr(stdout, stderr):
             returncode = function(*args, **kwargs)
     if commandline_equivalent is None:
         argunparser = argunparse.ArgumentUnparser()
         commandline_equivalent = '{} {}'.format(
             function.__name__, argunparser.unparse_options_and_args(kwargs, args))
-    run_results = {'returncode': returncode,
-                   'stdout': stdout.getvalue(), 'stderr': stderr.getvalue()}
-    if wd is not None:
-        run_results['wd'] = str(wd)
-    result = subprocess.CompletedProcess(args=commandline_equivalent, **run_results)
+    result = subprocess.CompletedProcess(
+        args=commandline_equivalent, stdout=stdout.getvalue(), stderr=stderr.getvalue(),
+        returncode=returncode)
     _postprocess_result(result)
     if result.returncode != 0:
         raise RuntimeError('execution of {}() failed: {}'.format(function.__name__, result))
