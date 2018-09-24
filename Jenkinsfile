@@ -8,7 +8,7 @@ pipeline {
       agent any
       steps {
         sh "TEST_APPS_ROOT=~/Projects/ TEST_FLASH=1 python3.6 -m coverage run --branch --source . -m unittest -v test.fortran.test_apps"
-        sh "codecov --build \"${NODE_NAME} ${BUILD_DISPLAY_NAME}\" --token \"${CODECOV_TOKEN}\""
+        sh "if [[ \"${env.BRANCH_NAME}\" == \"master\" ]] ; then codecov --build \"${NODE_NAME} ${BUILD_DISPLAY_NAME}\" --token \"${CODECOV_TOKEN}\" ; fi"
       }
     }
     stage('Test performance') {
@@ -23,7 +23,7 @@ pipeline {
           module list &&
           TEST_LONG=1 python3.6 -m coverage run --branch --source . -m unittest -v test.test_performance
           '''
-        sh "codecov --build \"${NODE_NAME} ${BUILD_DISPLAY_NAME}\" --token \"${CODECOV_TOKEN}\""
+        sh "if [[ \"${env.BRANCH_NAME}\" == \"master\" ]] ; then codecov --build \"${NODE_NAME} ${BUILD_DISPLAY_NAME}\" --token \"${CODECOV_TOKEN}\" ; fi"
       }
     }
   } } }
