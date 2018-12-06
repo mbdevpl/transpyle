@@ -85,6 +85,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         super().leave()
         self.fill('}')
 
+    # Misusing ast.Index to signify reference types. Should probably fork typed-ast or something. The ast generalizer does something string based.
     def dispatch_type(self, type_hint):
         _LOG.debug('dispatching type hint %s', type_hint)
         if isinstance(type_hint, typed_ast3.Subscript):
@@ -97,6 +98,15 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                     sli = type_hint.slice
                     self.write('>')
                 return
+            elif isinstance(type_hint.value, typed_ast3.Name):
+                unparsed = horast.unparse(type_hint.value).strip()
+                self.write(unparsed)
+                self.write('<')
+                self.write(horast.unparse(type_hint.slice).strip())  
+                self.write('>')
+                if isinstance(type_hint.slice, typed_ast3.Index):
+                    self.write('&')
+                return
             self._unsupported_syntax(type_hint)
         if isinstance(type_hint, typed_ast3.Attribute):
             if isinstance(type_hint.value, typed_ast3.Name):
@@ -108,11 +118,18 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             assert type_hint.value is None
             self.write('void')
             return
+
         self.dispatch(type_hint)
+        if isinstance(type_hint, typed_ast3.Index):
+            if isinstance(type_hint.value, typed_ast3.Name):
+                self.write('&')
 
     def _Expr(self, tree):
         super()._Expr(tree)
         self.write(';')
+
+    def _Pass(self, tree):
+        self.fill('/* pass */')
 
     def _Import(self, t):
         self.fill('/* Python import')
@@ -122,7 +139,11 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         # #include "boost/multi_array.hpp"
 
     def _ImportFrom(self, t):
-        raise NotImplementedError('not supported yet')
+        self.fill('/* Python import')
+        # raise NotImplementedError('not supported yet')
+        super()._ImportFrom(t)
+        self.fill('*/')
+        # #include "boost/multi_array.hpp"
 
     def _Assign(self, t):
         super()._Assign(t)
@@ -142,10 +163,26 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         if t.value:
             self.write(' = ')
             self.dispatch(t.value)
-            self.write(';')
+        self.write(';')
 
     def _ClassDef(self, t):
-        raise NotImplementedError('not supported yet')
+        if len(t.decorator_list) > 1:
+            self._unsupported_syntax(t, ' with decorators')
+        self.write('\n')
+        self.fill()
+        is_struct = False
+        if len(t.decorator_list) == 1:
+            is_struct = t.decorator_list[0].id=='struct'
+        if is_struct:
+            self.write('struct')
+        else:
+            self.write('class')
+
+        self.write(' {}'.format(t.name))
+        self.enter()
+        self.dispatch(t.body)
+        self.leave()
+
 
     def _FunctionDef(self, t):
         if t.decorator_list:
@@ -208,7 +245,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.dispatch(t.orelse)
             self.leave()
 
-        raise NotImplementedError('not supported yet')
+        #raise NotImplementedError('not supported yet')
 
     def _While(self, t):
         raise NotImplementedError('not supported yet')
@@ -221,17 +258,20 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _Attribute(self, t):
         if isinstance(t.value, typed_ast3.Name):
-            unparsed = {
-                ('a', 'shape'): '???',
-                ('b', 'shape'): '???',
-                ('c', 'shape'): '???',
-                ('np', 'single'): 'int32_t',
-                ('np', 'double'): 'int64_t',
-                ('np', 'zeros'): 'boost::multi_array',
-                ('st', 'ndarray'): 'boost::multi_array'
-                }[t.value.id, t.attr]
-            self.write(unparsed)
-            return
+            try:
+                unparsed = {
+                    ('a', 'shape'): '???',
+                    ('b', 'shape'): '???',
+                    ('c', 'shape'): '???',
+                    ('np', 'single'): 'int32_t',
+                    ('np', 'double'): 'int64_t',
+                    ('np', 'zeros'): 'boost::multi_array',
+                    ('st', 'ndarray'): 'boost::multi_array'
+                    }[t.value.id, t.attr]
+                self.write(unparsed)
+                return
+            except Exception:
+                pass
         self.dispatch(t.value)
         self.write('.')
         self.write(t.attr)
@@ -257,7 +297,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def _arg(self, t):
         if t.annotation is None:
             self._unsupported_syntax(t, ' without annotation')
-        self.dispatch(t.annotation)
+        self.dispatch_type(t.annotation)
         self.write(' ')
         self.write(t.arg)
 
@@ -270,7 +310,6 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _unsupported_syntax(self, tree, comment: str = ''):
         raise SyntaxError('unparsing {}{} to C++ is not supported'.format(type(tree), comment))
-
 
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):
 

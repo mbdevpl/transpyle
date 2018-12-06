@@ -6,6 +6,9 @@ from .ast_generalizer import CppAstGeneralizer
 from .unparser import Cpp14Unparser
 from .compiler import CppSwigCompiler
 
+# Annotation to mark a class as a struct. (Python -> Cpp)
+def struct(f):
+    return f
 
 class CppBinder(Binder):
 
