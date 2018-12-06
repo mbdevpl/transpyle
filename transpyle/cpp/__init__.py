@@ -8,6 +8,9 @@ from .compiler import CppSwigCompiler
 
 __all__ = ['CppParser', 'CppAstGeneralizer', 'Cpp14Unparser', 'CppSwigCompiler']
 
+# Annotation to mark a class as a struct. (Python -> Cpp)
+def struct(f):
+    return f
 
 class CppBinder(Binder):
 

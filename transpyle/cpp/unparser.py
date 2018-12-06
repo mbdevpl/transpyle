@@ -133,6 +133,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.fill('! TODO: unsupported syntax')
         unparsing_unsupported('C++', syntax, comment)
 
+    # Misusing ast.Index to signify reference types. Should probably fork typed-ast or something. The ast generalizer does something string based.
     def dispatch_type(self, type_hint):
         _LOG.debug('dispatching type hint %s', type_hint)
         if is_generic_type(type_hint):
@@ -154,8 +155,24 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.write('*')
             return
         if isinstance(type_hint, typed_ast3.Subscript):
-            _LOG.error('encountered unsupported subscript form: %s',
-                       horast.unparse(type_hint).strip())
+            if isinstance(type_hint.value, typed_ast3.Attribute) \
+                    and isinstance(type_hint.value.value, typed_ast3.Name):
+                unparsed = horast.unparse(type_hint.value).strip()
+                self.write(PY_TO_CPP_TYPES[unparsed])
+                if unparsed == 'st.ndarray':
+                    self.write('<')
+                    sli = type_hint.slice
+                    self.write('>')
+                return
+            elif isinstance(type_hint.value, typed_ast3.Name):
+                unparsed = horast.unparse(type_hint.value).strip()
+                self.write(unparsed)
+                self.write('<')
+                self.write(horast.unparse(type_hint.slice).strip())  
+                self.write('>')
+                if isinstance(type_hint.slice, typed_ast3.Index):
+                    self.write('&')
+                return
             self._unsupported_syntax(type_hint)
         if isinstance(type_hint, typed_ast3.Attribute):
             if isinstance(type_hint.value, typed_ast3.Name):
@@ -169,11 +186,18 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             assert type_hint.value is None
             self.write('void')
             return
+
         self.dispatch(type_hint)
+        if isinstance(type_hint, typed_ast3.Index):
+            if isinstance(type_hint.value, typed_ast3.Name):
+                self.write('&')
 
     def _Expr(self, tree):
         super()._Expr(tree)
         self.write(';')
+
+    def _Pass(self, tree):
+        self.fill('/* pass */')
 
     def _Import(self, t):
         self.fill('/* Python import')
@@ -183,7 +207,11 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         # #include "boost/multi_array.hpp"
 
     def _ImportFrom(self, t):
-        raise NotImplementedError('not supported yet')
+        self.fill('/* Python import')
+        # raise NotImplementedError('not supported yet')
+        super()._ImportFrom(t)
+        self.fill('*/')
+        # #include "boost/multi_array.hpp"
 
     def _Assign(self, t):
         if self._context != 'for header':
@@ -229,9 +257,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _ClassDef(self, t):
         self.write('\n')
-        if t.decorator_list:
-            self._unsupported_syntax(t, 'with decorators')
-        self.fill('class {}'.format(t.name))
+        is_struct = False
+        if len(t.decorator_list) == 1:
+            is_struct = t.decorator_list[0].id=='struct'
+        self.fill('{}} {}'.format('struct' if is_struct else 'class', t.name))
         if t.bases:
             _LOG.warning('C++: assuming base classes are inherited as public')
             self.write(': public ')
@@ -257,8 +286,6 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.dispatch(stmt)
         self.leave()
         self.write(';')
-
-        # raise NotImplementedError('not supported yet')
 
     constructor_and_destructor_names = {'__init__', '__del__'}
 
@@ -512,7 +539,6 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         else:
             self.fill('//')
         self.write(node.comment)
-
 
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):
 
