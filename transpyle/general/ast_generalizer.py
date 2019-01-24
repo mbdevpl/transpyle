@@ -125,7 +125,7 @@ class XmlAstGeneralizer(AstGeneralizer):
             raise ContinueIteration()
         _transform = getattr(self, transform_name)
         transformed = _transform(node)
-        flatten_syntax(transformed)
+        flatten_syntax[typed_ast3](transformed)
         return transformed
 
     def transform_all(
@@ -142,7 +142,7 @@ class XmlAstGeneralizer(AstGeneralizer):
                 transformed.append(self.transform_one(node, warn, ignored, parent))
             except ContinueIteration:
                 continue
-        flatten_syntax(transformed)
+        flatten_syntax[typed_ast3](transformed)
         return transformed
 
     def transform_all_subnodes(

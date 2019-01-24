@@ -209,7 +209,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
 
     def visit(self, node):
         node = super().visit(node)
-        flatten_syntax(node)
+        flatten_syntax[typed_ast3](node)
         return node
 
     def generic_visit(self, node):
