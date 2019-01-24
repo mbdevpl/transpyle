@@ -159,7 +159,7 @@ class CppAstGeneralizer(XmlAstGeneralizer):
             base_type = self.fundamental_types[type_]
         except KeyError:
             # _LOG.debug()
-            base_type = typed_ast3.Str(s=type_)
+            base_type = typed_ast3.Str(type_, '')
         type_info = typed_ast3.Subscript(
             value=typed_ast3.Name(id='Pointer', ctx=typed_ast3.Load()),
             slice=typed_ast3.Index(base_type), ctx=typed_ast3.Load())

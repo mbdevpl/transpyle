@@ -64,7 +64,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         else:
             return typed_ast3.Expr(value=typed_ast3.Call(
                 func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
-                args=[typed_ast3.Str(s='file'), typed_ast3.Str(s=node.attrib['path'])],
+                args=[typed_ast3.Str('file', ''), typed_ast3.Str(node.attrib['path'], '')],
                 keywords=[]))
         return typed_ast3.Module(body=body, type_ignores=[])
 
@@ -73,14 +73,14 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if not comment or comment[0] not in ('!', 'c', 'C'):
             raise SyntaxError('comment token {} has unexpected prefix'.format(repr(comment)))
         comment = comment[1:]
-        return horast_nodes.Comment(value=typed_ast3.Str(s=comment), eol=False)
+        return horast_nodes.Comment(value=typed_ast3.Str(comment, ''), eol=False)
 
     def _directive(self, node) -> horast_nodes.Comment:
         directive = node.attrib['text']
         if not directive or directive[0] not in ('#',):
             raise SyntaxError('directive token {} has unexpected prefix'.format(repr(directive)))
         directive = directive[1:]
-        directive_ = horast_nodes.Comment(value=typed_ast3.Str(s=directive), eol=False)
+        directive_ = horast_nodes.Comment(value=typed_ast3.Str(directive, ''), eol=False)
         directive_.fortran_metadata = {'is_directive': True}
         return directive_
 
@@ -217,7 +217,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         elif declaration_type in ('variable-dimensions', 'data', 'external'):
             return typed_ast3.Expr(value=typed_ast3.Call(
                 func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
-                args=[typed_ast3.Str(s='declaration'), typed_ast3.Str(s=node.attrib['type'])],
+                args=[typed_ast3.Str('declaration', ''), typed_ast3.Str(node.attrib['type'], '')],
                 keywords=[]))
         details = self.transform_all_subnodes(node, ignored={})
         return details
@@ -256,7 +256,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         end = node.attrib['end']
         assert re.fullmatch('[a-zA-Z]', begin), begin
         assert re.fullmatch('[a-zA-Z]', end), end
-        return typed_ast3.Str(s='[{}-{}]'.format(begin, end))
+        return typed_ast3.Str('[{}-{}]'.format(begin, end), '')
 
     def _declaration_variable(
             self, node: ET.Element) -> t.Union[
@@ -324,7 +324,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
         if metadata:
             metadata_node = horast_nodes.Comment(
-                value=typed_ast3.Str(s=' Fortran metadata: {}'.format(repr(metadata))), eol=False)
+                value=typed_ast3.Str(' Fortran metadata: {}'.format(repr(metadata)), ''), eol=False)
 
         _handled = {'variables', 'type', 'dimensions', 'intent'}
         extra_results = self.transform_all_subnodes(node, ignored={
@@ -386,7 +386,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return value
         label = int(label_node.attrib['lbl'])
         var = typed_ast3.Name(id='format_label_{}'.format(label), ctx=typed_ast3.Store())
-        annotation = typed_ast3.Str('Fortran label')
+        annotation = typed_ast3.Str('Fortran label', '')
         format_ = typed_ast3.AnnAssign(target=var, annotation=annotation, value=value, simple=True)
         format_.fortran_metadata = {'is_format': True}
         return format_
@@ -399,7 +399,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _format_item(self, node) -> t.Union[typed_ast3.Str, typed_ast3.FormattedValue]:
         raw_item = node.attrib['descOrDigit']
         if raw_item[0] in ('"', "'"):
-            return typed_ast3.Str(s=raw_item[1:-1])
+            return typed_ast3.Str(raw_item[1:-1], '')
         if raw_item[0] in FORTRAN_PYTHON_FORMAT_SPEC:
             assert len(raw_item) == 2, raw_item
             item = typed_ast3.Name(id=raw_item, ctx=typed_ast3.Load())
@@ -515,7 +515,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         result = [typed_ast3.Pass()]
         if label is not None:
             cmnt = 'label: {}'.format(typed_astunparse.unparse(label).strip())
-            result += [horast_nodes.Comment(value=typed_ast3.Str(s=cmnt), eol=True)]
+            result += [horast_nodes.Comment(value=typed_ast3.Str(cmnt, ''), eol=True)]
         return result
 
     def _cycle(self, node: ET.Element) -> typed_ast3.Continue:
@@ -528,7 +528,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         # TODO: make a better placeholder for goto
         return typed_ast3.Expr(value=typed_ast3.Call(
             func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
-            args=[typed_ast3.Str(s='goto'), typed_ast3.Str(s=node.attrib['target_label'])],
+            args=[typed_ast3.Str('goto', ''), typed_ast3.Str(node.attrib['target_label'], '')],
             keywords=[]))
 
     def _if(self, node: ET.Element):
@@ -721,7 +721,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             assignment.fortran_metadata = {'is_allocation': True}
             assignments.append(assignment)
             assignments.append(horast_nodes.Comment(value=typed_ast3.Str(
-                s=' Fortran metadata: {}'.format(repr(assignment.fortran_metadata))), eol=True))
+                ' Fortran metadata: {}'.format(repr(assignment.fortran_metadata)), ''), eol=True))
         return assignments
 
     def _deallocate(self, node: ET.Element) -> typed_ast3.Delete:
@@ -966,11 +966,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             assert isinstance(var, typed_ast3.AST)
             tree = typed_ast3.Assign(targets=[var], value=tree, type_comment=None)
         error_var_assignment = typed_ast3.AnnAssign(
-            target=error_var, value=None, annotation=typed_ast3.Str(s='MPI error code'), simple=1)
+            target=error_var, value=None, annotation=typed_ast3.Str('MPI error code', ''), simple=1)
         error_var_assignment = typed_ast3.AnnAssign(
             target=error_var, value=None,
             annotation=typed_ast3.Name(id='int', ctx=typed_ast3.Load()), simple=1)
-        error_var_comment = horast_nodes.Comment(value=typed_ast3.Str(' MPI error code'), eol=False)
+        error_var_comment = horast_nodes.Comment(
+            value=typed_ast3.Str(' MPI error code', ''), eol=False)
         return [tree, error_var_assignment, error_var_comment]
 
     def _assignment(self, node: ET.Element):
@@ -1459,7 +1460,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             begin = node.attrib['value'][0]
             end = node.attrib['value'][-1]
             assert begin == end
-            return typed_ast3.Str(s=node.attrib['value'][1:-1])
+            return typed_ast3.Str(node.attrib['value'][1:-1], '')
         _LOG.warning('%s', ET.tostring(node).decode().rstrip())
         raise NotImplementedError('literal type "{}" not supported'.format(literal_type))
 

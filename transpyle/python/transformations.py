@@ -62,18 +62,18 @@ def delete_declaration(declaration):
     if isinstance(declaration, (typed_ast3.Import, typed_ast3.ImportFrom)):
         # TODO: it's a hack
         return horast_nodes.Comment(
-            typed_ast3.Str(' skipping a "use" statement when inlining'), eol=False)
+            typed_ast3.Str(' skipping a "use" statement when inlining', ''), eol=False)
     if not isinstance(declaration, (typed_ast3.Assign, typed_ast3.AnnAssign)):
         return declaration
     intent = getattr(declaration, 'fortran_metadata', {}).get('intent', None)
     if intent in {'in', 'out', 'inout'}:
         return horast_nodes.Comment(
-            typed_ast3.Str(' skipping intent({}) declaration when inlining'.format(intent)),
+            typed_ast3.Str(' skipping intent({}) declaration when inlining'.format(intent), ''),
             eol=False)
     if getattr(declaration, 'fortran_metadata', {}).get('is_declaration', False):
         # TODO: it's a hack
         return horast_nodes.Comment(
-            typed_ast3.Str(' skipping a declaration when inlining'), eol=False)
+            typed_ast3.Str(' skipping a declaration when inlining', ''), eol=False)
     return declaration
 
 
@@ -189,7 +189,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         inlined_statements = []
         if self._verbose:
             inlined_statements.append(horast_nodes.Comment(
-                value=typed_ast3.Str(s=' inlined {}'.format(call_code)), eol=False))
+                value=typed_ast3.Str(' inlined {}'.format(call_code), ''), eol=False))
         for stmt in self._inlined_function.body:
             stmt = st.augment(copy.deepcopy(stmt), eval_=False)
             for replacer in replacers:
@@ -198,7 +198,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
                 inlined_statements.append(stmt)
         if self._verbose:
             inlined_statements.append(horast_nodes.Comment(
-                value=typed_ast3.Str(s=' end of inlined {}'.format(call_code)), eol=False))
+                value=typed_ast3.Str(' end of inlined {}'.format(call_code), ''), eol=False))
         _LOG.warning('inlining a call %s using replacers %s', call_code, replacers)
         # inlined_call.body = scope
         # return st.augment(inlined_call), eval_=False)

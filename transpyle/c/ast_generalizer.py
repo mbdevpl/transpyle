@@ -216,7 +216,7 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
             return typed_ast3.Num(int(value))
         if type_ in ('string',):
             assert value[0] == '"' and value[-1] == '"', value
-            return typed_ast3.Str(value[1:-1])
+            return typed_ast3.Str(value[1:-1], '')
         return self.generic_visit(node)
 
     def visit_Assignment(  # pylint: disable=invalid-name
