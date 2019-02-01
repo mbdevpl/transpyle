@@ -16,7 +16,7 @@ pipeline {
       steps {
         sh '''
           source /etc/profile.d/modules.sh &&
-          source ~/Software/Environment/spack.bashrc &&
+          source ~/Software/Environment/bash/spack.bashrc &&
           spack load -r gcc@8.2.0 &&
           spack load -r llvm@6.0.1 &&
           spack load -r swig%gcc@8.2.0 &&
