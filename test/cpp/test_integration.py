@@ -18,7 +18,9 @@ class Tests(unittest.TestCase):
         language_to = Language.find('C++')
         reader = CodeReader()
         root = EXAMPLES_ROOTS['python3']
-        for input_path in {root.joinpath('do_nothing.py'), root.joinpath('gemm.py')}:
+        for module_name in {'do_nothing', 'gemm', 'simple_class', 'typical_class'}:
+            input_path = root.joinpath('{}.py'.format(module_name))
+            self.assertIn(input_path, EXAMPLES_PY3_FILES)
             translator = AutoTranslator(language_from, language_to)
             with self.subTest(input_path=input_path):
                 python_code = reader.read_file(input_path)

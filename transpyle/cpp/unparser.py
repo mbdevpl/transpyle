@@ -74,7 +74,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def enter(self, *, write_brace: bool = True):
         if write_brace:
             self.write(' {')
-        assert self._indent > 0
+        # assert self._indent > 0
         self._indent += 1
 
     def leave(self, *, write_brace: bool = True):
@@ -141,6 +141,13 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.dispatch(t.value)
             self.write(';')
 
+    def _Return(self, t):
+        super()._Return(t)
+        self.write(';')
+
+    def _Pass(self, t):
+        self.fill(';')
+
     def _ClassDef(self, t):
         self.write('\n')
         if t.decorator_list:
@@ -148,17 +155,17 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.fill('class {}'.format(t.name))
         if t.bases:
             _LOG.warning('C++: assuming base classes are inherited as public')
-            self.write(': public')
+            self.write(': public ')
             comma = False
             for e in t.bases:
                 if comma:
-                    self.write(', public')
+                    self.write(', public ')
                 else:
                     comma = True
                 self.dispatch(e)
             for e in t.keywords:
                 if comma:
-                    self.write(', public')
+                    self.write(', public ')
                 else:
                     comma = True
                 self.dispatch(e)
@@ -170,14 +177,15 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             else:
                 self.dispatch(stmt)
         self.leave()
+        self.write(';')
 
-        raise NotImplementedError('not supported yet')
+        # raise NotImplementedError('not supported yet')
 
     constructor_and_destructor_names = {'__init__', '__del__'}
 
-    supported_special_methods = set()
+    supported_special_method_names = set()
 
-    unsupported_special_methods = {
+    unsupported_special_method_names = {
         '__repr__', '__str__', '__bytes__', '__format__',
         '__lt__', '__le__', '__eq__', '__ne__', '__gt__', '__ge__',
         '__hash__', '__bool__',
@@ -200,8 +208,8 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         '__aiter__', '__anext__',
         '__aenter__', '__aexit__'}
 
-    special_method_names = \
-        constructor_and_destructor_names | supported_special_methods | unsupported_special_methods
+    special_method_names = (constructor_and_destructor_names | supported_special_method_names
+                            | unsupported_special_method_names)
 
     def _FunctionDef(self, t, *, in_class: typed_ast3.ClassDef = None):
         if t.decorator_list:
@@ -216,7 +224,8 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             elif t.name.startswith('_'):
                 access = 'protected'
             else:
-                self.fill('public:')
+                _LOG.warning('unparsing function "%s" as public', t.name)
+                access = 'public'
             self.fill('{}:'.format(access))
             self.enter(write_brace=False)
         self.fill()
@@ -236,7 +245,11 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.write('{}'.format(t.name))
         self.write('(')
         if in_class:
-            self.dispatch(t.args[1:])
+            # skip 1st arg
+            _ = t.args
+            args = typed_ast3.arguments(_.args[1:], _.vararg, _.kwonlyargs, _.kwarg, _.defaults,
+                                        _.kw_defaults)
+            self.dispatch(args)
         else:
             self.dispatch(t.args)
         self.write(')')
@@ -302,6 +315,11 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _Attribute(self, t):
         if isinstance(t.value, typed_ast3.Name):
+            if t.value.id == 'self':
+                self.write('this')
+                self.write('->')
+                self.write(t.attr)
+                return
             unparsed = {
                 ('a', 'shape'): '???',
                 ('b', 'shape'): '???',
