@@ -2,6 +2,7 @@
 
 import ast
 import io
+import itertools
 import logging
 import typing as t
 
@@ -70,6 +71,10 @@ def for_header_to_tuple(target, target_type, iter_) -> t.Tuple[
 class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     """Implementation of C++14 unparser."""
+
+    def __init__(self, *args, **kwargs):
+        self._includes = {}
+        super().__init__(*args, **kwargs)
 
     def enter(self, *, write_brace: bool = True):
         if write_brace:
@@ -302,8 +307,6 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.dispatch(t.orelse)
             self.leave()
 
-        raise NotImplementedError('not supported yet')
-
     def _While(self, t):
         raise NotImplementedError('not supported yet')
 
@@ -312,6 +315,28 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _AsyncWith(self, t):
         self._unsupported_syntax(t)
+
+    def _Str(self, tree):
+        if hasattr(tree, 'kind') and tree.kind:
+            self._unsupported_syntax(t, ' with prefix')
+
+        text = tree.s
+        text_repr = repr(text)
+
+        for delimiter in ('"""', "'''", '"', "'"):
+            if text_repr.startswith(delimiter) and text_repr.endswith(delimiter):
+                stripped_delimiter = delimiter
+                stripped_repr = text_repr[len(delimiter):-len(delimiter)]
+                break
+
+        delimiter = '"'
+        if stripped_delimiter != delimiter \
+                and delimiter not in stripped_delimiter and delimiter in stripped_repr:
+            escaped_delimiter = ''.join(['\\{}'.format(_) for _ in delimiter])
+            text = stripped_repr.replace(delimiter, escaped_delimiter)
+        self.write(delimiter)
+        self.write(text)
+        self.write(delimiter)
 
     def _Attribute(self, t):
         if isinstance(t.value, typed_ast3.Name):
@@ -339,8 +364,21 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         if t.keywords:
             self._unsupported_syntax(t, ' with keyword arguments')
 
+        func_name = horast.unparse(t.func).strip()
+
+        if func_name == 'print':
+            self._includes['iostream'] = True
+            self.write('std::cout << ')
+            comma = False
+            for arg in itertools.chain(t.args, t.keywords):
+                if comma:
+                    self.write(" << ")
+                else:
+                    comma = True
+                self.dispatch(arg)
+            return
+
         super()._Call(t)
-        # raise NotImplementedError('not supported yet')
 
     def _Subscript(self, t):
         if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Pointer':
@@ -393,5 +431,6 @@ class Cpp14Unparser(Unparser):
     def unparse(self, tree) -> str:
         stream = io.StringIO()
         backend = Cpp14HeaderUnparserBackend if self.headers else Cpp14UnparserBackend
-        backend(tree, file=stream)
-        return stream.getvalue()
+        instance = backend(tree, file=stream)
+        includes = '\n'.join('#include <{}>'.format(_) for _ in instance._includes)
+        return '{}{}{}'.format(includes, '\n' if includes else '', stream.getvalue())
