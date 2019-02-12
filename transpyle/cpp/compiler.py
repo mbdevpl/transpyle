@@ -122,7 +122,7 @@ class CppSwigCompiler(SwigCompiler):
     """SWIG-based compiler for C++."""
 
     py_config = get_config_vars()
-    cpp_flags = ('-O3', '-fPIC')
+    cpp_flags = ('-O3', '-fPIC', '-fopenmp')
 
     def __init__(self):
         super().__init__(Language.find('C++'))
