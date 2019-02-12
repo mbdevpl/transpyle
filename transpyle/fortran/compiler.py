@@ -24,9 +24,24 @@ def create_f2py_module_name(path: pathlib.Path) -> str:
     return '{}_transpyle_{}'.format(path.stem, datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
 
 
+class F2pyInterface:
+
+    fortran_compiler_executable = {
+        'default': 'gfortran',
+        'mpi': 'mpif90'}
+    gfortran_flags = ('-O3', '-funroll-loops', '-fopenmp', '-Wall', '-Wextra', '-Wpedantic')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.argunparser = argunparse.ArgumentUnparser()
+
+
 class F2PyCompiler(Compiler):
 
     """Compile Fortran code into Python extension modules using f2py."""
+
+    gfortran_flags = ('-O3', '-funroll-loops',
+                      '-Wall', '-Wextra', '-Wpedantic')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -80,11 +95,15 @@ class F2PyCompiler(Compiler):
             kwargs['f90exec'] = 'mpif90'
             # kwargs['f77flags'] = '-g0'
             # kwargs['f90flags'] = '-g0'
-        kwargs['opt'] = '-O3 -funroll-loops'
-        if kwargs.get('openmp', False):
-            kwargs['opt'] += ' -fopenmp'
+        kwargs['opt'] = ' '.join(self.gfortran_flags)
+        if 'openmp' in kwargs:
+            if kwargs['openmp']:
+                kwargs['opt'] += ' -fopenmp'
+            del kwargs['openmp']
+
         args = ()
         # args = (*args, '-v')
+        args = (*args, '-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION')
         # kwargs['noopt'] = True
         _working_dir = pathlib.Path.cwd()
         os.chdir(str(output_folder))
