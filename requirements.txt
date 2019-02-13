@@ -1,5 +1,6 @@
 argunparse
 astunparse
+colorlog
 horast
 loo.py
 pandas

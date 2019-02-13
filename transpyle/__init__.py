@@ -2,6 +2,10 @@
 
 import logging
 
+from .configuration import configure
+
+configure()
+
 _LOG = logging.getLogger(__name__)
 
 from .python import *
