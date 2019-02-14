@@ -9,10 +9,16 @@ addons:
 python:
   - "3.5"
   - "3.6"
-  - "3.7-dev"
+
 matrix:
+  include:
+    - os: linux
+      dist: xenial
+      sudo: true
+      language: python
+      python: "3.7"
   allow_failures:
-    - python: "3.7-dev"
+    - python: "3.7"
 
 env:
   #- TRAVIS_JDK_VERSION=oraclejdk8
