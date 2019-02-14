@@ -4,6 +4,7 @@ os: linux
 addons:
   apt:
     packages:
+      - ant
       - gfortran
       - swig
 python:
