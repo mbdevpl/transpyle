@@ -39,7 +39,7 @@ before_install:
     set +e
   - |
     set -e
-    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+    if [[ "${TRAVIS_OS_NAME}" == "linux" && "${TRAVIS_PYTHON_VERSION}" != "3.7" ]]; then
       jdk_switcher use $TRAVIS_JDK_VERSION
     fi
     set +e
