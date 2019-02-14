@@ -6,17 +6,11 @@ import logging
 import typing as t
 
 import horast
-import nuitka
 import typed_ast.ast3 as typed_ast3
 
 from ..general import Language, Unparser
 
 _LOG = logging.getLogger(__name__)
-
-
-def transpile_test():
-    command = ['nuitka', '--module', '{}.py']
-    raise NotImplementedError()
 
 
 def match_range_call(node) -> bool:
