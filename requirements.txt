@@ -2,7 +2,7 @@ argunparse
 astunparse
 colorlog
 horast
-loo.py
+#loo.py
 pandas
 static-typing
 typed_ast

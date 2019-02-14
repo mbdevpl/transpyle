@@ -1,7 +1,7 @@
 cython
 docutils
 encrypted-config
-nuitka
+#nuitka
 numba
 numpy
 open-fortran-parser
