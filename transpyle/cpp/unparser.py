@@ -65,7 +65,7 @@ def for_header_to_tuple(target, target_type, iter_) -> t.Tuple[
         init = typed_ast3.Assign(targets=[target], value=begin, type_comment=None)
     else:
         init = typed_ast3.AnnAssign(target=target, annotation=target_type, value=begin, simple=True)
-    condition = typed_ast3.Compare(left=target, ops=[typed_ast3.Lt()], comparators=[end])
+    condition = typed_ast3.Expr(typed_ast3.Compare(left=target, ops=[typed_ast3.Lt()], comparators=[end]))
     increment = typed_ast3.AugAssign(target=target, op=typed_ast3.Add(), value=step)
     return init, condition, increment
 
@@ -205,12 +205,16 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _For(self, t):
         self.fill('for (')
-        init, cond, increment = for_header_to_tuple(t.target, t.resolved_type_comment, t.iter)
-        self.dispatch(init)
-        self.write(', ')
-        self.dispatch(cond)
-        self.write(', ')
-        self.dispatch(increment)
+        init, cond, increment = for_header_to_tuple(t.target, t.type_comment, t.iter)
+        #self.dispatch(init)
+        #self.dispatch(cond)
+        #self.dispatch(increment)
+        unparser = Cpp14Unparser()
+        self.write(unparser.unparse(init).strip('\n\r;)('))
+        self.write('; ')
+        self.write(unparser.unparse(cond).strip('\n\r;)('))
+        self.write('; ')
+        self.write(unparser.unparse(increment).strip('\n\r;)('))
         # self.dispatch(t.iter)
         self.write(')')
         self.enter()
@@ -307,6 +311,30 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         else:
             self.fill('//')
         self.write(node.value.s)
+
+    def _NameConstant(self, node):
+        if node.value == 'False':
+            self.write("false")
+        elif node.value == 'True':
+            self.write("true")
+        elif node.value == 'None':
+            self.write("null")
+        else:
+            self.write(node.value)
+
+    def _Str(self, node):
+        self.write('"')
+        self.write(node.s.replace('"', '\\"').replace("\0", "\\0").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r"))
+        self.write('"')
+
+    def _Bytes(self, node):
+        # Char
+        if len(node.s) == 1:
+            self.write("'")
+            self.write(node.s.replace("'", "\\'").replace("\0", "\\0").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r"))
+            self.write("'")
+        else:
+            self._Str(node)
 
     def _unsupported_syntax(self, tree, comment: str = ''):
         raise SyntaxError('unparsing {}{} to C++ is not supported'.format(type(tree), comment))
