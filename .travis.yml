@@ -3,24 +3,44 @@ language: python
 os: linux
 addons:
   apt:
+    sources:
+      - ubuntu-toolchain-r-test
     packages:
-      - gfortran
+      - ant
+      - gcc-7
+      - gfortran-7
+      - g++-7
       - swig
 python:
   - "3.5"
   - "3.6"
-  - "3.7-dev"
+
 matrix:
+  include:
+    - os: linux
+      dist: xenial
+      sudo: true
+      language: python
+      python: "3.7"
   allow_failures:
-    - python: "3.7-dev"
+    - python: "3.7"
 
 env:
-  #- TRAVIS_JDK_VERSION=oraclejdk8
   - TRAVIS_JDK_VERSION=oraclejdk9
-  #- TRAVIS_JDK_VERSION=openjdk8
 
 before_install:
-  #- sudo ln -s "$(which gfortran-6)" "$(which gfortran-6 | sed 's|-6||')"
+  - sudo update-alternatives --list cc
+  - sudo update-alternatives --list c++
+  - sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 70
+  - sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 70
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 --slave /usr/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-7 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7
+  - sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-7 70
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 70
+  - sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-7 70
+  - sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-7 70 --slave /usr/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-7 --slave /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-7
+  - gcc --version
+  - g++ --version
+  - gfortran --version
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
@@ -33,13 +53,18 @@ before_install:
     set +e
   - |
     set -e
-    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+    if [[ "${TRAVIS_OS_NAME}" == "linux" && "${TRAVIS_PYTHON_VERSION}" != "3.7" ]]; then
       jdk_switcher use $TRAVIS_JDK_VERSION
     fi
     set +e
   # Open Fortran Compiler
   - git clone "https://github.com/codethinklabs/ofc" "../open-fortran-compiler"
-  - cd "../open-fortran-compiler" && make && cd -
+  - |
+    set -e
+    cd "../open-fortran-compiler"
+    CFLAGS="-Wno-implicit-fallthrough -Wno-maybe-uninitialized" make
+    cd -
+    set +e
   - export PATH="${PATH}:$(pwd)/../open-fortran-compiler"
   # FFB-MINI app
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"
