@@ -1,4 +1,4 @@
-"""For running external tools in a slightly isolated ."""
+"""For running external tools in a slightly isolated/failsafe manner."""
 
 import contextlib
 import io
@@ -6,6 +6,7 @@ import logging
 import os
 import pathlib
 import subprocess
+import sys
 
 import argunparse
 
@@ -23,7 +24,7 @@ def _postprocess_result(result: subprocess.CompletedProcess) -> None:
 
 @contextlib.contextmanager
 def temporarily_change_dir(path: pathlib.Path):
-    """If given path is none, it does nothing."""
+    """If given path is None, it does nothing."""
     if path is None:
         yield
         return
@@ -36,10 +37,59 @@ def temporarily_change_dir(path: pathlib.Path):
         os.chdir(str(_working_dir))
 
 
+def _fileno(file_or_fd):
+    fd_ = getattr(file_or_fd, 'fileno', lambda: file_or_fd)()
+    if not isinstance(fd_, int):
+        raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
+    return fd_
+
+
 @contextlib.contextmanager
 def redirect_stdout_and_stderr(stdout, stderr):
     with contextlib.redirect_stdout(stdout):
         with contextlib.redirect_stderr(stderr):
+            yield
+
+
+def redirect_stdout_via_fd(stdout=os.devnull):
+    """ Redirects stdout to another at file descriptor level. """
+    return redirect_stream_via_fd(sys.stdout, stdout)
+
+
+def redirect_stderr_via_fd(stderr=os.devnull):
+    """ Redirects stderr to another at file descriptor level. """
+    return redirect_stream_via_fd(sys.stderr, stderr)
+
+
+@contextlib.contextmanager
+def redirect_stream_via_fd(stream, to=os.devnull):
+    """ Redirects given stream to another at file descriptor level. """
+
+    assert stream is not None
+
+    stream_fd = _fileno(stream)
+    # copy stream_fd before it is overwritten
+    # NOTE: `copied` is inheritable on Windows when duplicating a standard stream
+    with os.fdopen(os.dup(stream_fd), 'wb') as copied:
+        stream.flush()  # flush library buffers that dup2 knows nothing about
+        try:
+            os.dup2(_fileno(to), stream_fd)  # $ exec >&to
+        except ValueError:  # filename
+            with open(to, 'wb') as to_file:
+                os.dup2(to_file.fileno(), stream_fd)  # $ exec > to
+        try:
+            yield stream  # allow code to be run with the redirected stdout
+        finally:
+            # restore stdout to its previous value
+            # NOTE: dup2 makes stdout_fd inheritable unconditionally
+            stream.flush()
+            os.dup2(copied.fileno(), stream_fd)  # $ exec >&copied
+
+
+@contextlib.contextmanager
+def redirect_stdout_and_stderr_via_fd(stdout, stderr):
+    with redirect_stdout_via_fd(stdout):
+        with redirect_stderr_via_fd(stderr):
             yield
 
 
@@ -54,6 +104,7 @@ def run_tool(executable: pathlib.Path, args=(), kwargs=None, cwd: pathlib.Path =
     run_kwargs = {'stdout': subprocess.PIPE, 'stderr': subprocess.PIPE}
     if cwd is not None:
         run_kwargs['cwd'] = str(cwd)
+    _LOG.debug('running tool %s ...', command)
     result = subprocess.run(command, **run_kwargs)
     _LOG.debug('return code of "%s" tool: %s', executable, result)
     _postprocess_result(result)
@@ -73,6 +124,8 @@ def call_tool(function, args=(), kwargs=None, cwd: pathlib.Path = None,
         kwargs = {}
     stdout = io.StringIO()
     stderr = io.StringIO()
+    _LOG.debug('calling tool %s(*%s, **%s) (simulating: %s) ...',
+               function, args, kwargs, commandline_equivalent)
     with temporarily_change_dir(cwd):
         with redirect_stdout_and_stderr(stdout, stderr):
             returncode = function(*args, **kwargs)
