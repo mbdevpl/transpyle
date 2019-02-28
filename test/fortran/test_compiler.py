@@ -3,9 +3,12 @@
 import datetime
 import logging
 import pathlib
+import shutil
 import types
 import unittest
 
+from encrypted_config.json_io import json_to_file
+import numpy as np
 import timing
 
 from transpyle.general.binder import Binder
@@ -41,6 +44,60 @@ class Tests(unittest.TestCase):
                 output_dir.rmdir()
             except OSError:
                 pass
+
+    def test_directives(self):
+        # from transpyle.general.language import Language
+        # from transpyle.general.transpiler import AutoTranspiler
+        from test.common import EXAMPLES_ROOTS, RESULTS_ROOT
+
+        PERFORMANCE_RESULTS_ROOT = RESULTS_ROOT.joinpath('performance')
+
+        binder = Binder()
+        compiler_f95 = F2PyCompiler()
+        compiler_f95_omp = F2PyCompiler()
+        compiler_f95_acc = F2PyCompiler()
+        compiler_f95_acc.f2py.fortran_compiler_executable = 'pgfortran'
+        # transpiler_py_to_f95 = AutoTranspiler(
+        #    Language.find('Python 3'), Language.find('Fortran 95'))
+
+        name = 'itemwise_calc'
+        variants = {}
+        # variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
+        variants['f95'] = (
+            compiler_f95.compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')), None)
+        variants['f95_openmp'] = (
+            compiler_f95_omp.compile_file(
+                EXAMPLES_ROOTS['f95'].joinpath(name + '_openmp.f90')), None)
+        if shutil.which(compiler_f95_acc.f2py.fortran_compiler_executable) is not None:
+            variants['f95_openacc'] = (
+                compiler_f95_acc.compile_file(
+                    EXAMPLES_ROOTS['f95'].joinpath(name + '_openacc.f90')), None)
+        # variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
+        # variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
+        # variants['numpy'] = (variants['py'][0], lambda f: np.copy)
+
+        arrays = [np.array(np.random.random_sample((array_size,)), dtype=np.double)
+                  for array_size in range(1024, 1024 * 64 + 1, 1024 * 4)]
+
+        for variant, (path, transform) in variants.items():
+            with binder.temporarily_bind(path) as binding:
+                tested_function = getattr(binding, name)
+                if transform:
+                    tested_function = transform(tested_function)
+                # import ipdb; ipdb.set_trace()
+                for array in arrays:
+                    with self.subTest(variant=variant, path=path, array_size=array.size):
+                        # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
+                        for _ in _TIME.measure_many('{}.{}.{}'.format(name, array.size, variant), 50):
+                            results = tested_function(array)
+                        # self.assertListEqual(array.tolist(), array_copy.tolist())
+                        self.assertTrue(results.shape, array.shape)
+
+        for array in arrays:
+            timings_name = '.'.join([__name__, name, str(array.size)])
+            summary = timing.query_cache(timings_name).summary
+            _LOG.info('%s', summary)
+            json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
     def test_openmp(self):
         compiler = F2PyCompiler()
