@@ -384,6 +384,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             visitor.visit(static_t)
             _LOG.warning('return expressions: %s', visitor.return_expressions)
             if not visitor.return_expressions:
+                # import ipdb; ipdb.set_trace()
                 raise SyntaxError('expected return statements in function "{}" but zero found'
                                   .format(t.name))
             returned_name = None
@@ -722,6 +723,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                                    args=[t.value], keywords=[])
             self._Call(call)
             return
+        if syntax_matches(t, typed_ast3.Attribute(
+                value=typed_ast3.Attribute(value=typed_ast3.Name(id='st', ctx=typed_ast3.Load()),
+                                           attr='generic', ctx=typed_ast3.Load()),
+                attr='GenericVar', ctx=typed_ast3.Load())):
+            # t._fortran_metadata = {'is_generic_var': True}
+            # self._generic_vars.append()
+            return
         self._unsupported_syntax(t)
         '''
         code = typed_astunparse.unparse(t).strip()
@@ -765,6 +773,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             t = copy.copy(t)
             t.args.insert(0, t.func.value)
             t.func = typed_ast3.Name(id='count', ctx=typed_ast3.Load())
+        elif func_name.endswith('.size'):
+            _LOG.warning('assuming np.size()')
+            t = copy.copy(t)
+            t.args.insert(0, t.func.value)
+            t.func = typed_ast3.Name(id='size', ctx=typed_ast3.Load())
         elif func_name.endswith('.shape'):
             _LOG.warning('assuming np.shape()')
             t = copy.copy(t)

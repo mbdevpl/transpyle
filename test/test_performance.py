@@ -125,5 +125,45 @@ class Tests(unittest.TestCase):
         #    for val in vals:
         #        self.assertEqual(vals[0], val)
 
-    def test_matmul(self):
-        pass
+    def test_copy_array(self):
+        binder = Binder()
+        compiler_f95 = F2PyCompiler()
+        transpiler_py_to_f95 = AutoTranspiler(
+            Language.find('Python 3'), Language.find('Fortran 95'))
+
+        name = 'copy_array'
+        variants = {}
+        variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
+        if platform.system() == 'Linux':
+            compiler_cpp = CppSwigCompiler()
+            transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
+            variants['cpp'] = (
+                compiler_cpp.compile_file(EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')), None)
+            variants['py_to_cpp'] = (transpiler_py_to_cpp.transpile_file(variants['py'][0]), None)
+        variants['f95'] = (
+            compiler_f95.compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')), None)
+        # variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
+        variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
+        variants['numpy'] = (variants['py'][0], lambda f: np.copy)
+
+        arrays = [np.array(np.random.random_sample((array_size,)), dtype=np.double)
+                  for array_size in range(1024, 1024 * 64 + 1, 1024 * 4)]
+
+        for variant, (path, transform) in variants.items():
+            with binder.temporarily_bind(path) as binding:
+                tested_function = getattr(binding, name)
+                if transform:
+                    tested_function = transform(tested_function)
+                # import ipdb; ipdb.set_trace()
+                for array in arrays:
+                    with self.subTest(variant=variant, path=path, array_size=array.size):
+                        # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
+                        for _ in _TIME.measure_many('{}.{}.{}'.format(name, array.size, variant), 50):
+                            array_copy = tested_function(array)
+                        self.assertListEqual(array.tolist(), array_copy.tolist())
+
+        for array in arrays:
+            timings_name = '.'.join([__name__, name, str(array.size)])
+            summary = timing.query_cache(timings_name).summary
+            _LOG.info('%s', summary)
+            json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
