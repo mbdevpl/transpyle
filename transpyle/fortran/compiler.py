@@ -4,7 +4,6 @@
 import datetime
 # import io
 import logging
-import os
 import pathlib
 import subprocess
 import tempfile
@@ -14,7 +13,7 @@ import argunparse
 import numpy.f2py
 
 from ..general import Compiler
-from ..general.tools import call_tool
+from ..general.tools import temporarily_change_dir, call_tool
 
 
 _LOG = logging.getLogger(__name__)
@@ -112,10 +111,8 @@ class F2PyCompiler(Compiler):
                 kwargs['opt'] = '-fopenmp'
             del kwargs['openmp']
 
-        _working_dir = pathlib.Path.cwd()
-        os.chdir(str(output_folder))
-        result = self.f2py.compile(code, path, output_folder, module_name, **kwargs)
-        os.chdir(str(_working_dir))
+        with temporarily_change_dir(output_folder):
+            result = self.f2py.compile(code, path, output_folder, module_name, **kwargs)
 
         path_mask = '{}*'.format(module_name)
         output_paths = [output_path for output_path in output_folder.glob(path_mask)

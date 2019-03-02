@@ -173,8 +173,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         stop_code = node.attrib['code']
         args = []
         if stop_code:
-            _LOG.warning('ignoring exit code in """%s"""', ET.tostring(node).decode().rstrip())
-            # args.append(int(stop_code))
+            try:
+                args.append(typed_ast3.Num(int(stop_code)))
+            finally:
+                if not args:
+                    _LOG.warning('ignoring exit code in """%s"""',
+                                 ET.tostring(node).decode().rstrip())
         return typed_ast3.Call(func=typed_ast3.Name(id='exit', ctx=typed_ast3.Load()),
                                args=args, keywords=[])
 
@@ -791,7 +795,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             file_handle.slice.value = io_controls.pop(i)
             break
         if io_controls:
-            _LOG.warning(
+            _LOG.info(
                 'ignoring remaining %i parameters of read call %s in"\n%s',
                 len(io_controls), [typed_astunparse.unparse(_) for _ in io_controls],
                 ET.tostring(node).decode().rstrip())
