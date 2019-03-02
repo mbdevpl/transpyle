@@ -2,7 +2,6 @@
 
 from distutils.sysconfig import get_python_inc, get_config_vars
 import logging
-import os
 import pathlib
 import platform
 import shutil
@@ -15,7 +14,7 @@ import argunparse
 # import typed_ast.ast3 as typed_ast3
 
 from ..general import Language, CodeReader, Parser, AstGeneralizer, Unparser, Compiler
-from ..general.tools import run_tool
+from ..general.tools import temporarily_change_dir, run_tool
 
 PYTHON_LIB_PATH = pathlib.Path(get_python_inc(plat_specific=1))
 
@@ -242,26 +241,24 @@ class CppSwigCompiler(SwigCompiler):
             swig_interface_file.write(swig_interface)
         wrapper_path = output_folder.joinpath(path.with_suffix('').name + '_wrap.cxx')
 
-        cwd = os.getcwd()
-        os.chdir(str(output_folder))
-        result = self.run_swig(swig_interface_path, '-c++')
-        if result.returncode != 0:
-            raise RuntimeError('{} -- Failed to create SWIG interface for "{}":\n"""\n{}"""\n'
-                               'The header "{}" is:\n"""{}"""\nExamine folder "{}" for details'
-                               .format(result.args, path, result.stderr.decode(), hpp_path,
-                                       header_code, output_folder))
+        with temporarily_change_dir(output_folder):
+            result = self.run_swig(swig_interface_path, '-c++')
+            if result.returncode != 0:
+                raise RuntimeError('{} -- Failed to create SWIG interface for "{}":\n"""\n{}"""\n'
+                                   'The header "{}" is:\n"""{}"""\nExamine folder "{}" for details'
+                                   .format(result.args, path, result.stderr.decode(), hpp_path,
+                                           header_code, output_folder))
 
-        # gcc -c example.c example_wrap.c -I/usr/local/include/python2.1
-        # ld -shared example.o example_wrap.o -o _example.so
-        compiler_result, linker_result = self.cpp_compiler.compile_and_link(
-            [cpp_path, wrapper_path], cpp_path.with_name('_' + cpp_path.name).with_suffix('.so'))
-        assert compiler_result.returncode == 0
-        assert linker_result.returncode == 0
+            # gcc -c example.c example_wrap.c -I/usr/local/include/python2.1
+            # ld -shared example.o example_wrap.o -o _example.so
+            compiler_result, linker_result = self.cpp_compiler.compile_and_link(
+                [cpp_path, wrapper_path], cpp_path.with_name('_' + cpp_path.name).with_suffix('.so'))
+            assert compiler_result.returncode == 0
+            assert linker_result.returncode == 0
 
-        # result = self.run_cpp_compiler(cpp_path, wrapper_path)
-        # assert result.returncode == 0
-        # result = self.run_cpp_linker(cpp_path, wrapper_path)
-        # assert result.returncode == 0
-        os.chdir(cwd)
+            # result = self.run_cpp_compiler(cpp_path, wrapper_path)
+            # assert result.returncode == 0
+            # result = self.run_cpp_linker(cpp_path, wrapper_path)
+            # assert result.returncode == 0
 
         return cpp_path.with_suffix('.py')
