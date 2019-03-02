@@ -134,6 +134,12 @@ class Tests(unittest.TestCase):
         name = 'copy_array'
         variants = {}
         variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
+        if platform.system() == 'Linux':
+            compiler_cpp = CppSwigCompiler()
+            transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
+            variants['cpp'] = (
+                compiler_cpp.compile_file(EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')), None)
+            variants['py_to_cpp'] = (transpiler_py_to_cpp.transpile_file(variants['py'][0]), None)
         variants['f95'] = (
             compiler_f95.compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')), None)
         # variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
