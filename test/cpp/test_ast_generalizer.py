@@ -20,6 +20,8 @@ class Tests(unittest.TestCase):
         code_reader = CodeReader()
         parser = CppParser()
         for path in EXAMPLES_CPP14_FILES:
+            if path.name != 'copy_array.cpp':
+                continue
             ast_generalizer = CppAstGeneralizer(scope={'path': path})
             code = code_reader.read_file(path)
             tree = parser.parse(code, path)

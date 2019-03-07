@@ -29,3 +29,21 @@ CPP_PYTHON_TYPE_PAIRS = {
     # pointers
     # other
     'void': 'None'}
+
+CPP_PYTHON_CLASS_PAIRS = {
+    'std::__cxa_refcounted_exception': 'Exception',
+    # STL containers
+    'std::array': 'st.ndarray',
+    'std::vector': 't.List',
+    'std::forward_list': 't.List',
+    'std::list': 't.List',
+    'std::unordered_set': 't.Set',
+    'std::set': 't.Set',
+    'std::unordered_map': 't.Dict',
+    'std::map': 't.Dict'}
+
+CPP_STL_CLASSES = {
+    'std::array', 'std::vector',
+    'std::forward_list', 'std::list',
+    'std::unordered_set', 'std::set',
+    'std::unordered_map', 'std::map'}
