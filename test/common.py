@@ -1,9 +1,11 @@
 """Examples for transpyle tests."""
 
+import collections.abc
 import io
 import itertools
 import pathlib
 import sys
+import typing as t
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -142,3 +144,26 @@ def basic_check_python_ast(case: unittest.TestCase, path, tree, **kwargs):
     if sys.version_info[:2] >= (3, 6):
         validator = static_typing.ast_manipulation.AstValidator[typed_ast.ast3]()
         validator.visit(tree)
+
+
+def execute_on_all_language_fundamentals(*languages: t.Sequence[str]):
+    return execute_on_examples(itertools.chain.from_iterable(
+        (_ for _ in EXAMPLES_FILES[language] if _.name.startswith('fundamentals'))
+        for language in languages))
+
+
+def execute_on_all_language_examples(*languages: t.Sequence[str]):
+    return execute_on_examples(itertools.chain.from_iterable(
+        EXAMPLES_FILES[language] for language in languages))
+
+
+def execute_on_examples(example_paths: t.Iterable[pathlib.Path]):
+    assert isinstance(example_paths, collections.abc.Iterable), type(example_paths)
+
+    def test_implementation_wrapper(test_function):
+        def wrapped_test_implementation(test_case: unittest.TestCase):
+            for input_path in example_paths:
+                with test_case.subTest(input_path=input_path):
+                    test_function(test_case, input_path)
+        return wrapped_test_implementation
+    return test_implementation_wrapper

@@ -1,34 +1,60 @@
 
-function add_int(num1, num2):
+function add_integer(num1, num2)
+  implicit none
   integer, intent(in) :: num1
   integer, intent(in) :: num2
-  integer :: add_int
+  integer :: add_integer
 
-  add_int = num1 + num2
-  return
-
-
-def add_float(num1: float, num2: float) -> float:
-    return num1 + num2
-
-
-function subtract_int(num1, num2)
-  integer, intent(in) :: num1
-  integer, intent(in) :: num2
-  integer :: subtract_int
-
-  resubtract_int = turn num1 - num2
+  add_integer = num1 + num2
   return
 end function
 
+function add_real(num1, num2)
+  implicit none
+  real, intent(in) :: num1
+  real, intent(in) :: num2
+  real :: add_real
 
-def subtract_float(num1: float, num2: float) -> float:
-    return num1 - num2
+  add_real = num1 + num2
+  return
+end function
 
+function subtract_integer(num1, num2)
+  implicit none
+  integer, intent(in) :: num1
+  integer, intent(in) :: num2
+  integer :: subtract_integer
 
-def multiply_int(num1: int, num2: int) -> int:
-    return num1 * num2
+  subtract_integer = num1 - num2
+  return
+end function
 
+function subtract_real(num1, num2)
+  implicit none
+  real, intent(in) :: num1
+  real, intent(in) :: num2
+  real :: subtract_real
 
-def multiply_float(num1: float, num2: float) -> float:
-    return num1 * num2
+  subtract_real = num1 - num2
+  return
+end function
+
+function multiply_integer(num1, num2)
+  implicit none
+  integer, intent(in) :: num1
+  integer, intent(in) :: num2
+  integer :: multiply_integer
+
+  multiply_integer = num1 * num2
+  return
+end function
+
+function multiply_real(num1, num2)
+  implicit none
+  real, intent(in) :: num1
+  real, intent(in) :: num2
+  real :: multiply_real
+
+  multiply_real = num1 * num2
+  return
+end function

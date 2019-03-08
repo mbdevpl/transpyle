@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import operator
 import pathlib
 import shutil
 import types
@@ -15,35 +16,83 @@ from transpyle.general.binder import Binder
 from transpyle.fortran.compiler import F2PyCompiler
 
 from test.common import \
-    EXAMPLES_RESULTS_ROOT, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES
+    EXAMPLES_RESULTS_ROOT, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, execute_on_all_language_examples \
+    , execute_on_all_language_fundamentals
 
 _LOG = logging.getLogger(__name__)
+
 _TIME = timing.get_timing_group(__name__)
+
+
+def random_data(shape=None, dtype=np.int):
+    if shape is None:
+        return dtype(np.random.rand() * 1000)
+    return (np.random.rand(*shape) * 1000).astype(dtype)
 
 
 class Tests(unittest.TestCase):
 
-    def test_compile(self):
+    @execute_on_all_language_examples('f77', 'f95')
+    def test_compile_and_bind_examples(self, input_path):
+        output_dir = pathlib.Path(
+            EXAMPLES_RESULTS_ROOT, input_path.parent.name,
+            'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+        if not output_dir.is_dir():
+            output_dir.mkdir()
+        with input_path.open() as input_file:
+            code = input_file.read()
         compiler = F2PyCompiler()
+        with _TIME.measure('{}.compile'.format(input_path.name.replace('.', '_'))) as timer:
+            output_path = compiler.compile(code, input_path, output_dir)
         binder = Binder()
-        for input_path in [_ for _ in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES
-                           if _.name in ('addition.f90', 'do_nothing.f90')]:
-            output_dir = pathlib.Path(
-                EXAMPLES_RESULTS_ROOT, input_path.parent.name,
-                'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
-            if not output_dir.is_dir():
-                output_dir.mkdir()
-            with open(str(input_path)) as input_file:
-                code = input_file.read()
-            with self.subTest(input_path=input_path):
-                output_path = compiler.compile(code, input_path, output_dir)
-                with binder.temporarily_bind(output_path) as binding:
-                    self.assertIsInstance(binding, types.ModuleType)
-                output_path.unlink()
-            try:
-                output_dir.rmdir()
-            except OSError:
-                pass
+        with binder.temporarily_bind(output_path) as binding:
+            self.assertIsInstance(binding, types.ModuleType)
+        output_path.unlink()
+        try:
+            output_dir.rmdir()
+        except OSError:
+            pass
+        _LOG.warning('compiled "%s" in %fs', input_path, timer.elapsed)
+
+    @execute_on_all_language_fundamentals('f77', 'f95')
+    def test_run_fundamentals(self, input_path):
+        output_dir = pathlib.Path(
+            EXAMPLES_RESULTS_ROOT, input_path.parent.name,
+            'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+        if not output_dir.is_dir():
+            output_dir.mkdir()
+        with input_path.open() as input_file:
+            code = input_file.read()
+        compiler = F2PyCompiler()
+        output_path = compiler.compile(code, input_path, output_dir)
+        binder = Binder()
+        with binder.temporarily_bind(output_path) as binding:
+            self.assertIsInstance(binding, types.ModuleType)
+            prefix = {'fundamentals': '', 'fundamentals_arrays': 'itemwise_'}[input_path.stem]
+            shape = None if prefix == '' else (1024 * 1024,)
+            for type_ in ('integer', 'real'):
+                py_type = {'integer': int, 'real': float}[type_]
+                input1 = random_data(shape, dtype=py_type)
+                input2 = random_data(shape, dtype=py_type)
+                for operation in ('add', 'subtract', 'multiply'):
+                    py_operator = {'add': operator.add, 'subtract': operator.sub,
+                                   'multiply': operator.mul}[operation]
+                    expected = py_operator(input1, input2)
+                    function_name = '{}{}_{}'.format(prefix, operation, type_)
+                    function = getattr(binding, function_name)
+                    with self.subTest(function=function_name):
+                        with _TIME.measure('{}.run.{}.{}'.format(
+                                input_path.name.replace('.', '_'), type_,
+                                '{}{}'.format(prefix, operation))) as timer:
+                            output = function(input1, input2)
+                        _LOG.warning('ran %s from "%s" in %fs',
+                                     function_name, input_path, timer.elapsed)
+                        if type_ == 'integer':
+                            self.assertTrue(np.all(np.equal(expected, output)),
+                                            msg=(input1, input2, output, expected))
+                        else:
+                            self.assertTrue(np.allclose(expected, output, atol=1e-4),
+                                            msg=(input1, input2, output, expected))
 
     def test_directives(self):
         # from transpyle.general.language import Language
