@@ -126,38 +126,32 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         if is_generic_type(type_hint):
             if type_hint.value.attr in CPP_GENERIC_TYPE_INCLUDES:
                 self._includes[CPP_GENERIC_TYPE_INCLUDES[type_hint.value.attr]] = True
-            self.dispatch(type_hint.value)
+            self.dispatch_type(type_hint.value)
             self.write("<")
-            self.dispatch(type_hint.slice)
+            self.dispatch_type(type_hint.slice)
             self.write(">")
             return
-        if isinstance(type_hint, typed_ast3.Subscript):
-            self._unsupported_syntax(type_hint)
         if is_pointer(type_hint):
-            if isinstance(type_hint.slice, typed_ast3.Index) \
-                    and isinstance(type_hint.slice.value, typed_ast3.Name) \
+            # _LOG.warning('dispatching pointer type %s', horast.unparse(type_hint).strip())
+            assert isinstance(type_hint.slice, typed_ast3.Index), type(type_hint.slice)
+            if isinstance(type_hint.slice.value, typed_ast3.Name) \
                     and type_hint.slice.value.id == 'str':
                 self.write('char')
             else:
-                self.dispatch(type_hint.slice)
+                self.dispatch_type(type_hint.slice.value)
             self.write('*')
             return
-        # if isinstance(type_hint, typed_ast3.Subscript):
-        #     if isinstance(type_hint.value, typed_ast3.Attribute) \
-        #             and isinstance(type_hint.value.value, typed_ast3.Name):
-        #         unparsed = horast.unparse(type_hint.value).strip()
-        #         self.write(PY_TO_CPP_TYPES[unparsed])
-        #         if unparsed == 'st.ndarray':
-        #             self.write('<')
-        #             sli = type_hint.slice
-        #             self.write('>')
-        #         return
-        #     self._unsupported_syntax(type_hint)
+        if isinstance(type_hint, typed_ast3.Subscript):
+            _LOG.error('encountered unsupported subscript form: %s',
+                       horast.unparse(type_hint).strip())
+            self._unsupported_syntax(type_hint)
         if isinstance(type_hint, typed_ast3.Attribute):
             if isinstance(type_hint.value, typed_ast3.Name):
                 unparsed = horast.unparse(type_hint).strip()
                 self.write(PY_TO_CPP_TYPES[unparsed])
                 return
+            _LOG.error('encountered unsupported attribute form: %s',
+                       horast.unparse(type_hint).strip())
             self._unsupported_syntax(type_hint)
         if isinstance(type_hint, typed_ast3.NameConstant):
             assert type_hint.value is None
@@ -485,6 +479,6 @@ class Cpp14Unparser(Unparser):
         stream = io.StringIO()
         backend = Cpp14HeaderUnparserBackend if self.headers else Cpp14UnparserBackend
         instance = backend(tree, file=stream)
-        _LOG.warning('writing %i includes...', len(instance._includes))
+        # _LOG.debug('writing %i includes...', len(instance._includes))
         includes = '\n'.join('#include <{}>'.format(_) for _ in instance._includes)
         return '{}{}{}'.format(includes, '\n' if includes else '', stream.getvalue())

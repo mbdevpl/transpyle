@@ -302,23 +302,9 @@ class CppAstGeneralizer(XmlAstGeneralizer):
         super().__init__(scope)
         assert scope is not None, \
             'scope={"path": pathlib.Path(...)} has to be provided for C++ generalizer'
-        # self.file_id = None
         self.types = CastXMLTypeFinder(self.scope)
 
     def _CastXML(self, node: ET.Element):  # pylint: disable=invalid-name
-        # file_nodes = self.get_all(node, './File')
-        # relevant_file_nodes = []
-        # parsed_filename = str(self.scope['path'])
-        # for file_node in file_nodes:
-        #     name = file_node.attrib['name']
-        #     # if name.startswith('/usr') or name == '<builtin>':
-        #     if name != parsed_filename:
-        #         continue
-        #     relevant_file_nodes.append(file_node)
-        # assert len(relevant_file_nodes) == 1, relevant_file_nodes
-        # file_node = relevant_file_nodes[0]
-        # self.file_id = file_node.attrib['id']
-
         self.types.initialize()
         self.types.generalize(node)
 
@@ -328,8 +314,6 @@ class CppAstGeneralizer(XmlAstGeneralizer):
     def default(self, node: ET.Element):
         """Ignore irrelevant nodes, raise error otherwise."""
         if not self.types.is_relevant(node):
-            # _LOG.warning('no file for %s', ET.tostring(node).decode().rstrip())
-            # self.no_transform(node)
             raise ContinueIteration()
         self.no_transform(node)
 

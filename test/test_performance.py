@@ -136,9 +136,9 @@ class Tests(unittest.TestCase):
         variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
         if platform.system() == 'Linux':
             compiler_cpp = CppSwigCompiler()
-            # transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
-            variants['cpp'] = (
-                compiler_cpp.compile_file(EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')), None)
+            transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
+            # variants['cpp'] = (
+            #    compiler_cpp.compile_file(EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')), None)
             # variants['py_to_cpp'] = (transpiler_py_to_cpp.transpile_file(variants['py'][0]), None)
         variants['f95'] = (
             compiler_f95.compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')), None)
@@ -158,7 +158,8 @@ class Tests(unittest.TestCase):
                 for array in arrays:
                     with self.subTest(variant=variant, path=path, array_size=array.size):
                         # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
-                        for _ in _TIME.measure_many('{}.{}.{}'.format(name, array.size, variant), 50):
+                        for _ in _TIME.measure_many(
+                                '{}.{}.{}'.format(name, array.size, variant), 50):
                             array_copy = tested_function(array)
                         self.assertListEqual(array.tolist(), array_copy.tolist())
 
