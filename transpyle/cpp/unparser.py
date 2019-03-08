@@ -40,12 +40,46 @@ def _match_subscripted_attributed_name(tree, name: str, attr: str) -> bool:
         and tree.value.value.id == name and tree.value.attr == attr
 
 
-PY_TO_CPP_TYPES = {
-    'np.int16': 'int16_t',
-    'np.int32': 'int32_t',
-    'np.int64': 'int64_t',
-    'np.double': 'double',
-    'st.ndarray': 'std::valarray'}
+PY_TUPLES_TO_CPP_GENERIC_TYPES = {
+    ('np', 'zeros'): 'std::valarray',
+    ('st', 'ndarray'): 'std::valarray',
+    ('t', 'List'): 'std::vector',
+    ('t', 'Set'): 'std::set',
+    ('t', 'Dict'): 'std::map'}
+
+CPP_GENERIC_TYPE_INCLUDES = {'List': 'vector', 'Set': 'set', 'Dict': 'map', 'ndarray': 'valarray'}
+
+PY_TUPLES_TO_CPP_TYPES = {
+    ('np', 'int16'): 'int16_t',
+    ('np', 'int32'): 'int32_t',
+    ('np', 'int64'): 'int64_t',
+    ('np', 'single'): 'single',
+    ('np', 'double'): 'double'}
+
+PY_TUPLES_TO_CPP_TYPES.update(PY_TUPLES_TO_CPP_GENERIC_TYPES)
+
+PY_TUPLES_TO_CPP_TYPES.update({
+    ('a', 'shape'): '???',
+    ('b', 'shape'): '???',
+    ('c', 'shape'): '???',
+    ('st', 'generic'): '???',
+    ('input_data', 'size'): '???'})
+
+PY_TO_CPP_TYPES = {'.'.join(k): v for k, v in PY_TUPLES_TO_CPP_TYPES.items()}
+
+
+def is_pointer(syntax: typed_ast3.AST):
+    return (isinstance(syntax, typed_ast3.Subscript) and isinstance(syntax.value, typed_ast3.Name)
+            and syntax.value.id == 'Pointer')
+
+
+def is_generic_type(syntax: typed_ast3.AST):
+    if not isinstance(syntax, typed_ast3.Subscript) \
+            or not isinstance(syntax.value, typed_ast3.Attribute) \
+            or not isinstance(syntax.value.value, typed_ast3.Name):
+        return False
+    _ = (syntax.value.value.id, syntax.value.attr)
+    return _ in PY_TUPLES_TO_CPP_GENERIC_TYPES
 
 
 def for_header_to_tuple(target, target_type, iter_) -> t.Tuple[
@@ -89,17 +123,36 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def dispatch_type(self, type_hint):
         _LOG.debug('dispatching type hint %s', type_hint)
+        if is_generic_type(type_hint):
+            if type_hint.value.attr in CPP_GENERIC_TYPE_INCLUDES:
+                self._includes[CPP_GENERIC_TYPE_INCLUDES[type_hint.value.attr]] = True
+            self.dispatch(type_hint.value)
+            self.write("<")
+            self.dispatch(type_hint.slice)
+            self.write(">")
+            return
         if isinstance(type_hint, typed_ast3.Subscript):
-            if isinstance(type_hint.value, typed_ast3.Attribute) \
-                    and isinstance(type_hint.value.value, typed_ast3.Name):
-                unparsed = horast.unparse(type_hint.value).strip()
-                self.write(PY_TO_CPP_TYPES[unparsed])
-                if unparsed == 'st.ndarray':
-                    self.write('<')
-                    sli = type_hint.slice
-                    self.write('>')
-                return
             self._unsupported_syntax(type_hint)
+        if is_pointer(type_hint):
+            if isinstance(type_hint.slice, typed_ast3.Index) \
+                    and isinstance(type_hint.slice.value, typed_ast3.Name) \
+                    and type_hint.slice.value.id == 'str':
+                self.write('char')
+            else:
+                self.dispatch(type_hint.slice)
+            self.write('*')
+            return
+        # if isinstance(type_hint, typed_ast3.Subscript):
+        #     if isinstance(type_hint.value, typed_ast3.Attribute) \
+        #             and isinstance(type_hint.value.value, typed_ast3.Name):
+        #         unparsed = horast.unparse(type_hint.value).strip()
+        #         self.write(PY_TO_CPP_TYPES[unparsed])
+        #         if unparsed == 'st.ndarray':
+        #             self.write('<')
+        #             sli = type_hint.slice
+        #             self.write('>')
+        #         return
+        #     self._unsupported_syntax(type_hint)
         if isinstance(type_hint, typed_ast3.Attribute):
             if isinstance(type_hint.value, typed_ast3.Name):
                 unparsed = horast.unparse(type_hint).strip()
@@ -345,15 +398,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.write('->')
                 self.write(t.attr)
                 return
-            unparsed = {
-                ('a', 'shape'): '???',
-                ('b', 'shape'): '???',
-                ('c', 'shape'): '???',
-                ('np', 'single'): 'int32_t',
-                ('np', 'double'): 'int64_t',
-                ('np', 'zeros'): 'boost::multi_array',
-                ('st', 'ndarray'): 'boost::multi_array'
-                }[t.value.id, t.attr]
+            unparsed = PY_TUPLES_TO_CPP_TYPES[t.value.id, t.attr]
             self.write(unparsed)
             return
         self.dispatch(t.value)
@@ -361,10 +406,26 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.write(t.attr)
 
     def _Call(self, t):
+        func_name = horast.unparse(t.func).strip()
+
+        if func_name == 'np.zeros':
+            self._includes['valarray'] = True
+            self.write('std::valarray<')
+            assert len(t.keywords) == 1, len(t.keywords)
+            assert t.keywords[0].arg == 'dtype'
+            self.dispatch_type(t.keywords[0].value)
+            self.write('>(')
+            comma = False
+            for arg in t.args:
+                if comma:
+                    self.write(",")
+                else:
+                    comma = True
+                self.dispatch(arg)
+            return
+
         if t.keywords:
             self._unsupported_syntax(t, ' with keyword arguments')
-
-        func_name = horast.unparse(t.func).strip()
 
         if func_name == 'print':
             self._includes['iostream'] = True
@@ -380,21 +441,13 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
         super()._Call(t)
 
-    def _Subscript(self, t):
-        if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Pointer':
-            if isinstance(t.slice, typed_ast3.Index) \
-                    and isinstance(t.slice.value, typed_ast3.Name) and t.slice.value.id == 'str':
-                self.write('char')
-            else:
-                self.dispatch(t.slice)
-            self.write('*')
-            return
-        super()._Subscript(t)
+    # def _Subscript(self, t):
+    #     super()._Subscript(t)
 
     def _arg(self, t):
         if t.annotation is None:
             self._unsupported_syntax(t, ' without annotation')
-        self.dispatch(t.annotation)
+        self.dispatch_type(t.annotation)
         self.write(' ')
         self.write(t.arg)
 
@@ -432,5 +485,6 @@ class Cpp14Unparser(Unparser):
         stream = io.StringIO()
         backend = Cpp14HeaderUnparserBackend if self.headers else Cpp14UnparserBackend
         instance = backend(tree, file=stream)
+        _LOG.warning('writing %i includes...', len(instance._includes))
         includes = '\n'.join('#include <{}>'.format(_) for _ in instance._includes)
         return '{}{}{}'.format(includes, '\n' if includes else '', stream.getvalue())

@@ -239,7 +239,7 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
         assert isinstance(name, str), type(name)
         quals = node.quals
         if quals:
-            _LOG.error('ignoring unsupported C grammar: %s', quals)
+            _LOG.warning('ignoring unsupported C grammar: %s', quals)
         storage = [self.visit(subnode) for subnode in node.storage]
         if storage:
             raise NotImplementedError(_node_debug(node.storage), str(storage))
@@ -326,7 +326,7 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
         """Return st.Pointer[...] for given pointer type."""
         quals = node.quals
         if quals:
-            _LOG.error('ignoring unsupported C grammar: %s', quals)
+            _LOG.warning('ignoring unsupported C grammar: %s', quals)
         name, type_ = self.visit(node.type)
         assert name is None or isinstance(name, str)
         assert isinstance(type_, typed_ast3.AST), type(type_)
@@ -360,7 +360,7 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
             raise NotImplementedError(_node_debug(node.name), str(name))
         quals = node.quals
         if quals:
-            _LOG.error('ignoring unsupported C grammar: %s', quals)
+            _LOG.warning('ignoring unsupported C grammar: %s', quals)
         name_, type_ = self.visit(node.type)
         assert name_ is None, type(name_)
         assert isinstance(type_, typed_ast3.AST), type(type_)

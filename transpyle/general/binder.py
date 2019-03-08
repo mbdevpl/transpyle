@@ -19,14 +19,14 @@ def insert_to_sys_path(path: t.Union[pathlib.Path, str]):
     """Context manager for temporarily inserting an entry at the beginning of sys.path."""
     path_str = str(path)
     sys.path.insert(0, path_str)
-    _LOG.warning('modified sys.path: inserted "%s"', path)
+    _LOG.info('modified sys.path: inserted "%s"', path)
     _LOG.debug('current sys.path: %s', sys.path)
     try:
         yield
     finally:
         assert sys.path[0] == path_str
         del sys.path[0]
-        _LOG.warning('modified sys.path: removed "%s"', path)
+        _LOG.info('modified sys.path: removed "%s"', path)
 
 
 class Binder(Registry):

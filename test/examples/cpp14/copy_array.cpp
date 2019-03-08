@@ -1,7 +1,7 @@
 
 #include <vector>
 
-std::vector<double> move_array(std::vector<double> input_data) {
+std::vector<double> copy_array(std::vector<double> input_data) {
 
   std::vector<double> output_data;
 

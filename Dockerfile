@@ -40,7 +40,7 @@ RUN pip3.6 install --user -r requirements.txt && \
 
 WORKDIR /home/user/Projects/CastXML
 
-RUN cmake . && \
+RUN CC=clang CXX=clang++ cmake . && \
   make && \
   ln -s "$(pwd)/bin/castxml" "/home/user/.local/bin/castxml"
 

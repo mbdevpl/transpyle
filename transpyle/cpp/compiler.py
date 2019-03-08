@@ -29,6 +29,20 @@ SWIG_INTERFACE_TEMPLATE = '''/* File: {module_name}.i */
 {include_directives}
 %}}
 
+%include "numpy.i"
+
+%init %{{
+import_array();
+%}}
+
+// %include "std_valarray.i";
+%include "std_vector.i";
+
+namespace std {{
+    %template(valarray_double) valarray<double>;
+    %template(vector_double) vector<double>;
+}}
+
 {function_signatures}
 '''
 
@@ -41,6 +55,25 @@ SWIG_INTERFACE_TEMPLATE_HPP = '''/* File: {module_name}.i */
 #include "{include_path}"
 %}}
 
+%include "numpy.i"
+
+%init %{{
+import_array();
+%}}
+
+// %include "std_valarray.i";
+%include "std_list.i";
+%include "std_vector.i";
+// %include "std_array.i";
+%include "std_set.i";
+%include "std_map.i";
+
+namespace std {{
+//    %template(valarray_double) valarray<double>;
+//    %template(array_double) array<double>;
+    %template(vector_double) vector<double>;
+}}
+
 %include "{include_path}"
 
 // below is Python 3 support, however,
@@ -52,6 +85,8 @@ SWIG_INTERFACE_TEMPLATE_HPP = '''/* File: {module_name}.i */
 #define SWIG_PYTHON_STRICT_BYTE_CHAR
 %}}
 '''
+
+TRANSPYLE_CPP_RESOURCES_PATH = pathlib.Path('./resources/cpp/').resolve()
 
 _LOG = logging.getLogger(__name__)
 
@@ -176,7 +211,8 @@ class SwigCompiler(Compiler):
         If building a C++ extension, add the -c++ option:
         swig -c++ -python example.i
         """
-        swig_cmd = ['swig', '-python', *args, str(interface_path)]
+        swig_cmd = ['swig', '-I{}'.format(TRANSPYLE_CPP_RESOURCES_PATH),
+                    '-python', *args, str(interface_path)]
         _LOG.info('running SWIG via %s', swig_cmd)
         return run_tool(pathlib.Path(swig_cmd[0]), swig_cmd[1:])
 
@@ -240,6 +276,8 @@ class CppSwigCompiler(SwigCompiler):
         with swig_interface_path.open('w') as swig_interface_file:
             swig_interface_file.write(swig_interface)
         wrapper_path = output_folder.joinpath(path.with_suffix('').name + '_wrap.cxx')
+
+        # shutil.copy2(str(pathlib.Path('./resources/cpp/numpy.i')), str(output_folder.joinpath('numpy.i')))
 
         with temporarily_change_dir(output_folder):
             result = self.run_swig(swig_interface_path, '-c++')

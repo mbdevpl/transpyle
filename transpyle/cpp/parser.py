@@ -18,7 +18,7 @@ CASTXML_PATH = pathlib.Path('castxml')
 
 def run_castxml(input_path: pathlib.Path, output_path: pathlib.Path, gcc: bool = False):
     """Run CastXML with given arguments."""
-    args = [input_path]
+    args = ['-std=c++17', input_path]
     kwargs = {}
     if gcc:
         kwargs['castxml-gccxml'] = True
