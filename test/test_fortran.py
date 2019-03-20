@@ -1,4 +1,4 @@
-"""Tests for Fortran language support."""
+"""Tests of Fortran language support."""
 
 import logging
 import operator
@@ -12,24 +12,65 @@ import timing
 
 from transpyle.general.code_reader import CodeReader
 from transpyle.general.binder import Binder
+from transpyle.fortran.parser import FortranParser
+from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
+from transpyle.fortran.unparser import Fortran77Unparser
 from transpyle.fortran.compiler import F2PyCompiler
 
-from test.common import \
-    now_timestamp, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, make_f2py_tmp_folder, \
-    execute_on_all_language_examples, execute_on_all_language_fundamentals
+from .common import \
+    random_data, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, EXAMPLES_PY3_FILES, \
+    basic_check_fortran_ast, basic_check_fortran_code, make_f2py_tmp_folder, \
+    basic_check_python_ast, \
+    execute_on_examples, execute_on_all_language_examples, execute_on_all_language_fundamentals
 
 _LOG = logging.getLogger(__name__)
 
 _TIME = timing.get_timing_group(__name__)
 
 
-def random_data(shape=None, dtype=np.int):
-    if shape is None:
-        return dtype(np.random.rand() * 1000)
-    return (np.random.rand(*shape) * 1000).astype(dtype)
+class ParserTests(unittest.TestCase):
+
+    @execute_on_all_language_examples('f77', 'f95')
+    def test_parse_examples(self, input_path):
+        parser = FortranParser()
+        with _TIME.measure('parse.{}'.format(input_path.name.replace('.', '_'))) as timer:
+            fortran_ast = parser.parse('', input_path)
+        basic_check_fortran_ast(self, input_path, fortran_ast)
+        _LOG.info('parsed "%s" in %fs', input_path, timer.elapsed)
 
 
-class Tests(unittest.TestCase):
+class AstGeneralizerTests(unittest.TestCase):
+
+    @execute_on_all_language_examples('f77', 'f95')
+    def test_generalize_examples(self, input_path):
+        parser = FortranParser()
+        fortran_ast = parser.parse('', input_path)
+        basic_check_fortran_ast(self, input_path, fortran_ast)
+        generalizer = FortranAstGeneralizer()
+        with _TIME.measure('generalize.{}'.format(input_path.name.replace('.', '_'))) as timer:
+            syntax = generalizer.generalize(fortran_ast)
+        basic_check_python_ast(self, input_path, syntax)
+        _LOG.info('generalized "%s" in %fs', input_path, timer.elapsed)
+
+
+class UnparserTests(unittest.TestCase):
+
+    @execute_on_all_language_fundamentals('f77', 'f95')
+    def test_unparse_fundamentals(self, input_path):
+        parser = FortranParser()
+        fortran_ast = parser.parse('', input_path)
+        basic_check_fortran_ast(self, input_path, fortran_ast)
+        generalizer = FortranAstGeneralizer()
+        syntax = generalizer.generalize(fortran_ast)
+        basic_check_python_ast(self, input_path, syntax)
+        unparser = Fortran77Unparser()
+        with _TIME.measure('unparse.{}'.format(input_path.name.replace('.', '_'))) as timer:
+            code = unparser.unparse(syntax)
+        basic_check_fortran_code(self, input_path, code)
+        _LOG.info('unparsed "%s" in %fs', input_path, timer.elapsed)
+
+
+class CompilerTests(unittest.TestCase):
 
     @execute_on_all_language_examples('f77', 'f95')
     def test_compile_and_bind_examples(self, input_path):
@@ -88,6 +129,7 @@ class Tests(unittest.TestCase):
                         else:
                             self.assertTrue(np.allclose(expected, output, atol=1e-4),
                                             msg=(input1, input2, output, expected))
+
 
     def test_directives(self):
         # from transpyle.general.language import Language

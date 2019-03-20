@@ -11,6 +11,7 @@ import typing as t
 import unittest
 import xml.etree.ElementTree as ET
 
+import numpy as np
 import pycparser.c_ast
 import static_typing
 import typed_ast.ast3
@@ -24,6 +25,12 @@ RESULTS_ROOT.mkdir(exist_ok=True)
 
 def now_timestamp():
     return datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+
+
+def random_data(shape=None, dtype=np.int):
+    if shape is None:
+        return dtype(np.random.rand() * 1000)
+    return (np.random.rand(*shape) * 1000).astype(dtype)
 
 
 EXAMPLES_LANGS = ('c11', 'cpp14', 'cython', 'f77', 'f95', 'python3')

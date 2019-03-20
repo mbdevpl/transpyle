@@ -22,7 +22,7 @@ _LOG = logging.getLogger(__name__)
 
 _HERE = pathlib.Path(__file__).resolve().parent
 
-_ROOT = _HERE.parent.parent
+_ROOT = _HERE.parent
 
 _APPS_ROOT = pathlib.Path(os.environ.get('TEST_APPS_ROOT', _ROOT.parent)).resolve()
 

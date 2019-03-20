@@ -1,17 +1,33 @@
-"""Integration tests for transpiling between different languages."""
+"""Integration tests for translating and transpiling between different languages."""
 
 import itertools
+import pathlib
 import sys
+import tempfile
 import unittest
 
 from transpyle.general.code_reader import CodeReader
+from transpyle.general.code_writer import CodeWriter
 from transpyle.general.language import Language
 from transpyle.general.parser import Parser
 from transpyle.general.ast_generalizer import AstGeneralizer
 from transpyle.general.unparser import Unparser
 from transpyle.general.translator import Translator, AutoTranslator
+from transpyle.general.transpiler import AutoTranspiler
 
-from .common import EXAMPLES_LANGS_NAMES, EXAMPLES_FILES
+from transpyle.fortran.parser import FortranParser
+from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
+from transpyle.fortran.unparser import Fortran77Unparser
+
+from transpyle.python.parser import TypedPythonParserWithComments
+from transpyle.python.unparser import TypedPythonUnparserWithComments
+
+from .common import (
+    EXAMPLES_LANGS_NAMES,
+    EXAMPLES_FILES, EXAMPLES_C11_FILES, EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES,
+    EXAMPLES_ROOTS,
+    basic_check_cpp_code, make_f2py_tmp_folder, basic_check_python_code,
+    execute_on_examples)
 
 NOT_PARSED_LANGS = ('C++14', 'Cython')
 
@@ -68,3 +84,107 @@ class Tests(unittest.TestCase):
 
     def test_language_deduction(self):
         self.skipTest('not ready yet')
+
+
+class CAndPythonTests(unittest.TestCase):
+
+    def test_translate_c_to_python(self):
+        language = Language.find('C11')
+        python_language = Language.find('Python')
+        reader = CodeReader()
+        parser = Parser.find(language)()
+        ast_generalizer = AstGeneralizer.find(language)()
+        unparser = Unparser.find(python_language)()
+        for input_path in EXAMPLES_C11_FILES:
+            with self.subTest(input_path=input_path):
+                code = reader.read_file(input_path)
+                c_ast = parser.parse(code, input_path)
+                tree = ast_generalizer.generalize(c_ast)
+                python_code = unparser.unparse(tree)
+                basic_check_python_code(self, input_path, python_code)
+
+
+class CppAndPythonTests(unittest.TestCase):
+
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
+    def test_translate_python_to_cpp(self):
+        language_from = Language.find('Python')
+        language_to = Language.find('C++')
+        reader = CodeReader()
+        root = EXAMPLES_ROOTS['python3']
+        for module_name in {'do_nothing', 'gemm', 'simple_class', 'typical_class'}:
+            input_path = root.joinpath('{}.py'.format(module_name))
+            self.assertIn(input_path, EXAMPLES_PY3_FILES)
+            translator = AutoTranslator(language_from, language_to)
+            with self.subTest(input_path=input_path):
+                python_code = reader.read_file(input_path)
+                cpp_code = translator.translate(python_code)
+                basic_check_cpp_code(self, input_path, cpp_code)
+
+
+class FortranAndPythonTests(unittest.TestCase):
+
+    def test_translate_fortran_to_python(self):
+        for input_path in EXAMPLES_F77_FILES:
+            reader = CodeReader()
+            parser = FortranParser()
+            generalizer = FortranAstGeneralizer()
+            unparser = TypedPythonUnparserWithComments()
+            writer = CodeWriter('.py')
+            with self.subTest(input_path=input_path):
+                code = reader.read_file(input_path)
+                fortran_ast = parser.parse(code, input_path)
+                tree = generalizer.generalize(fortran_ast)
+                python_code = unparser.unparse(tree)
+                writer.write_file(python_code, pathlib.Path('/tmp', input_path.name + '.py'))
+
+    @unittest.skip('not ready yet')
+    def test_translate_python_to_fortran(self):
+        for input_path in EXAMPLES_PY3_FILES:
+            reader = CodeReader()
+            parser = TypedPythonParserWithComments()
+            unparser = Fortran77Unparser()
+            writer = CodeWriter('.f')
+            with self.subTest(input_path=input_path):
+                python_code = reader.read_file(input_path)
+                tree = parser.parse(python_code, input_path, mode='exec')
+                fortran_code = unparser.unparse(tree)
+                writer.write_file(fortran_code, pathlib.Path('/tmp', input_path.name + '.f'))
+
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'requires Python >= 3.6')
+    def test_translate_fortran_to_python_to_fortran(self):
+        for input_path in EXAMPLES_F77_FILES:
+            parser = FortranParser()
+            generalizer = FortranAstGeneralizer()
+            unparser = TypedPythonUnparserWithComments()
+            python_parser = TypedPythonParserWithComments(default_mode='exec')
+            writer = CodeWriter('.f')
+            with self.subTest(input_path=input_path):
+                fortran_ast = parser.parse('', input_path)
+                tree = generalizer.generalize(fortran_ast)
+                python_code = unparser.unparse(tree)
+                tree = python_parser.parse(python_code)
+                fortran_code = unparser.unparse(tree)
+                writer.write_file(fortran_code, pathlib.Path('/tmp', input_path.name + '.py.f'))
+
+    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
+    @execute_on_examples([_ for _ in EXAMPLES_PY3_FILES if '_openmp' in _.name])
+    def test_transpile_with_openmp(self, input_path):
+        output_dir = make_f2py_tmp_folder(input_path)
+
+        transpiler = AutoTranspiler(Language.find('Python'), Language.find('Fortran'))
+        self.assertIsNotNone(transpiler)
+        reader = CodeReader()
+
+        with tempfile.NamedTemporaryFile(suffix='.f90', delete=False) as output_file:
+            # TODO: this leaves garbage behind in /tmp/ but is neeeded
+            # by subsequent transpiler passes
+
+            # code_writer = CodeWriter('.py')
+            # target_inlined_path = pathlib.Path(output_file.name)
+            # code_writer.write_file(target_inlined_code, target_inlined_path)
+            output_path = pathlib.Path(output_file.name)
+
+        compiled_path = transpiler.transpile(
+            reader.read_file(input_path), input_path, output_path, output_dir)
+        # TODO: run it
