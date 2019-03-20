@@ -36,6 +36,7 @@ C_BINARY_OPERATORS_TO_PYTHON = {
     '<': (typed_ast3.Compare, typed_ast3.Lt),
     '>': (typed_ast3.Compare, typed_ast3.Gt),
     '+': (typed_ast3.BinOp, typed_ast3.Add),
+    '-': (typed_ast3.BinOp, typed_ast3.Sub),
     '*': (typed_ast3.BinOp, typed_ast3.Mult)}
 
 C_ASSIGNMENT_OPERATORS_TO_PYTHON = {
