@@ -116,7 +116,7 @@ def _prepare_roundtrip(case, language: Language):
 def _roundtrip_fortran(case, path, results_path, parser, ast_generalizer, unparser):
     with open(str(path)) as original_file:
         basic_check_fortran_code(case, path, original_file.read(), results=results_path,
-                                 append_suffix=False)
+                                 suffix=None)
     fortran_ast = parser.parse('', path)
     basic_check_fortran_ast(case, path, fortran_ast, results=results_path)
     tree = ast_generalizer.generalize(fortran_ast)
@@ -132,7 +132,7 @@ def _roundtrip_fortran(case, path, results_path, parser, ast_generalizer, unpars
 def _migrate_fortran(case, path, results_path, parser, ast_generalizer, unparser):
     with open(str(path)) as original_file:
         basic_check_fortran_code(case, path, original_file.read(), results=results_path,
-                                 append_suffix=False)
+                                 suffix=None)
     fortran_ast = parser.parse('', path)
     basic_check_fortran_ast(case, path, fortran_ast, results=results_path)
     tree = ast_generalizer.generalize(fortran_ast)

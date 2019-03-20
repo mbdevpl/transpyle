@@ -1,6 +1,7 @@
 """Examples for transpyle tests."""
 
 import collections.abc
+import datetime
 import io
 import itertools
 import pathlib
@@ -50,15 +51,22 @@ APPS_RESULTS_ROOT.mkdir(exist_ok=True)
 
 def basic_check_code(
         case: unittest.TestCase, path, code, language,
-        results: pathlib.Path = EXAMPLES_RESULTS_ROOT, append_suffix: bool = True):
-    """Check basic properties of given source code and dump it to file."""
-    case.assertIsInstance(code, str)
+        results: pathlib.Path = EXAMPLES_RESULTS_ROOT, suffix: t.Union[bool, str] = True):
+    """Check basic properties of given source code and dump it to file.
+
+    suffix:
+    if str, append it to filename
+    """
+    assert isinstance(code, str), type(code)
     if results == EXAMPLES_RESULTS_ROOT:
         results = results.joinpath(language)
         if not results.is_dir():
             results.mkdir()
-    filename = path.name + (EXAMPLES_EXTENSIONS[language][0] if append_suffix else '')
-    with open(str(results.joinpath(filename)), 'w') as result_file:
+    if suffix is True:
+        suffix = EXAMPLES_EXTENSIONS[language][0]
+    elif suffix is None or suffix is False:
+        suffix = ''
+    with results.joinpath(path.name + suffix).open('w') as result_file:
         result_file.write(code)
 
 
@@ -71,7 +79,7 @@ def basic_check_ast(
         results = results.joinpath(path.parent.name)
         if not results.is_dir():
             results.mkdir()
-    with open(str(results.joinpath(path.name + suffix)), 'w') as result_file:
+    with results.joinpath(path.name + suffix).open('w') as result_file:
         result_file.write(formatter(tree))
 
 
@@ -100,6 +108,18 @@ def basic_check_cpp_ast(case: unittest.TestCase, path, fortran_ast, **kwargs):
                     lambda _: ET.tostring(_).decode().rstrip(), **kwargs)
 
 
+def make_swig_tmp_folder(input_path):
+    swig_output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig')
+    if not swig_output_dir.is_dir():
+        swig_output_dir.mkdir()
+    output_dir = pathlib.Path(
+        EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig',
+        'swig_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+    if not output_dir.is_dir():
+        output_dir.mkdir()
+    return output_dir
+
+
 EXAMPLES_CYTHON_FILES = EXAMPLES_FILES['cython']
 
 EXAMPLES_F77_FILES = EXAMPLES_FILES['f77']
@@ -113,6 +133,18 @@ def basic_check_fortran_code(case: unittest.TestCase, path, code, **kwargs):
 def basic_check_fortran_ast(case: unittest.TestCase, path, fortran_ast, **kwargs):
     basic_check_ast(case, path, fortran_ast, ET.Element, '.xml',
                     lambda _: ET.tostring(_).decode().rstrip(), **kwargs)
+
+
+def make_f2py_tmp_folder(input_path):
+    f2py_root_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py')
+    if not f2py_root_dir.is_dir():
+        f2py_root_dir.mkdir()
+    output_dir = pathlib.Path(
+        EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py',
+        'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+    if not output_dir.is_dir():
+        output_dir.mkdir()
+    return output_dir
 
 
 EXAMPLES_PY3_FILES = EXAMPLES_FILES['python3']

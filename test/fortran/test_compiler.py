@@ -1,9 +1,7 @@
 """Tests for Fortran language support."""
 
-import datetime
 import logging
 import operator
-import pathlib
 import shutil
 import types
 import unittest
@@ -12,12 +10,13 @@ from encrypted_config.json_io import json_to_file
 import numpy as np
 import timing
 
+from transpyle.general.code_reader import CodeReader
 from transpyle.general.binder import Binder
 from transpyle.fortran.compiler import F2PyCompiler
 
 from test.common import \
-    EXAMPLES_RESULTS_ROOT, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, execute_on_all_language_examples \
-    , execute_on_all_language_fundamentals
+    EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, make_f2py_tmp_folder, \
+    execute_on_all_language_examples, execute_on_all_language_fundamentals
 
 _LOG = logging.getLogger(__name__)
 
@@ -34,35 +33,31 @@ class Tests(unittest.TestCase):
 
     @execute_on_all_language_examples('f77', 'f95')
     def test_compile_and_bind_examples(self, input_path):
-        output_dir = pathlib.Path(
-            EXAMPLES_RESULTS_ROOT, input_path.parent.name,
-            'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
-        if not output_dir.is_dir():
-            output_dir.mkdir()
-        with input_path.open() as input_file:
-            code = input_file.read()
+        output_dir = make_f2py_tmp_folder(input_path)
+
+        code_reader = CodeReader()
+        code = code_reader.read_file(input_path)
         compiler = F2PyCompiler()
-        with _TIME.measure('{}.compile'.format(input_path.name.replace('.', '_'))) as timer:
+        with _TIME.measure('compile.{}'.format(input_path.name.replace('.', '_'))) as timer:
             output_path = compiler.compile(code, input_path, output_dir)
         binder = Binder()
         with binder.temporarily_bind(output_path) as binding:
             self.assertIsInstance(binding, types.ModuleType)
+        _LOG.warning('compiled "%s" in %fs', input_path, timer.elapsed)
+
         output_path.unlink()
         try:
             output_dir.rmdir()
         except OSError:
             pass
-        _LOG.warning('compiled "%s" in %fs', input_path, timer.elapsed)
 
     @execute_on_all_language_fundamentals('f77', 'f95')
     def test_run_fundamentals(self, input_path):
-        output_dir = pathlib.Path(
-            EXAMPLES_RESULTS_ROOT, input_path.parent.name,
-            'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
-        if not output_dir.is_dir():
-            output_dir.mkdir()
-        with input_path.open() as input_file:
-            code = input_file.read()
+        output_dir = make_f2py_tmp_folder(input_path)
+
+        code_reader = CodeReader()
+        code = code_reader.read_file(input_path)
+
         compiler = F2PyCompiler()
         output_path = compiler.compile(code, input_path, output_dir)
         binder = Binder()
@@ -81,7 +76,7 @@ class Tests(unittest.TestCase):
                     function_name = '{}{}_{}'.format(prefix, operation, type_)
                     function = getattr(binding, function_name)
                     with self.subTest(function=function_name):
-                        with _TIME.measure('{}.run.{}.{}'.format(
+                        with _TIME.measure('run.{}.{}.{}'.format(
                                 input_path.name.replace('.', '_'), type_,
                                 '{}{}'.format(prefix, operation))) as timer:
                             output = function(input1, input2)
@@ -137,7 +132,8 @@ class Tests(unittest.TestCase):
                 for array in arrays:
                     with self.subTest(variant=variant, path=path, array_size=array.size):
                         # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
-                        for _ in _TIME.measure_many('{}.{}.{}'.format(name, array.size, variant), 50):
+                        for _ in _TIME.measure_many('run.{}.{}.{}'.format(
+                                name, array.size, variant), 50):
                             results = tested_function(array)
                         # self.assertListEqual(array.tolist(), array_copy.tolist())
                         self.assertTrue(results.shape, array.shape)
@@ -149,24 +145,21 @@ class Tests(unittest.TestCase):
             json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
     def test_openmp(self):
-        compiler = F2PyCompiler()
-        binder = Binder()
         for input_path in [_ for _ in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES]:
             if input_path.name == 'matmul_openmp.f':
                 break
-        output_dir = pathlib.Path(
-            EXAMPLES_RESULTS_ROOT, input_path.parent.name,
-            'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
-        if not output_dir.is_dir():
-            output_dir.mkdir()
-        with open(str(input_path)) as input_file:
-            code = input_file.read()
-        # with self.subTest(input_path=input_path):
+
+        output_dir = make_f2py_tmp_folder(input_path)
+
+        code_reader = CodeReader()
+        code = code_reader.read_file(input_path)
+        compiler = F2PyCompiler()
+        binder = Binder()
 
         output_path = compiler.compile(code, input_path, output_dir, openmp=False)
         with binder.temporarily_bind(output_path) as binding:
             self.assertIsInstance(binding, types.ModuleType)
-            with _TIME.measure('matmul-simple'):
+            with _TIME.measure('run.matmul.simple'):
                 ret_val = binding.intmatmul(20, 1024, 1024)
         self.assertEqual(ret_val, 0)
         output_path.unlink()
@@ -174,7 +167,7 @@ class Tests(unittest.TestCase):
         output_path = compiler.compile(code, input_path, output_dir, openmp=True)
         with binder.temporarily_bind(output_path) as binding:
             self.assertIsInstance(binding, types.ModuleType)
-            with _TIME.measure('matmul-openmp'):
+            with _TIME.measure('run..matmul.openmp'):
                 ret_val = binding.intmatmul(20, 1024, 1024)
         self.assertEqual(ret_val, 0)
         _LOG.warning('%s', _TIME.summary)
