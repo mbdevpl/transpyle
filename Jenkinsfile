@@ -17,9 +17,9 @@ pipeline {
         sh '''
           source /etc/profile.d/modules.sh &&
           source ~/Software/Environment/bash/spack.bashrc &&
-          spack load -r gcc@8.2.0 &&
-          spack load -r llvm@6.0.1 &&
-          spack load -r swig%gcc@8.2.0 &&
+          spack load llvm@7.0.1%gcc@4.8.5 &&
+          spack load gcc@8.3.0%gcc@4.8.5 +piclibs +nvptx &&
+          spack load libffi@3.2.1%gcc@8.3.0 &&
           module list &&
           TEST_LONG=1 python3.6 -m coverage run --branch --source . -m unittest -v test.test_performance
           '''
