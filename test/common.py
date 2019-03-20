@@ -5,6 +5,7 @@ import datetime
 import io
 import itertools
 import pathlib
+import platform
 import sys
 import typing as t
 import unittest
@@ -19,6 +20,11 @@ _HERE = pathlib.Path(__file__).resolve().parent
 
 RESULTS_ROOT = pathlib.Path(_HERE, 'results')
 RESULTS_ROOT.mkdir(exist_ok=True)
+
+
+def now_timestamp():
+    return datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+
 
 EXAMPLES_LANGS = ('c11', 'cpp14', 'cython', 'f77', 'f95', 'python3')
 
@@ -112,9 +118,8 @@ def make_swig_tmp_folder(input_path):
     swig_output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig')
     if not swig_output_dir.is_dir():
         swig_output_dir.mkdir()
-    output_dir = pathlib.Path(
-        EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig',
-        'swig_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+    output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig',
+                              'swig_tmp_{}'.format(now_timestamp()))
     if not output_dir.is_dir():
         output_dir.mkdir()
     return output_dir
@@ -139,9 +144,8 @@ def make_f2py_tmp_folder(input_path):
     f2py_root_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py')
     if not f2py_root_dir.is_dir():
         f2py_root_dir.mkdir()
-    output_dir = pathlib.Path(
-        EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py',
-        'f2py_tmp_{}'.format(datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')))
+    output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py',
+                              'f2py_tmp_{}'.format(now_timestamp()))
     if not output_dir.is_dir():
         output_dir.mkdir()
     return output_dir
@@ -199,3 +203,15 @@ def execute_on_examples(example_paths: t.Iterable[pathlib.Path]):
                     test_function(test_case, input_path)
         return wrapped_test_implementation
     return test_implementation_wrapper
+
+
+MACHINE = platform.node()
+
+PERFORMANCE_RESULTS_ROOT = RESULTS_ROOT.joinpath('performance', MACHINE, now_timestamp())
+
+if not PERFORMANCE_RESULTS_ROOT.parent.parent.is_dir():
+    PERFORMANCE_RESULTS_ROOT.parent.parent.mkdir()
+if not PERFORMANCE_RESULTS_ROOT.parent.is_dir():
+    PERFORMANCE_RESULTS_ROOT.parent.mkdir()
+if not PERFORMANCE_RESULTS_ROOT.is_dir():
+    PERFORMANCE_RESULTS_ROOT.mkdir()

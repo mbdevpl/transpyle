@@ -16,15 +16,10 @@ from transpyle.general import Binder
 from transpyle.cpp import CppSwigCompiler
 from transpyle.fortran import F2PyCompiler
 
-from .common import EXAMPLES_ROOTS, RESULTS_ROOT
+from .common import EXAMPLES_ROOTS, PERFORMANCE_RESULTS_ROOT
 
 _LOG = logging.getLogger(__name__)
 _TIME = timing.get_timing_group(__name__)
-
-PERFORMANCE_RESULTS_ROOT = RESULTS_ROOT.joinpath('performance')
-
-if not PERFORMANCE_RESULTS_ROOT.is_dir():
-    PERFORMANCE_RESULTS_ROOT.mkdir()
 
 
 class Tests(unittest.TestCase):

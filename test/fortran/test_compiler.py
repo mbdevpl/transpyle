@@ -15,7 +15,7 @@ from transpyle.general.binder import Binder
 from transpyle.fortran.compiler import F2PyCompiler
 
 from test.common import \
-    EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, make_f2py_tmp_folder, \
+    now_timestamp, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, make_f2py_tmp_folder, \
     execute_on_all_language_examples, execute_on_all_language_fundamentals
 
 _LOG = logging.getLogger(__name__)
@@ -92,9 +92,7 @@ class Tests(unittest.TestCase):
     def test_directives(self):
         # from transpyle.general.language import Language
         # from transpyle.general.transpiler import AutoTranspiler
-        from test.common import EXAMPLES_ROOTS, RESULTS_ROOT
-
-        PERFORMANCE_RESULTS_ROOT = RESULTS_ROOT.joinpath('performance')
+        from test.common import EXAMPLES_ROOTS, PERFORMANCE_RESULTS_ROOT
 
         binder = Binder()
         compiler_f95 = F2PyCompiler()
@@ -139,7 +137,7 @@ class Tests(unittest.TestCase):
                         self.assertTrue(results.shape, array.shape)
 
         for array in arrays:
-            timings_name = '.'.join([__name__, name, str(array.size)])
+            timings_name = '.'.join([__name__, 'run', name, str(array.size)])
             summary = timing.query_cache(timings_name).summary
             _LOG.info('%s', summary)
             json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
