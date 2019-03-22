@@ -7,6 +7,7 @@ import platform
 import types
 import unittest
 
+from encrypted_config.json_io import json_to_file
 import timing
 import typed_astunparse
 
@@ -18,6 +19,7 @@ from transpyle.cpp.unparser import Cpp14Unparser
 from transpyle.cpp.compiler import CppCompilerInterface, CppSwigCompiler
 
 from .common import \
+    PERFORMANCE_RESULTS_ROOT, \
     EXAMPLES_ROOTS, basic_check_cpp_code, basic_check_cpp_ast, make_swig_tmp_folder, \
     basic_check_python_ast, execute_on_all_language_examples
 
@@ -132,9 +134,11 @@ class CompilerTests(unittest.TestCase):
             # print(help(binding.main))
             with _TIME.measure('matmul') as timer:
                 ret_val = binding.multiply_martices_example(1, 3000, 3000)
+            self.assertGreater(timer.elapsed, 0)
             self.assertEqual(ret_val, 0)
-            _LOG.warning('%s', _TIME.summary)
-            self.assertIsNotNone(binding)
+            _LOG.info('%s', _TIME.summary)
+            json_to_file(_TIME.summary,
+                         PERFORMANCE_RESULTS_ROOT.joinpath('{}.run.matmul.json'.format(__name__)))
         output_path.unlink()
         try:
             output_dir.rmdir()
