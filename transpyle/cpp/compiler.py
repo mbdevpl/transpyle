@@ -112,24 +112,48 @@ class CppCompilerInterface:
 
     flags = ('-O3', '-fPIC', '-fopenmp')
 
+    compiler_flags = tuple(split_and_strip('{} {}'.format(
+        PYTHON_CONFIG['BASECFLAGS'], PYTHON_CONFIG['BASECPPFLAGS'])))
+
+    linker_flags = ()
+
+    include_paths = [
+        pathlib.Path(PYTHON_CONFIG['INCLUDEPY']),
+        pathlib.Path(PYTHON_CONFIG['DESTLIB'], 'site-packages/numpy/core/include')]
+
+    library_paths = [
+        pathlib.Path(PYTHON_CONFIG['LIBDIR'])]
+
     compiler_flags = split_and_strip('-I{} -I{}/site-packages/numpy/core/include {} {}'.format(
         PYTHON_CONFIG['INCLUDEPY'], PYTHON_CONFIG['DESTLIB'],
         PYTHON_CONFIG['BASECFLAGS'], PYTHON_CONFIG['BASECPPFLAGS']))
 
     ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
 
-    linker_flags = split_and_strip('-L{} -l{} {} {} {}'.format(
-        PYTHON_CONFIG['LIBDIR'], ldlibrary, PYTHON_CONFIG['LIBS'],
-        PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
+    libraries = split_and_strip('-l{} {} {} {}'.format(
+        ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
+
+    # linker_flags = split_and_strip('-L{} -l{} {} {} {}'.format(
+    #     PYTHON_CONFIG['LIBDIR'], ldlibrary, PYTHON_CONFIG['LIBS'],
+    #     PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
+
+    @property
+    def compiler_options(self):
+        return [*self.flags, *self.compiler_flags, *['-I{}'.format(_) for _ in self.include_paths]]
+
+    @property
+    def linker_options(self):
+        return [*self.flags, *self.linker_flags, *['-L{}'.format(_) for _ in self.library_paths],
+                *self.libraries]
 
     def compile(self, input_paths: t.Sequence[pathlib.Path]) -> subprocess.CompletedProcess:
         return run_tool(pathlib.Path(self.executable), [
-            *self.flags, *self.compiler_flags, '-c', *[str(path) for path in input_paths]])
+            *self.compiler_options, '-c', *[str(path) for path in input_paths]])
 
     def link(self, input_paths: t.Sequence[pathlib.Path],
              output_path: pathlib.Path) -> subprocess.CompletedProcess:
         return run_tool(pathlib.Path(self.executable), [
-            *self.flags, *self.linker_flags, '-shared', *[str(path) for path in input_paths],
+            *self.linker_options, '-shared', *[str(path) for path in input_paths],
             '-o', str(output_path)])
 
     def compile_and_link(self, input_paths: t.Sequence[pathlib.Path], output_path: pathlib.Path):

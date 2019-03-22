@@ -15,7 +15,7 @@ from transpyle.general.binder import Binder
 from transpyle.cpp.parser import CppParser
 from transpyle.cpp.ast_generalizer import CppAstGeneralizer
 from transpyle.cpp.unparser import Cpp14Unparser
-from transpyle.cpp.compiler import CppSwigCompiler
+from transpyle.cpp.compiler import CppCompilerInterface, CppSwigCompiler
 
 from .common import \
     EXAMPLES_CPP14_FILES, basic_check_cpp_code, basic_check_cpp_ast, make_swig_tmp_folder, \
@@ -84,6 +84,13 @@ class UnparserTests(unittest.TestCase):
 
 
 class CompilerTests(unittest.TestCase):
+
+    def test_cpp_paths_exist(self):
+        compiler = CppCompilerInterface()
+        for path in compiler.include_paths:
+            self.assertTrue(path.is_dir())
+        for path in compiler.library_paths:
+            self.assertTrue(path.is_dir())
 
     @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
