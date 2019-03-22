@@ -18,7 +18,7 @@ from transpyle.cpp.unparser import Cpp14Unparser
 from transpyle.cpp.compiler import CppCompilerInterface, CppSwigCompiler
 
 from .common import \
-    EXAMPLES_CPP14_FILES, basic_check_cpp_code, basic_check_cpp_ast, make_swig_tmp_folder, \
+    EXAMPLES_ROOTS, basic_check_cpp_code, basic_check_cpp_ast, make_swig_tmp_folder, \
     basic_check_python_ast, execute_on_all_language_examples
 
 _LOG = logging.getLogger(__name__)
@@ -119,9 +119,7 @@ class CompilerTests(unittest.TestCase):
 
     def test_openmp(self):
         compiler = CppSwigCompiler()
-        for input_path in EXAMPLES_CPP14_FILES:
-            if input_path.name == 'matmul_openmp.cpp':
-                break
+        input_path = EXAMPLES_ROOTS['cpp14'].joinpath('matmul_openmp.cpp')
 
         output_dir = make_swig_tmp_folder(input_path)
         with input_path.open() as input_file:

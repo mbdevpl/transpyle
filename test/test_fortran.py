@@ -18,10 +18,10 @@ from transpyle.fortran.unparser import Fortran77Unparser
 from transpyle.fortran.compiler import F2PyCompiler
 
 from .common import \
-    random_data, EXAMPLES_F77_FILES, EXAMPLES_F95_FILES, EXAMPLES_PY3_FILES, \
+    random_data, EXAMPLES_ROOTS, PERFORMANCE_RESULTS_ROOT, \
     basic_check_fortran_ast, basic_check_fortran_code, make_f2py_tmp_folder, \
     basic_check_python_ast, \
-    execute_on_examples, execute_on_all_language_examples, execute_on_all_language_fundamentals
+    execute_on_all_language_examples, execute_on_all_language_fundamentals
 
 _LOG = logging.getLogger(__name__)
 
@@ -130,12 +130,7 @@ class CompilerTests(unittest.TestCase):
                             self.assertTrue(np.allclose(expected, output, atol=1e-4),
                                             msg=(input1, input2, output, expected))
 
-
     def test_directives(self):
-        # from transpyle.general.language import Language
-        # from transpyle.general.transpiler import AutoTranspiler
-        from test.common import EXAMPLES_ROOTS, PERFORMANCE_RESULTS_ROOT
-
         binder = Binder()
         compiler_f95 = F2PyCompiler()
         compiler_f95_omp = F2PyCompiler()
@@ -185,10 +180,7 @@ class CompilerTests(unittest.TestCase):
             json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
     def test_openmp(self):
-        for input_path in [_ for _ in EXAMPLES_F77_FILES + EXAMPLES_F95_FILES]:
-            if input_path.name == 'matmul_openmp.f':
-                break
-
+        input_path = EXAMPLES_ROOTS['f77'].joinpath('matmul_openmp.f')
         output_dir = make_f2py_tmp_folder(input_path)
 
         code_reader = CodeReader()
