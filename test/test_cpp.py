@@ -87,10 +87,12 @@ class CompilerTests(unittest.TestCase):
 
     def test_cpp_paths_exist(self):
         compiler = CppCompilerInterface()
-        for path in compiler.include_paths:
-            self.assertTrue(path.is_dir())
-        for path in compiler.library_paths:
-            self.assertTrue(path.is_dir())
+        for include_path in compiler.include_paths:
+            with self.subTest(include_path=include_path):
+                self.assertTrue(include_path.is_dir())
+        for library_path in compiler.library_paths:
+            with self.subTest(library_path=library_path):
+                self.assertTrue(library_path.is_dir())
 
     @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')

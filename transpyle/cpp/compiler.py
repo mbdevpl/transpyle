@@ -124,8 +124,7 @@ class CppCompilerInterface:
     library_paths = [
         pathlib.Path(PYTHON_CONFIG['LIBDIR'])]
 
-    compiler_flags = split_and_strip('-I{} -I{}/site-packages/numpy/core/include {} {}'.format(
-        PYTHON_CONFIG['INCLUDEPY'], PYTHON_CONFIG['DESTLIB'],
+    compiler_flags = split_and_strip('{} {}'.format(
         PYTHON_CONFIG['BASECFLAGS'], PYTHON_CONFIG['BASECPPFLAGS']))
 
     ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
