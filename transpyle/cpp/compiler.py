@@ -10,6 +10,7 @@ import tempfile
 import typing as t
 
 import argunparse
+import numpy as np
 # from static_typing.ast_manipulation import RecursiveAstVisitor
 # import typed_ast.ast3 as typed_ast3
 
@@ -119,7 +120,7 @@ class CppCompilerInterface:
 
     include_paths = [
         pathlib.Path(PYTHON_CONFIG['INCLUDEPY']),
-        pathlib.Path(PYTHON_CONFIG['DESTLIB'], 'site-packages/numpy/core/include')]
+        *[pathlib.Path(_, 'core', 'include') for _ in np.__path__]]
 
     library_paths = [
         pathlib.Path(PYTHON_CONFIG['LIBDIR'])]
