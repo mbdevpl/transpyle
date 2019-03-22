@@ -87,7 +87,11 @@ namespace std {{
 %}}
 '''
 
-TRANSPYLE_CPP_RESOURCES_PATH = pathlib.Path('./resources/cpp/').resolve()
+_HERE = pathlib.Path(__file__).resolve().parent
+
+TRANSPYLE_CPP_RESOURCES_PATH = _HERE.joinpath('..', 'resources', 'cpp').resolve()
+
+assert TRANSPYLE_CPP_RESOURCES_PATH.is_dir(), TRANSPYLE_CPP_RESOURCES_PATH
 
 _LOG = logging.getLogger(__name__)
 

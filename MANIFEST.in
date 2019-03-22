@@ -5,4 +5,5 @@ include dev_requirements.txt
 include extras_requirements.json
 include LICENSE
 include NOTICE
+recursive-include ./transpyle/resources *.*
 recursive-include ./test/examples *.*
