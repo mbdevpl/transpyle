@@ -112,8 +112,8 @@ class CppCompilerInterface:
 
     flags = ('-O3', '-fPIC', '-fopenmp')
 
-    compiler_flags = split_and_strip('-I{} {} {}'.format(
-        PYTHON_CONFIG['INCLUDEPY'],
+    compiler_flags = split_and_strip('-I{} -I{}/site-packages/numpy/core/include {} {}'.format(
+        PYTHON_CONFIG['INCLUDEPY'], PYTHON_CONFIG['DESTLIB'],
         PYTHON_CONFIG['BASECFLAGS'], PYTHON_CONFIG['BASECPPFLAGS']))
 
     ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
