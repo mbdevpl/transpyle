@@ -25,26 +25,23 @@ _TIME = timing.get_timing_group(__name__)
 class Tests(unittest.TestCase):
 
     def test_do_nothing(self):
-        # reader = CodeReader()
-        compiler_f95 = F2PyCompiler()
-        binder = Binder()
-
         name = 'do_nothing'
-        variants = {}
-        variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
-        path_f95 = EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')
-        variants['f95'] = (compiler_f95.compile_file(path_f95), None)
+        variants = {
+            'py': EXAMPLES_ROOTS['python3'].joinpath(name + '.py'),
+            'f95': F2PyCompiler().compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90'))}
         if platform.system() == 'Linux':
-            compiler_cpp = CppSwigCompiler()
-            path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
-            variants['cpp'] = (compiler_cpp.compile_file(path_cpp), None)
-        variants['py_numba'] = (variants['py'][0], numba.jit)
+            variants['cpp'] = CppSwigCompiler().compile_file(
+                EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp'))
+        variants['py_numba'] = variants['py'][0]
 
-        for variant, (path, transform) in variants.items():
+        transforms = {'py_numba': numba.jit}
+
+        binder = Binder()
+        for variant, path in variants.items():
             with binder.temporarily_bind(path) as binding:
                 tested_function = getattr(binding, name)
-                if transform:
-                    tested_function = transform(tested_function)
+                if variant in transforms:
+                    tested_function = transforms[variant](tested_function)
                 with self.subTest(variant=variant, path=path):
                     # with _TIME.measure('{}.{}'.format(name, variant)) as timer:
                     for _ in _TIME.measure_many('{}.{}'.format(name, variant), 1000):
@@ -64,35 +61,37 @@ class Tests(unittest.TestCase):
 
     # @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     def test_compute_pi(self):
-        # reader = CodeReader()
-
         name = 'compute_pi'
-        variants = {}  # t.Dict[str, t.Tuple[pathlib.Path, t.Optional[collections.abc.Callable]]]
-        variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
+
+        # t.Dict[str, pathlib.Path]
+        variants = {
+            'py': EXAMPLES_ROOTS['python3'].joinpath(name + '.py'),
+            'f95': F2PyCompiler().compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90'))
+        }
+        variants['py_numba'] = variants['py']
+        variants['py_to_f95'] = AutoTranspiler(
+            Language.find('Python'), Language.find('Fortran 95')).transpile_file(variants['py'])
         if platform.system() == 'Linux':
-            path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
-            compiler_cpp = CppSwigCompiler()
-            variants['cpp'] = (compiler_cpp.compile_file(path_cpp), None)
-        # variants['f95'] = EXAMPLES_ROOTS['f95']
-            transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
-            variants['py_to_cpp'] = (transpiler_py_to_cpp.transpile_file(variants['py'][0]), None)
-        transpiler_py_to_f95 = AutoTranspiler(
-            Language.find('Python 3'), Language.find('Fortran 95'))
-        variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
-        variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
+            variants['cpp'] = CppSwigCompiler().compile_file(
+                EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp'))
+            variants['py_to_cpp'] = AutoTranspiler(
+                Language.find('Python'), Language.find('C++14')).transpile_file(variants['py'])
+
+        # t.Dict[str, collections.abc.Callable]
+        transforms = {'py_numba': numba.jit}
 
         segments_list = [_ for _ in range(0, 20)]
 
-        values = {}
-        for segments in segments_list:
-            values[segments] = {}
+        # values = {}
+        # for segments in segments_list:
+        #     values[segments] = {}
 
         binder = Binder()
-        for variant, (path, transform) in variants.items():
+        for variant, path in variants.items():
             with binder.temporarily_bind(path) as binding:
                 tested_function = getattr(binding, name)
-                if transform:
-                    tested_function = transform(tested_function)
+                if variant in transforms:
+                    tested_function = transforms[variant](tested_function)
                 for segments in segments_list:
                     with self.subTest(variant=variant, path=path, segments=segments):
                         for _ in _TIME.measure_many(
@@ -106,7 +105,7 @@ class Tests(unittest.TestCase):
                             self.assertAlmostEqual(value, np.pi, places=3)
                         else:
                             self.assertAlmostEqual(value, np.pi, places=0)
-                        values[segments][variant] = value
+                        # values[segments][variant] = value
                         # _LOG.warning('timing: %s, value=%f', timer, value)
 
         for segments in segments_list:
@@ -121,35 +120,32 @@ class Tests(unittest.TestCase):
         #        self.assertEqual(vals[0], val)
 
     def test_copy_array(self):
-        binder = Binder()
-        compiler_f95 = F2PyCompiler()
-        transpiler_py_to_f95 = AutoTranspiler(
-            Language.find('Python 3'), Language.find('Fortran 95'))
-
         name = 'copy_array'
-        variants = {}
-        variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
+        variants = {
+            'py': EXAMPLES_ROOTS['python3'].joinpath(name + '.py'),
+            'f95': F2PyCompiler().compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90'))}
+        variants['py_numba'] = variants['py']
+        variants['numpy'] = variants['py']
         if platform.system() == 'Linux':
-            compiler_cpp = CppSwigCompiler()
-            transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
-            # variants['cpp'] = (
-            #    compiler_cpp.compile_file(EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')), None)
-            # variants['py_to_cpp'] = (transpiler_py_to_cpp.transpile_file(variants['py'][0]), None)
-        variants['f95'] = (
-            compiler_f95.compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90')), None)
-        # variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
-        variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
-        variants['numpy'] = (variants['py'][0], lambda f: np.copy)
+            # variants['cpp'] = CppSwigCompiler().compile_file(
+            #     EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp'))
+            # variants['py_to_cpp'] = AutoTranspiler(
+            #     Language.find('Python 3'), Language.find('C++14')).transpile_file(variants['py'])
+            pass
+        # variants['py_to_f95'] = AutoTranspiler(
+        #     Language.find('Python'), Language.find('Fortran 95')).transpile_file(variants['py'])
+
+        transforms = {'py_numba': numba.jit, 'numpy': lambda _: np.copy}
 
         arrays = [np.array(np.random.random_sample((array_size,)), dtype=np.double)
                   for array_size in range(1024, 1024 * 64 + 1, 1024 * 4)]
 
-        for variant, (path, transform) in variants.items():
+        binder = Binder()
+        for variant, path in variants.items():
             with binder.temporarily_bind(path) as binding:
                 tested_function = getattr(binding, name)
-                if transform:
-                    tested_function = transform(tested_function)
-                # import ipdb; ipdb.set_trace()
+                if variant in transforms:
+                    tested_function = transforms[variant](tested_function)
                 for array in arrays:
                     with self.subTest(variant=variant, path=path, array_size=array.size):
                         # with _TIME.measure('{}.{}.{}'.format(name, segments, variant)):
