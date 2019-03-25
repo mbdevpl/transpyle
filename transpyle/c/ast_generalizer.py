@@ -27,17 +27,31 @@ def _node_str(node: c_ast.Node):
 
 
 C_UNARY_OPERATORS_TO_PYTHON = {
+    '+': (typed_ast3.UnaryOp, typed_ast3.UAdd),
+    '-': (typed_ast3.UnaryOp, typed_ast3.USub),
     'sizeof': (typed_ast3.Call, 'sizeof'),
-    '++': (typed_ast3.AugAssign, typed_ast3.Add)}
+    '++': (typed_ast3.AugAssign, typed_ast3.Add),
+    '--': (typed_ast3.AugAssign, typed_ast3.Sub)}
 
 C_BINARY_OPERATORS_TO_PYTHON = {
+    '+': (typed_ast3.BinOp, typed_ast3.Add),
+    '-': (typed_ast3.BinOp, typed_ast3.Sub),
+    '*': (typed_ast3.BinOp, typed_ast3.Mult),
+    '/': (typed_ast3.BinOp, typed_ast3.Div),
+    '%': (typed_ast3.BinOp, typed_ast3.Mod),
+    '<<': (typed_ast3.BinOp, typed_ast3.LShift),
+    '>>': (typed_ast3.BinOp, typed_ast3.RShift),
+    '|': (typed_ast3.BinOp, typed_ast3.BitOr),
+    '^': (typed_ast3.BinOp, typed_ast3.BitXor),
+    '&': (typed_ast3.BinOp, typed_ast3.BitAnd),
     '==': (typed_ast3.Compare, typed_ast3.Eq),
     '!=': (typed_ast3.Compare, typed_ast3.NotEq),
     '<': (typed_ast3.Compare, typed_ast3.Lt),
+    '<=': (typed_ast3.Compare, typed_ast3.LtE),
     '>': (typed_ast3.Compare, typed_ast3.Gt),
-    '+': (typed_ast3.BinOp, typed_ast3.Add),
-    '-': (typed_ast3.BinOp, typed_ast3.Sub),
-    '*': (typed_ast3.BinOp, typed_ast3.Mult)}
+    '>=': (typed_ast3.Compare, typed_ast3.GtE),
+    '&&': (typed_ast3.BoolOp, typed_ast3.And),
+    '||': (typed_ast3.BoolOp, typed_ast3.Or)}
 
 C_ASSIGNMENT_OPERATORS_TO_PYTHON = {
     '=': (typed_ast3.Assign, None),
@@ -180,6 +194,8 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
             return op_type(left=left, op=op_(), right=right)
         if op_type is typed_ast3.Compare:
             return op_type(left=left, ops=[op_()], comparators=[right])
+        if op_type is typed_ast3.BoolOp:
+            return op_type(op=op_(), values=[left, right])
         return self.generic_visit(node)
 
     def visit_UnaryOp(self, node):  # pylint: disable=invalid-name
@@ -193,7 +209,7 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
         if op_type is typed_ast3.AugAssign:
             return op_type(target=expr, op=op_(), value=typed_ast3.Num(n=1))
             # raise NotImplementedError()
-        return op_type(op=op_, operand=expr)
+        return op_type(op=op_(), operand=expr)
 
     def visit_Cast(self, node):  # pylint: disable=invalid-name
         """Transform C cast into cast() function call."""

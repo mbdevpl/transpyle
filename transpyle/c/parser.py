@@ -3,31 +3,50 @@
 import io
 import logging
 import pathlib
-# import typing as t
-import sys
+import tempfile
+import typing as t
 
 import pcpp
+from pcpp.preprocessor import LexToken  # ply.lex.LexToken
+
+# import pcpp.ply as ply
 import pycparser
 
-from ..general import Language, Parser
+from ..general import CodeReader, CodeWriter, Parser
+from ..general.tools import run_tool
 
 _LOG = logging.getLogger(__name__)
+
+_HERE = pathlib.Path(__file__).resolve().parent
+
+TRANSPYLE_C_RESOURCES_PATH = _HERE.joinpath('..', 'resources', 'c').resolve()
+
+# PYCPARSER_INCLUDES = list(pathlib.Path(_, 'utils', 'fake_libc_include').glob('ls')
+#                           for _ in pycparser.__path__)
 
 
 class C99Preprocessor(pcpp.Preprocessor):
 
     """Override these in your subclass of Preprocessor to customise preprocessing"""
 
-    def include(self, tokens):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.include_names = []
+
+    def include(self, tokens: t.List[LexToken]) -> t.List[LexToken]:
         if not tokens:
             return []
         _LOG.debug('%i tokens: %s', len(tokens), tokens)
+        if len(tokens) != 5:
+            _LOG.warning('unexpected syntax: #include%s', ''.join([_.value for _ in tokens]))
+        else:
+            self.include_names.append(tokens[1].value)
         _LOG.warning('ignoring #include%s', ''.join([_.value for _ in tokens]))
         # return []
         # yield from super().include(tokens)
         # tokens[0].value = '/* #include' + tokens[0].value
         tokens[0].value = 'const char* directive = "#include' + tokens[0].value
-        #for token in tokens:
+        # for token in tokens:
         #    token.value = ' '  # ' ' * len(token.value)
         # tokens[-1].value += ' */\n'
         tokens[-1].value += '";\n'
@@ -38,7 +57,7 @@ class C99Preprocessor(pcpp.Preprocessor):
 
         The default simply prints to stderr and increments the return code.
         """
-        print("%s:%d error: %s" % (file,line,msg), file = sys.stderr)
+        _LOG.error('%s:%d error: %s', file, line, msg)
         self.return_code += 1
 
     def on_include_not_found(self, is_system_include, curdir, includepath):
@@ -50,10 +69,11 @@ class C99Preprocessor(pcpp.Preprocessor):
         The default calls self.on_error() with a suitable error message about the
         include file not found and raises OutputDirective (pass through).
         """
-        self.on_error(self.lastdirective.source,self.lastdirective.lineno, "Include file '%s' not found" % includepath)
+        self.on_error(self.lastdirective.source, self.lastdirective.lineno,
+                      'Include file "{}" not found'.format(includepath))
         raise pcpp.preprocessor.OutputDirective()
 
-    def on_unknown_macro_in_defined_expr(self,tok):
+    def on_unknown_macro_in_defined_expr(self, tok):
         """Called when an expression passed to an #if contained a defined operator
         performed on something unknown.
 
@@ -65,7 +85,7 @@ class C99Preprocessor(pcpp.Preprocessor):
         """
         return False
 
-    def on_unknown_macro_in_expr(self,tok):
+    def on_unknown_macro_in_expr(self, tok):
         """Called when an expression passed to an #if contained something unknown.
 
         Return what value it should be, raise OutputDirective to pass through
@@ -96,7 +116,7 @@ class C99Preprocessor(pcpp.Preprocessor):
         self.lastdirective = directive
         return True
 
-    def on_directive_unknown(self,directive,toks,ifpassthru):
+    def on_directive_unknown(self, directive, toks, ifpassthru):
         """Called when the preprocessor encounters a #directive it doesn't understand.
         This is actually quite an extensive list as it currently only understands:
 
@@ -109,22 +129,22 @@ class C99Preprocessor(pcpp.Preprocessor):
         (remove from output). For everything else it returns None (pass through into output).
         """
         if directive.value == 'error':
-            print("%s:%d error: %s" % (directive.source,directive.lineno,''.join(tok.value for tok in toks)), file = sys.stderr)
-            self.return_code += 1
+            self.on_error(directive.source, directive.lineno, ''.join(tok.value for tok in toks))
             return True
-        elif directive.value == 'warning':
-            print("%s:%d warning: %s" % (directive.source,directive.lineno,''.join(tok.value for tok in toks)), file = sys.stderr)
+        if directive.value == 'warning':
+            _LOG.warning('%s:%d warning: %s',
+                         directive.source, directive.lineno, ''.join(tok.value for tok in toks))
             return True
         return None
 
-    def on_potential_include_guard(self,macro):
+    def on_potential_include_guard(self, macro):
         """Called when the preprocessor encounters an #ifndef macro or an #if !defined(macro)
         as the first non-whitespace thing in a file. Unlike the other hooks, macro is a string,
         not a token.
         """
         pass
 
-    def on_comment(self,tok):
+    def on_comment(self, tok):
         """Called when the preprocessor encounters a comment token. You can modify the token
         in place, or do nothing to let the comment pass through.
 
@@ -160,6 +180,29 @@ class C99Parser(Parser):
         preprocessed_code = code_io.getvalue()
         if preprocessed_code != code:
             _LOG.debug('code was preprocessed:\n%s', preprocessed_code)
+
+        # add selected includes
+        includes = ''
+        for name in self._preprocessor.include_names:
+            if name in {'stdbool'}:
+                includes = '#include<{}.h>\n{}'.format(name, includes)
+        self._preprocessor.include_names.clear()
+
+        if includes:
+            preprocessed_code = '{}\n{}'.format(includes, preprocessed_code)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                output_folder = pathlib.Path(tmpdir)
+            output_folder.mkdir()
+            _LOG.warning('running C preprocessor on file in "%s"', output_folder)
+            intermediate_path = output_folder.joinpath(path.name)
+            CodeWriter(path.suffix).write_file(preprocessed_code, intermediate_path)
+            output_path = output_folder.joinpath(
+                '{}{}{}'.format(path.stem, '_preprocessed', path.suffix))
+            run_tool(pathlib.Path('gcc'), [
+                '-I', str(TRANSPYLE_C_RESOURCES_PATH), '-o', output_path, '-E', intermediate_path],
+                     cwd=output_folder)
+            preprocessed_code = CodeReader().read_file(output_path)
+            path_str = str(output_path)
 
         # parse
         tree = self._parser.parse(preprocessed_code, path_str)

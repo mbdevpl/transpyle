@@ -6,6 +6,7 @@ import itertools
 import logging
 import typing as t
 
+import astunparse
 import horast
 import typed_ast.ast3 as typed_ast3
 
@@ -68,6 +69,11 @@ PY_TUPLES_TO_CPP_TYPES.update({
 
 PY_TO_CPP_TYPES = {'.'.join(k): v for k, v in PY_TUPLES_TO_CPP_TYPES.items()}
 
+PY_TUPLES_TO_CPP = {
+    ('np', 'sqrt'): 'sqrt'}
+
+PY_TUPLES_TO_CPP.update(PY_TUPLES_TO_CPP_TYPES)
+
 
 def is_pointer(syntax: typed_ast3.AST):
     return (isinstance(syntax, typed_ast3.Subscript) and isinstance(syntax.value, typed_ast3.Name)
@@ -109,6 +115,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def __init__(self, *args, **kwargs):
         self._includes = {}
+        self._context = None
         super().__init__(*args, **kwargs)
 
     def enter(self, *, write_brace: bool = True):
@@ -179,15 +186,29 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         raise NotImplementedError('not supported yet')
 
     def _Assign(self, t):
-        super()._Assign(t)
+        if self._context != 'for header':
+            self.fill()
+        if t.type_comment:
+            self.dispatch_type(t.resolved_type_comment)
+            self.write(' ')
+        for target in t.targets:
+            self.dispatch(target)
+            self.write(" = ")
+        self.dispatch(t.value)
         self.write(';')
 
     def _AugAssign(self, t):
-        super()._AugAssign(t)
-        self.write(';')
+        if self._context != 'for header':
+            self.fill()
+        self.dispatch(t.target)
+        self.write(' {}= '.format(self.binop[t.op.__class__.__name__]))
+        self.dispatch(t.value)
+        if self._context != 'for header':
+            self.write(';')
 
     def _AnnAssign(self, t):
-        self.fill()
+        if self._context != 'for header':
+            self.fill()
         if not t.simple:
             self._unsupported_syntax(t, 'which is not simple')
         self.dispatch_type(t.annotation)
@@ -196,6 +217,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         if t.value:
             self.write(' = ')
             self.dispatch(t.value)
+        if self._context != 'for header':
             self.write(';')
 
     def _Return(self, t):
@@ -320,11 +342,13 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def _For(self, t):
         self.fill('for (')
         init, cond, increment = for_header_to_tuple(t.target, t.resolved_type_comment, t.iter)
+        self._context = 'for header'
         self.dispatch(init)
-        self.write(', ')
+        self.write('; ')
         self.dispatch(cond)
-        self.write(', ')
+        self.write('; ')
         self.dispatch(increment)
+        self._context = None
         # self.dispatch(t.iter)
         self.write(')')
         self.enter()
@@ -427,7 +451,9 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.write('->')
                 self.write(t.attr)
                 return
-            unparsed = PY_TUPLES_TO_CPP_TYPES[t.value.id, t.attr]
+            unparsed = PY_TUPLES_TO_CPP[t.value.id, t.attr]
+            if unparsed == 'sqrt':
+                self._includes['cmath'] = True
             self.write(unparsed)
             return
         self.dispatch(t.value)

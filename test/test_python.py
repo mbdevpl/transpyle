@@ -8,16 +8,18 @@ import types
 import unittest
 
 import horast
+import timing
 import typed_ast.ast3
 
 from transpyle.general import CodeReader, Language, Parser
+from transpyle.python import PythonAstGeneralizer
 from transpyle.python.parser import \
     NativePythonParser, TypedPythonParser, TypedPythonParserWithComments
 from transpyle.python.unparser import \
     NativePythonUnparser, TypedPythonUnparser, TypedPythonUnparserWithComments
 from transpyle.python.transformations import inline_syntax, inline
 
-from .common import EXAMPLES_PY3
+from .common import EXAMPLES_PY3, basic_check_python_ast, execute_on_all_language_examples
 from .examples_inlining import \
     buy_products, buy, buy_products_inlined, \
     just_return, return_me, just_return_inlined, \
@@ -26,6 +28,8 @@ from .examples_inlining import \
     inline_oneliner, add_squares, inline_oneliner_inlined
 
 _LOG = logging.getLogger(__name__)
+
+_TIME = timing.get_timing_group(__name__)
 
 PARSER_CLASSES = (NativePythonParser, TypedPythonParser, TypedPythonParserWithComments)
 
@@ -75,6 +79,22 @@ class AstGeneralizerTests(unittest.TestCase):
         self.assertIsInstance(tree.body[0], typed_ast.ast3.AnnAssign)
         self.assertIsInstance(tree.body[0].annotation, typed_ast.ast3.Subscript)
         self.assertIsInstance(tree.body[0].annotation.slice, typed_ast.ast3.ExtSlice)
+
+    @execute_on_all_language_examples('python3')
+    def test_generalize_examples(self, input_path):
+        code_reader = CodeReader()
+        code = code_reader.read_file(input_path)
+        parser = TypedPythonParserWithComments()
+        with _TIME.measure('parse.{}'.format(input_path.name.replace('.', '_'))) as timer:
+            python_ast = parser.parse(code, input_path)
+        basic_check_python_ast(self, input_path, python_ast)
+        _LOG.info('parsed "%s" in %fs', input_path, timer.elapsed)
+
+        ast_generalizer = PythonAstGeneralizer()
+        with _TIME.measure('generalize.{}'.format(input_path.name.replace('.', '_'))) as timer:
+            syntax = ast_generalizer.generalize(python_ast)
+        basic_check_python_ast(self, input_path, syntax)
+        _LOG.info('generalized "%s" in %fs', input_path, timer.elapsed)
 
 
 class UnparserTests(unittest.TestCase):

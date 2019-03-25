@@ -46,7 +46,7 @@ class CastXMLTypeFinder(XmlAstGeneralizer):
     def __init__(self, scope=None):
         super().__init__(scope)
         assert scope is not None, \
-            'scope={"path": pathlib.Path(...)} has to be provided for C++ generalizer'
+            'scope={\'path\': pathlib.Path(...)} has to be provided for C++ generalizer'
         self.file_id = None
         self._new_relevant_types = None
         self.initialize()

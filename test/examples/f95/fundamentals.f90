@@ -58,3 +58,48 @@ function multiply_real(num1, num2)
   multiply_real = num1 * num2
   return
 end function
+
+function is_positive_int(num)
+  implicit none
+  integer, intent(in) :: num
+  logical :: is_positive_int
+
+  is_positive_int = num > 0
+  return
+end function
+
+function is_zero_int(num)
+  implicit none
+  integer, intent(in) :: num
+  logical :: is_zero_int
+
+  is_zero_int = num == 0
+  return
+end function
+
+function is_negative_int(num)
+  implicit none
+  integer, intent(in) :: num
+  logical :: is_negative_int
+
+  is_negative_int = num < 0
+  return
+end function
+
+function is_single_digit_int(num)
+  implicit none
+  integer, intent(in) :: num
+  logical :: is_single_digit_int
+
+  is_single_digit_int = num > -10 .and. num < 10
+  return
+end function
+
+function is_not_single_digit_int(num)
+  implicit none
+  integer, intent(in) :: num
+  logical :: is_not_single_digit_int
+
+  is_not_single_digit_int = num <= -10 .or. num >= 10
+  return
+end function

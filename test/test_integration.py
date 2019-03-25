@@ -1,10 +1,13 @@
 """Integration tests for translating and transpiling between different languages."""
 
 import itertools
+import logging
 import pathlib
 import sys
 import tempfile
 import unittest
+
+import timing
 
 from transpyle.general.code_reader import CodeReader
 from transpyle.general.code_writer import CodeWriter
@@ -23,11 +26,13 @@ from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
 
 from .common import (
-    EXAMPLES_LANGS_NAMES,
-    EXAMPLES_FILES, EXAMPLES_C11_FILES, EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES,
-    EXAMPLES_ROOTS,
+    EXAMPLES_LANGS_NAMES, EXAMPLES_FILES, EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES, EXAMPLES_ROOTS,
     basic_check_cpp_code, make_f2py_tmp_folder, basic_check_python_code,
-    execute_on_examples)
+    execute_on_examples, execute_on_all_language_examples)
+
+_LOG = logging.getLogger(__name__)
+
+_TIME = timing.get_timing_group(__name__)
 
 NOT_PARSED_LANGS = ('C++14', 'Cython')
 
@@ -88,38 +93,49 @@ class Tests(unittest.TestCase):
 
 class CAndPythonTests(unittest.TestCase):
 
-    def test_translate_c_to_python(self):
-        language = Language.find('C11')
-        python_language = Language.find('Python')
+    @execute_on_all_language_examples('c11')
+    def test_translate_c_to_python(self, input_path):
         reader = CodeReader()
-        parser = Parser.find(language)()
-        ast_generalizer = AstGeneralizer.find(language)()
-        unparser = Unparser.find(python_language)()
-        for input_path in EXAMPLES_C11_FILES:
-            with self.subTest(input_path=input_path):
-                code = reader.read_file(input_path)
-                c_ast = parser.parse(code, input_path)
-                tree = ast_generalizer.generalize(c_ast)
-                python_code = unparser.unparse(tree)
-                basic_check_python_code(self, input_path, python_code)
+        c_code = reader.read_file(input_path)
+        language_from = Language.find('C11')
+        language_to = Language.find('Python')
+        translator = AutoTranslator(language_from, language_to)
+        with _TIME.measure('translate.c11_to_python3.{}'
+                           .format(input_path.name.replace('.', '_'))) as timer:
+            python_code = translator.translate(c_code, input_path)
+        basic_check_python_code(self, input_path, python_code)
+        _LOG.info('translated "%s" to Python in %fs', input_path, timer.elapsed)
 
 
 class CppAndPythonTests(unittest.TestCase):
 
     @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
-    def test_translate_python_to_cpp(self):
+    @execute_on_examples([
+        EXAMPLES_ROOTS['python3'].joinpath(_ + '.py')
+        for _ in {'fundamentals', 'do_nothing', 'compute_pi', 'gemm',
+                  'simple_class', 'typical_class'}])
+    def test_translate_python_to_cpp(self, input_path):
+        reader = CodeReader()
+        python_code = reader.read_file(input_path)
         language_from = Language.find('Python')
         language_to = Language.find('C++')
+        translator = AutoTranslator(language_from, language_to)
+        with _TIME.measure('translate.python3_to_cpp14.{}'
+                           .format(input_path.name.replace('.', '_'))) as timer:
+            cpp_code = translator.translate(python_code)
+        basic_check_cpp_code(self, input_path, cpp_code)
+        _LOG.info('translated "%s" to C++ in %fs', input_path, timer.elapsed)
+
+    @execute_on_all_language_examples('cpp14')
+    def test_translate_cpp_to_python(self, input_path):
         reader = CodeReader()
-        root = EXAMPLES_ROOTS['python3']
-        for module_name in {'do_nothing', 'gemm', 'simple_class', 'typical_class'}:
-            input_path = root.joinpath('{}.py'.format(module_name))
-            self.assertIn(input_path, EXAMPLES_PY3_FILES)
-            translator = AutoTranslator(language_from, language_to)
-            with self.subTest(input_path=input_path):
-                python_code = reader.read_file(input_path)
-                cpp_code = translator.translate(python_code)
-                basic_check_cpp_code(self, input_path, cpp_code)
+        cpp_code = reader.read_file(input_path)
+        language_from = Language.find('C++')
+        language_to = Language.find('Python')
+        translator = AutoTranslator(language_from, language_to,
+                                    ast_generalizer_kwargs={'scope': {'path': input_path}})
+        python_code = translator.translate(cpp_code, input_path)
+        basic_check_python_code(self, input_path, python_code)
 
 
 class FortranAndPythonTests(unittest.TestCase):
