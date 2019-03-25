@@ -65,20 +65,19 @@ class Tests(unittest.TestCase):
     # @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     def test_compute_pi(self):
         # reader = CodeReader()
-        compiler_cpp = CppSwigCompiler()
-        transpiler_py_to_f95 = AutoTranspiler(
-            Language.find('Python 3'), Language.find('Fortran 95'))
-        # transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
-        binder = Binder()
 
         name = 'compute_pi'
-        variants = {}
+        variants = {}  # t.Dict[str, t.Tuple[pathlib.Path, t.Optional[collections.abc.Callable]]]
         variants['py'] = (EXAMPLES_ROOTS['python3'].joinpath(name + '.py'), None)
         if platform.system() == 'Linux':
             path_cpp = EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp')
+            compiler_cpp = CppSwigCompiler()
             variants['cpp'] = (compiler_cpp.compile_file(path_cpp), None)
-        # variants['py_to_cpp'] = transpiler_py_to_cpp.transpile_file(variants['py'])
         # variants['f95'] = EXAMPLES_ROOTS['f95']
+            transpiler_py_to_cpp = AutoTranspiler(Language.find('Python 3'), Language.find('C++14'))
+            variants['py_to_cpp'] = (transpiler_py_to_cpp.transpile_file(variants['py'][0]), None)
+        transpiler_py_to_f95 = AutoTranspiler(
+            Language.find('Python 3'), Language.find('Fortran 95'))
         variants['py_to_f95'] = (transpiler_py_to_f95.transpile_file(variants['py'][0]), None)
         variants['py_numba'] = (variants['py'][0], lambda f: numba.jit(f))
 
@@ -88,6 +87,7 @@ class Tests(unittest.TestCase):
         for segments in segments_list:
             values[segments] = {}
 
+        binder = Binder()
         for variant, (path, transform) in variants.items():
             with binder.temporarily_bind(path) as binding:
                 tested_function = getattr(binding, name)
