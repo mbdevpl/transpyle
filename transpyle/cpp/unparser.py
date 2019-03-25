@@ -10,6 +10,7 @@ import horast
 import typed_ast.ast3 as typed_ast3
 
 from ..general import Language, Unparser
+from ..general.unparser import unparsing_unsupported
 
 _LOG = logging.getLogger(__name__)
 
@@ -121,6 +122,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         if write_brace:
             self.fill('}')
 
+    def _unsupported_syntax(self, syntax, comment: str = None):
+        self.fill('! TODO: unsupported syntax')
+        unparsing_unsupported('C++', syntax, comment)
+
     def dispatch_type(self, type_hint):
         _LOG.debug('dispatching type hint %s', type_hint)
         if is_generic_type(type_hint):
@@ -184,7 +189,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def _AnnAssign(self, t):
         self.fill()
         if not t.simple:
-            self._unsupported_syntax(t, ' which is not simple')
+            self._unsupported_syntax(t, 'which is not simple')
         self.dispatch_type(t.annotation)
         self.write(' ')
         self.dispatch(t.target)
@@ -203,7 +208,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def _ClassDef(self, t):
         self.write('\n')
         if t.decorator_list:
-            self._unsupported_syntax(t, ' with decorators')
+            self._unsupported_syntax(t, 'with decorators')
         self.fill('class {}'.format(t.name))
         if t.bases:
             _LOG.warning('C++: assuming base classes are inherited as public')
@@ -265,7 +270,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _FunctionDef(self, t, *, in_class: typed_ast3.ClassDef = None):
         if t.decorator_list:
-            self._unsupported_syntax(t, ' with decorators')
+            self._unsupported_syntax(t, 'with decorators')
         self.write('\n')
         if in_class:
             self.leave(write_brace=False)
@@ -365,7 +370,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _Str(self, tree):
         if hasattr(tree, 'kind') and tree.kind:
-            self._unsupported_syntax(t, ' with prefix')
+            self._unsupported_syntax(t, 'with prefix')
 
         text = tree.s
         text_repr = repr(text)
@@ -384,6 +389,36 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.write(delimiter)
         self.write(text)
         self.write(delimiter)
+
+    unop = {'Invert': '~', 'Not': '!', 'UAdd': '+', 'USub': '-'}
+
+    binop = {
+        'Add': '+', 'Sub': '-', 'Mult': '*', 'Div': '/', 'Mod': '%',
+        'LShift': '<<', 'RShift': '>>', 'BitOr': '|', 'BitXor': '^', 'BitAnd': '&',
+        'FloorDiv': '/'}
+
+    binop_unsupported = {'MatMult'}
+
+    def _BinOp(self, binop):
+        if binop.op.__class__.__name__ in {'Pow'}:
+            # TODO: implement Pow through pow(n, p) function
+            raise NotImplementedError('not yet implemented: {}'.format(horast.dump(binop)))
+        if binop.op.__class__.__name__ in self.binop_unsupported:
+            self._unsupported_syntax(binop)
+        super()._BinOp(binop)
+
+    cmpops = {'Eq': '==', 'NotEq': '!=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
+
+    cmpops_unsupported = {'Is', 'IsNot', 'In', 'NotIn'}
+
+    def _Compare(self, compare):
+        if len(compare.ops) > 1 or len(compare.comparators) > 1:
+            self._unsupported_syntax(compare, 'with more than 2 operands')
+        if any([_.__class__.__name__ in self.cmpops_unsupported for _ in compare.ops]):
+            self._unsupported_syntax(compare)
+        super()._Compare(compare)
+
+    boolops = {'And': '&&', 'Or': '||'}
 
     def _Attribute(self, t):
         if isinstance(t.value, typed_ast3.Name):
@@ -419,7 +454,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             return
 
         if t.keywords:
-            self._unsupported_syntax(t, ' with keyword arguments')
+            self._unsupported_syntax(t, 'with keyword arguments')
 
         if func_name == 'print':
             self._includes['iostream'] = True
@@ -440,7 +475,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _arg(self, t):
         if t.annotation is None:
-            self._unsupported_syntax(t, ' without annotation')
+            self._unsupported_syntax(t, 'without annotation')
         self.dispatch_type(t.annotation)
         self.write(' ')
         self.write(t.arg)
@@ -451,9 +486,6 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         else:
             self.fill('//')
         self.write(node.value.s)
-
-    def _unsupported_syntax(self, tree, comment: str = ''):
-        raise SyntaxError('unparsing {}{} to C++ is not supported'.format(type(tree), comment))
 
 
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):

@@ -1,6 +1,5 @@
 """Fortran unparsing."""
 
-import ast
 import collections.abc
 import copy
 import io
@@ -17,6 +16,7 @@ from typed_astunparse.unparser import interleave
 from ..pair import \
     function_returns, syntax_matches, _match_array, _match_io, returns_array
 from ..general import Language, Unparser
+from ..general.unparser import unparsing_unsupported
 from .definitions import PYTHON_FORTRAN_TYPE_PAIRS, PYTHON_FORTRAN_INTRINSICS
 
 _LOG = logging.getLogger(__name__)
@@ -66,15 +66,9 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def enter(self):
         self._indent += 1
 
-    def _unsupported_syntax(self, tree):
-        unparsed = 'invalid'
-        try:
-            unparsed = '"""{}"""'.format(typed_astunparse.unparse(tree).strip())
-        except AttributeError:
-            pass
-        self.fill('unsupported_syntax')
-        raise SyntaxError('unparsing {} like """{}""" ({} in Python) is unsupported for {}'.format(
-            tree.__class__.__name__, typed_ast3.dump(tree), unparsed, self.lang_name))
+    def _unsupported_syntax(self, syntax, comment: str = None):
+        self.fill('! TODO: unsupported syntax')
+        unparsing_unsupported(self.lang_name, syntax, comment)
 
     def dispatch_var_type(self, tree):
         code = horast.unparse(tree)
@@ -213,7 +207,7 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             self.write(" = ")
             self.dispatch(t.value)
 
-    def _write_assignment_metadata(self, metadata, first: bool=True):
+    def _write_assignment_metadata(self, metadata, first: bool = True):
         for key, value in metadata.items():
             if key == 'is_declaration':
                 continue
@@ -601,8 +595,10 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _Bytes(self, t):
         self.write(repr(t.s))
 
-    def _Str(self, tree):
-        self.write(repr(tree.s))
+    def _Str(self, str_):
+        if hasattr(str_, 'kind') and str_.kind:
+            self._unsupported_syntax(str_, 'with prefix')
+        self.write(repr(str_.s))
 
     def _FormattedValue(self, t):
         if t.conversion != -1 or t.format_spec is not None:
@@ -675,44 +671,31 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
 
     unop = {'Invert': '~', 'Not': '.not.', 'UAdd': '+', 'USub': '-'}
 
-    def _UnaryOp(self, t):
-        self.write('(')
-        self.write(self.unop[t.op.__class__.__name__])
-        self.write(' ')
-        self.dispatch(t.operand)
-        self.write(')')
+    binop = {'Add': '+', 'Sub': '-', 'Mult': '*', 'Div': '/', 'FloorDiv': '/', 'Pow': '**'}
 
-    binop = {
-        'Add': '+', 'Sub': '-', 'Mult': '*', 'Div': '/',  # 'Mod': '%',
-        # 'LShift': '<<', 'RShift': '>>', 'BitOr': '|', 'BitXor': '^', 'BitAnd': '&',
-        'FloorDiv': '/', 'Pow': '**'}
-
-    def _BinOp(self, t):
-        if t.op.__class__.__name__ not in self.binop:
-            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
-        self.write('(')
-        self.dispatch(t.left)
-        self.write(' ' + self.binop[t.op.__class__.__name__] + ' ')
-        self.dispatch(t.right)
-        self.write(')')
+    def _BinOp(self, binop):
+        if binop.op.__class__.__name__ in {
+                'Mod', 'LShift', 'RShift', 'BitOr', 'BitXor', 'BitAnd', 'MatMult'}:
+            # TODO: implement Mod through MODULO(n, p) intrinsic
+            # TODO: implement LShift through LSHIFT(n, p) intrinsic
+            # TODO: implement RShift through RSHIFT(n, p) intrinsic
+            # TODO: implement BitOr through IOR(k, j) intrinsic
+            # TODO: implement BitXor through IEOR(k, j) intrinsic
+            # TODO: implement BitAnd through IAND(k, j) intrinsic
+            # TODO: implement MatMult through MATMUL(m1, m2) intrinsic
+            raise NotImplementedError('not yet implemented: {}'.format(horast.dump(binop)))
+        super()._BinOp(binop)
 
     cmpops = {
-        'Eq': '.eq.', 'NotEq': '.ne.', 'Lt': '.lt.', 'LtE': '.le.', 'Gt': '.gt.', 'GtE': '.ge.'}
-    #    'Is': '.eqv.', 'IsNot': '.neqv.'}
+        'Eq': '.eq.', 'NotEq': '.ne.', 'Lt': '.lt.', 'LtE': '.le.', 'Gt': '.gt.', 'GtE': '.ge.',
+        'Is': '.eqv.', 'IsNot': '.neqv.'}
 
-    def _Compare(self, t):
-        if len(t.ops) > 1 or len(t.comparators) > 1 \
-                or any([o.__class__.__name__ not in self.cmpops for o in t.ops]):
-            raise NotImplementedError('not yet implemented: {}'.format(typed_astunparse.dump(t)))
-        super()._Compare(t)
+    def _Compare(self, compare):
+        if len(compare.ops) > 1 or len(compare.comparators) > 1:
+            self._unsupported_syntax(compare, ' with more than 2 operands')
+        super()._Compare(compare)
 
     boolops = {'And': '.and.', 'Or': '.or.'}
-
-    def _BoolOp(self, t):
-        self.write("(")
-        s = " %s " % self.boolops[t.op.__class__.__name__]
-        interleave(lambda: self.write(s), self.dispatch, t.values)
-        self.write(")")
 
     def _Attribute(self, t):
         if isinstance(t.value, typed_ast3.Name) and t.value.id == 'Fortran':

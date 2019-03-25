@@ -2,9 +2,8 @@ argunparse
 astunparse
 colorlog
 horast
-#loo.py
 pandas
 static-typing >= 0.2.7.dev1
 typed_ast
-typed-astunparse
+typed-astunparse >= 2.1.2
 version-query
