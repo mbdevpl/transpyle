@@ -73,12 +73,9 @@ before_install:
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-      brew update
-      brew install pyenv || brew upgrade pyenv
-      TRAVIS_PYTHON_VERSION="$(pyenv install --list | grep " ${TRAVIS_PYTHON_VERSION}(\.[0-9brc]+)+" | tail -n 1 | sed -e 's/^[[:space:]]*//')"
+      TRAVIS_PYTHON_VERSION="$(pyenv install --list | grep -E " ${TRAVIS_PYTHON_VERSION}(\.[0-9brc]+)+" | tail -n 1 | sed -e 's/^[[:space:]]*//')"
       pyenv install "${TRAVIS_PYTHON_VERSION}"
       export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
-      brew install ant || brew upgrade ant
     fi
     set +e
   - |
