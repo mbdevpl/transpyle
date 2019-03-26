@@ -53,7 +53,11 @@ class Binder(Registry):
         while path.suffix:
             path = path.with_suffix('')
         with insert_to_sys_path(path.parent):
-            module = self.bind_module(path.name)
+            try:
+                module = self.bind_module(path.name)
+            except ModuleNotFoundError as error:
+                raise ValueError('module "{}" not found even with "{}" in sys.path'
+                                 .format(path.name, path.parent)) from error
         return module
 
     def bind(self, module_name_or_path: t.Union[pathlib.Path, str]) -> types.ModuleType:
@@ -79,8 +83,8 @@ class Binder(Registry):
         if object_name is None:
             if len(object_names) != 1:
                 raise ValueError('module has to contain exactly one object for it to be default,'
-                                 ' but module {} contains {}: {}'.format(module, len(object_names),
-                                                                         object_names))
+                                 ' but module "{}" contains {}: {}'.format(
+                                     module, len(object_names), object_names))
             object_name = object_names[0]
 
         interface = getattr(module, object_name)

@@ -54,5 +54,5 @@ class Tests(unittest.TestCase):
         self.assertIsNotNone(binding)
         del sys.modules[path.with_suffix('').name]
 
-        with self.assertRaises(ImportError):
+        with self.assertRaises(ValueError):
             binder.bind(EXAMPLES_ROOTS['f77'].joinpath('matmul.f'))
