@@ -384,9 +384,35 @@ class CAstGeneralizerBackend(c_ast.NodeVisitor):  # pylint: disable=too-many-pub
         _ = self.visit(node.coord)
         return type_
 
-    def visit_(self, node):  # pylint: disable=invalid-name
-        """Transform ."""
-        return
+    def visit_Typedef(self, node):  # pylint: disable=invalid-name
+        """Transform Typedef."""
+        name = node.name
+        assert isinstance(name, str), type(name)
+        quals = node.quals
+        if quals:
+            _LOG.warning('ignoring unsupported C grammar: %s', quals)
+        assert node.storage == ['typedef'], node.storage
+        name_, type_ = self.visit(node.type)
+        assert name == name_, (name, name_)
+        _ = self.visit(node.coord)
+        return typed_ast3.AnnAssign(target=typed_ast3.Name(name, typed_ast3.Store()), value=type_,
+                                    annotation=typed_ast3.Name('type', typed_ast3.Load()), simple=1)
+
+    def visit_Struct(self, node):  # pylint: disable=invalid-name
+        """Transform Struct."""
+        name = node.name
+        assert isinstance(name, str), type(name)
+        assert node.decls is None, node.decls
+        _ = self.visit(node.coord)
+        return typed_ast3.Name(name, typed_ast3.Load())
+        # body = [typed_ast3.Pass()]
+        # return typed_ast3.ClassDef(
+        #     decorator_list=[], name=name,
+        #     bases=[typed_ast3.Name('struct', typed_ast3.Load())], keywords=[], body=body)
+
+    # def visit_(self, node):  # pylint: disable=invalid-name
+    #     """Transform ."""
+    #     return
 
     def visit_Coord(self, node) -> tuple:  # pylint: disable=invalid-name
         """Transform Coord(file: str, line: int, column: int)."""
