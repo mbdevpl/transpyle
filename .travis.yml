@@ -1,6 +1,5 @@
 sudo: required
-language: python
-os: linux
+language: generic
 addons:
   apt:
     sources:
@@ -11,33 +10,57 @@ addons:
       - gfortran-7
       - g++-7
       - swig
-python:
-  - "3.5"
-  - "3.6"
-
+  homebrew:
+    packages:
+      - ant
+      - pyenv
 matrix:
   include:
+    - os: linux
+      language: python
+      python: "3.5"
+    - os: linux
+      language: python
+      python: "3.6"
     - os: linux
       dist: xenial
       sudo: true
       language: python
       python: "3.7"
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION="3.5"
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION="3.6"
+    - os: osx
+      language: generic
+      env: TRAVIS_PYTHON_VERSION="3.7"
   allow_failures:
     - python: "3.7"
+    - env: TRAVIS_PYTHON_VERSION="3.5"
+    - env: TRAVIS_PYTHON_VERSION="3.6"
+    - env: TRAVIS_PYTHON_VERSION="3.7"
 
 env:
   - TRAVIS_JDK_VERSION=oraclejdk9
 
 before_install:
-  - sudo update-alternatives --list cc
-  - sudo update-alternatives --list c++
-  - sudo update-alternatives --install /usr/bin/cpp cpp /usr/bin/cpp-7 70
-  - sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-7 70
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 70 --slave /usr/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 --slave /usr/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-7 --slave /usr/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7
-  - sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-7 70
-  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 70
-  - sudo update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-7 70
-  - sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-7 70 --slave /usr/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-7 --slave /usr/bin/gcov-tool gcov-tool /usr/bin/gcov-tool-7
+  - sudo update-alternatives \
+      --install /usr/local/bin/gcc gcc /usr/bin/gcc-7 70 \
+      --slave /usr/local/bin/g++ g++ /usr/bin/g++-7 \
+      --slave /usr/local/bin/cpp gcc-cpp /usr/bin/cpp-7 \
+      --slave /usr/local/bin/gfortran gfortran /usr/bin/gfortran-7 \
+      --slave /usr/local/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 \
+      --slave /usr/local/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-7 \
+      --slave /usr/local/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7 \
+      --slave /usr/local/bin/gcov gcov /usr/bin/gcov-7 \
+      --slave /usr/local/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-7
+  - sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 100
+  - sudo update-alternatives --install /usr/bin/c++ c++ /usr/local/bin/g++ 100
+  - sudo update-alternatives --install /lib/cpp cpp /usr/local/bin/cpp 100
+  - sudo update-alternatives --install /usr/bin/f77 f77 /usr/local/bin/gfortran 100
+  - sudo update-alternatives --install /usr/bin/f95 f95 /usr/local/bin/gfortran 100
   - gcc --version
   - g++ --version
   - gfortran --version
@@ -46,6 +69,7 @@ before_install:
     if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
       brew update
       brew install pyenv || brew upgrade pyenv
+      TRAVIS_PYTHON_VERSION="$(pyenv install --list | grep " ${TRAVIS_PYTHON_VERSION}\." | tail -n 1 | sed -e 's/^[[:space:]]*//')"
       pyenv install "${TRAVIS_PYTHON_VERSION}"
       export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
       brew install ant || brew upgrade ant
