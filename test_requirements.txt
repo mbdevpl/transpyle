@@ -1,6 +1,5 @@
 cython
 docutils
-encrypted-config
 numba
 numpy
 open-fortran-parser
@@ -8,7 +7,6 @@ pcpp
 pip >= 9.0
 pycparser
 pygments
-setuptools >= 20.5
 timing
 wheel
 -rrequirements.txt
