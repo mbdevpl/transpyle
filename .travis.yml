@@ -13,6 +13,7 @@ addons:
   homebrew:
     packages:
       - ant
+      - gcc
       - pyenv
 matrix:
   include:
@@ -74,7 +75,7 @@ before_install:
     if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
       brew update
       brew install pyenv || brew upgrade pyenv
-      TRAVIS_PYTHON_VERSION="$(pyenv install --list | grep " ${TRAVIS_PYTHON_VERSION}\." | tail -n 1 | sed -e 's/^[[:space:]]*//')"
+      TRAVIS_PYTHON_VERSION="$(pyenv install --list | grep " ${TRAVIS_PYTHON_VERSION}(\.[0-9brc]+)+" | tail -n 1 | sed -e 's/^[[:space:]]*//')"
       pyenv install "${TRAVIS_PYTHON_VERSION}"
       export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
       brew install ant || brew upgrade ant
@@ -127,7 +128,7 @@ install:
   - pip install -U -r dev_requirements.txt
 
 script:
-  - TEST_PACKAGING=1 TEST_LONG=1 python -m coverage run --branch --source . -m unittest --verbose
+  - TEST_PACKAGING=1 TEST_LONG=1 python -m coverage run --branch --source . -m unittest -v
 
 after_success:
   - python -m coverage report --show-missing
