@@ -46,21 +46,26 @@ env:
   - TRAVIS_JDK_VERSION=oraclejdk9
 
 before_install:
-  - sudo update-alternatives \
-      --install /usr/local/bin/gcc gcc /usr/bin/gcc-7 70 \
-      --slave /usr/local/bin/g++ g++ /usr/bin/g++-7 \
-      --slave /usr/local/bin/cpp gcc-cpp /usr/bin/cpp-7 \
-      --slave /usr/local/bin/gfortran gfortran /usr/bin/gfortran-7 \
-      --slave /usr/local/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 \
-      --slave /usr/local/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-7 \
-      --slave /usr/local/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7 \
-      --slave /usr/local/bin/gcov gcov /usr/bin/gcov-7 \
-      --slave /usr/local/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-7
-  - sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 100
-  - sudo update-alternatives --install /usr/bin/c++ c++ /usr/local/bin/g++ 100
-  - sudo update-alternatives --install /lib/cpp cpp /usr/local/bin/cpp 100
-  - sudo update-alternatives --install /usr/bin/f77 f77 /usr/local/bin/gfortran 100
-  - sudo update-alternatives --install /usr/bin/f95 f95 /usr/local/bin/gfortran 100
+  - |
+    set -e
+    if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+      sudo update-alternatives \
+        --install /usr/local/bin/gcc gcc /usr/bin/gcc-7 70 \
+        --slave /usr/local/bin/g++ g++ /usr/bin/g++-7 \
+        --slave /usr/local/bin/cpp gcc-cpp /usr/bin/cpp-7 \
+        --slave /usr/local/bin/gfortran gfortran /usr/bin/gfortran-7 \
+        --slave /usr/local/bin/gcc-ar gcc-ar /usr/bin/gcc-ar-7 \
+        --slave /usr/local/bin/gcc-nm gcc-nm /usr/bin/gcc-nm-7 \
+        --slave /usr/local/bin/gcc-ranlib gcc-ranlib /usr/bin/gcc-ranlib-7 \
+        --slave /usr/local/bin/gcov gcov /usr/bin/gcov-7 \
+        --slave /usr/local/bin/gcov-dump gcov-dump /usr/bin/gcov-dump-7
+      sudo update-alternatives --install /usr/bin/cc cc /usr/local/bin/gcc 100
+      sudo update-alternatives --install /usr/bin/c++ c++ /usr/local/bin/g++ 100
+      sudo update-alternatives --install /lib/cpp cpp /usr/local/bin/cpp 100
+      sudo update-alternatives --install /usr/bin/f77 f77 /usr/local/bin/gfortran 100
+      sudo update-alternatives --install /usr/bin/f95 f95 /usr/local/bin/gfortran 100
+    fi
+    set +e
   - gcc --version
   - g++ --version
   - gfortran --version
