@@ -29,10 +29,10 @@ class Tests(unittest.TestCase):
         variants = {
             'py': EXAMPLES_ROOTS['python3'].joinpath(name + '.py'),
             'f95': F2PyCompiler().compile_file(EXAMPLES_ROOTS['f95'].joinpath(name + '.f90'))}
+        variants['py_numba'] = variants['py']
         if platform.system() == 'Linux':
             variants['cpp'] = CppSwigCompiler().compile_file(
                 EXAMPLES_ROOTS['cpp14'].joinpath(name + '.cpp'))
-        variants['py_numba'] = variants['py'][0]
 
         transforms = {'py_numba': numba.jit}
 
