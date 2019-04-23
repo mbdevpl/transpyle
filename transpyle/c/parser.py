@@ -21,6 +21,8 @@ _HERE = pathlib.Path(__file__).resolve().parent
 
 TRANSPYLE_C_RESOURCES_PATH = _HERE.joinpath('..', 'resources', 'c').resolve()
 
+C_SUPPORTED_HEADERS = {'stdbool.h', 'stdio.h', 'stdlib.h', 'string.h'}
+
 # PYCPARSER_INCLUDES = list(pathlib.Path(_, 'utils', 'fake_libc_include').glob('ls')
 #                           for _ in pycparser.__path__)
 
@@ -32,20 +34,25 @@ class C99Preprocessor(pcpp.Preprocessor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.include_names = []
+        self.i = 0
 
     def include(self, tokens: t.List[LexToken]) -> t.List[LexToken]:
         if not tokens:
             return []
         _LOG.debug('%i tokens: %s', len(tokens), tokens)
-        if len(tokens) != 5:
-            _LOG.warning('unexpected syntax: #include%s', ''.join([_.value for _ in tokens]))
+        include_name = None
+        if len(tokens) >= 2 and tokens[0].value == '<' and tokens[-1].value == '>':
+            include_name = ''.join([_.value for _ in tokens[1:-1]])
+            self.include_names.append(include_name)
+        if include_name is not None and include_name in C_SUPPORTED_HEADERS:
+            _LOG.info('refactoring #include%s', ''.join([_.value for _ in tokens]))
         else:
-            self.include_names.append(tokens[1].value)
-        _LOG.warning('ignoring #include%s', ''.join([_.value for _ in tokens]))
+            _LOG.warning('unsupported #include%s', ''.join([_.value for _ in tokens]))
         # return []
         # yield from super().include(tokens)
         # tokens[0].value = '/* #include' + tokens[0].value
-        tokens[0].value = 'const char* directive = "#include' + tokens[0].value
+        self.i += 1
+        tokens[0].value = 'const char* directive_{} = "#include{}'.format(self.i, tokens[0].value)
         # for token in tokens:
         #    token.value = ' '  # ' ' * len(token.value)
         # tokens[-1].value += ' */\n'
@@ -184,8 +191,8 @@ class C99Parser(Parser):
         # add selected includes
         includes = ''
         for name in self._preprocessor.include_names:
-            if name in {'stdbool'}:
-                includes = '#include<{}.h>\n{}'.format(name, includes)
+            if name in C_SUPPORTED_HEADERS:
+                includes = '#include<{}>\n{}'.format(name, includes)
         self._preprocessor.include_names.clear()
 
         if includes:

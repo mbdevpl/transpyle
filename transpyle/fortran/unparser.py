@@ -14,10 +14,13 @@ import typed_astunparse
 from typed_astunparse.unparser import interleave
 
 from ..pair import \
+    has_annotation, get_annotation, is_ast_none, \
     function_returns, syntax_matches, _match_array, _match_io, returns_array
 from ..general import Language, Unparser
 from ..general.unparser import unparsing_unsupported
-from .definitions import PYTHON_FORTRAN_TYPE_PAIRS, PYTHON_FORTRAN_INTRINSICS
+from .definitions import \
+    attribute_chain_components, \
+    PYTHON_FORTRAN_TYPE_PAIRS, PYTHON_FORTRAN_INTRINSICS, MPI_PYTHON_TO_FORTRAN
 
 _LOG = logging.getLogger(__name__)
 
@@ -163,7 +166,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
                  if name.name not in ('numpy', 'static_typing', 'typing')]
         if not names:
             return
-        self.fill('use ')
+        self.fill('use')
+        if has_annotation(t, 'nature'):
+            self.write(', ')
+            self.write(get_annotation(t, 'nature'))
+            self.write(' ::')
+        self.write(' ')
         # print([typed_astunparse.unparse(_) for _ in names])
         interleave(lambda: self.write(', '), self.dispatch, names)
 
@@ -171,12 +179,22 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if t.level > 0:
             self._unsupported_syntax(t)
         self.fill('use ')
+        if has_annotation(t, 'nature'):
+            self.write(', ')
+            self.write(get_annotation(t, 'nature'))
+            self.write(' ::')
+        self.write(' ')
         self.write(t.module)
         self.write(', only : ')
         interleave(lambda: self.write(', '), self.dispatch, t.names)
 
     def _Assign(self, t):
         metadata = getattr(t, 'fortran_metadata', {})
+        if get_annotation(t, 'is_nullification'):
+            self.fill('nullify(')
+            interleave(lambda: self.write(', '), self.dispatch, t.targets)
+            self.write(')')
+            return
         if metadata.get('is_allocation', False):
             self.fill('allocate(')
             for i, target in enumerate(t.targets):
@@ -556,6 +574,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
             assert isinstance(case.test, typed_ast3.Compare), type(case.test)
             assert case.test.left == select_variable
             self._select_case(case)
+            if len(case.orelse) > 1:
+                self.fill('case default')
+                self.enter()
+                self.dispatch(case.orelse)
+                self.leave()
+                break
             case = case.orelse
         self.leave()
         self.fill('end select')
@@ -577,9 +601,11 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.leave()
 
     def _While(self, t):
-        if not isinstance(t.test, typed_ast3.NameConstant) or t.test.value is not True:
-            self._unsupported_syntax(t)
         self.fill('do')
+        if not isinstance(t.test, typed_ast3.NameConstant) or t.test.value is not True:
+            self.write(' while (')
+            self.dispatch(t.test)
+            self.write(')')
         self.enter()
         self.dispatch(t.body)
         self.leave()
@@ -728,7 +754,24 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         if getattr(t, 'fortran_metadata', {}).get('is_procedure_call', False):
             self.write('call ')
         func_name = horast.unparse(t.func).strip()
-        if func_name.startswith('Fortran.file_handles['):
+        if has_annotation(t, 'is_mpi_call'):
+            self.write('call ')
+            # val = last_attribute_value(t.func)
+            # fname = t.func.attr
+            # assert isinstance(val, typed_ast3.Name), type(val)
+            func_name = MPI_PYTHON_TO_FORTRAN[t.func.attr]
+            # attribute = t.func
+            # while isinstance(attribute.value, typed_ast3.Attribute):
+            #     attribute = attribute.value
+            components = attribute_chain_components(t.func)[:-1]
+            t.func = typed_ast3.Name(func_name, typed_ast3.Load())
+            t.args += components
+            # print()
+            # self.write(func_name)
+            # raise
+            # raise NotImplementedError(self.f.getvalue())
+
+        elif func_name.startswith('Fortran.file_handles['):
             t = copy.copy(t)
             for suffix in ('read', 'close'):
                 if func_name.endswith('].{}'.format(suffix)):
@@ -843,12 +886,12 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self.dispatch(t.value)
 
     def _Slice(self, t):
-        if t.lower:
+        if t.lower and not is_ast_none(t.lower):
             self.dispatch(t.lower)
         self.write(":")
-        if t.upper:
+        if t.upper and not is_ast_none(t.upper):
             self.dispatch(t.upper)
-        if t.step:
+        if t.step and not is_ast_none(t.step):
             self.write(":")
             self.dispatch(t.step)
 
@@ -931,7 +974,8 @@ class Fortran2008UnparserBackend(Fortran77UnparserBackend):
                          **kwargs)
 
     cmpops = {
-        'Eq': '==', 'NotEq': '/=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>='}
+        'Eq': '==', 'NotEq': '/=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>=',
+        'Is': '.eqv.', 'IsNot': '.neqv.'}
 
 
 class Fortran2008Unparser(Unparser):

@@ -1,5 +1,6 @@
 codecov
 coverage
+matplotlib
 pylint
 twine
 -rtest_requirements.txt

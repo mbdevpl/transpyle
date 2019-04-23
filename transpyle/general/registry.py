@@ -21,3 +21,6 @@ class Registry:
         if cls.registered is None:
             return None
         return cls.registered.get(key, None)
+
+    # def find(self, key: type) -> type:
+    #     raise NotImplementedError()

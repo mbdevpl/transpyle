@@ -7,6 +7,10 @@ import typing as t
 import typed_ast.ast3 as typed_ast3
 
 
+def dict_mirror(dict_: dict):
+    return {value: key for key, value in dict_.items() if value is not None}
+
+
 def flatten_sequence(sequence: t.MutableSequence[t.Any]) -> None:
     """Transform a given list of lists of lists (...) of lists into a flat list in-place."""
     assert isinstance(sequence, collections.abc.MutableSequence), type(sequence)

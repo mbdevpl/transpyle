@@ -63,5 +63,8 @@ class Language(Registry):
         _, file_extension = path.splitext(path)
         return self.has_extension(file_extension)
 
+    def __str__(self):
+        return 'Language({},ver={},exts={})'.format(self.names, self.version, self.file_extensions)
+
     def __repr__(self):
         return '<{} language object>'.format(self.default_name)

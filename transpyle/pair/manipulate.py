@@ -30,3 +30,9 @@ def separate_args_and_keywords(args_and_keywords):
             args.append(arg)
     assert all(not isinstance(_, typed_ast3.keyword) for _ in args), args
     return args, keywords
+
+
+def convert_return_to_assign(target, return_statement):
+    if isinstance(return_statement, typed_ast3.Return):
+        return typed_ast3.Assign(targets=[target], value=return_statement.value)
+    return return_statement

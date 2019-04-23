@@ -1,5 +1,6 @@
 argunparse
 astunparse
+colorama
 colorlog
 encrypted-config
 horast

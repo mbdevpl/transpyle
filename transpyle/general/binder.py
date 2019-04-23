@@ -55,7 +55,7 @@ class Binder(Registry):
         with insert_to_sys_path(path.parent):
             try:
                 module = self.bind_module(path.name)
-            except ModuleNotFoundError as error:
+            except ImportError as error:  # TODO: change to ModuleNotFoundError after Py3.5 is dead
                 raise ValueError('module "{}" not found even with "{}" in sys.path'
                                  .format(path.name, path.parent)) from error
         return module

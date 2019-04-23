@@ -2,6 +2,7 @@
 
 import itertools
 import logging
+import os
 import pathlib
 import sys
 import tempfile
@@ -10,7 +11,7 @@ import unittest
 import timing
 
 from transpyle.general.code_reader import CodeReader
-from transpyle.general.code_writer import CodeWriter
+# from transpyle.general.code_writer import CodeWriter
 from transpyle.general.language import Language
 from transpyle.general.parser import Parser
 from transpyle.general.ast_generalizer import AstGeneralizer
@@ -20,15 +21,15 @@ from transpyle.general.transpiler import AutoTranspiler
 
 from transpyle.fortran.parser import FortranParser
 from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
-from transpyle.fortran.unparser import Fortran77Unparser
+from transpyle.fortran.unparser import Fortran77Unparser, Fortran2008Unparser
 
 from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
 
 from .common import (
-    EXAMPLES_LANGS_NAMES, EXAMPLES_FILES, EXAMPLES_F77_FILES, EXAMPLES_PY3_FILES, EXAMPLES_ROOTS,
-    basic_check_cpp_code, make_f2py_tmp_folder, basic_check_python_code,
-    execute_on_examples, execute_on_all_language_examples)
+    EXAMPLES_LANGS_NAMES, EXAMPLES_FILES, EXAMPLES_ROOTS,
+    basic_check_cpp_code, basic_check_fortran_code, make_f2py_tmp_folder, basic_check_python_code,
+    execute_on_examples, execute_on_language_fundamentals, execute_on_language_examples)
 
 _LOG = logging.getLogger(__name__)
 
@@ -70,7 +71,6 @@ class Tests(unittest.TestCase):
                 self.assertIsInstance(translator, Translator)
                 # transpiler = AutoTranspiler(from_language, to_language)
 
-    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
     def test_auto_processing(self):
         for language_codename, paths in EXAMPLES_FILES.items():
             language_name = EXAMPLES_LANGS_NAMES[language_codename]
@@ -93,7 +93,7 @@ class Tests(unittest.TestCase):
 
 class CAndPythonTests(unittest.TestCase):
 
-    @execute_on_all_language_examples('c11')
+    @execute_on_language_examples('c11')
     def test_translate_c_to_python(self, input_path):
         reader = CodeReader()
         c_code = reader.read_file(input_path)
@@ -109,7 +109,6 @@ class CAndPythonTests(unittest.TestCase):
 
 class CppAndPythonTests(unittest.TestCase):
 
-    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
     @execute_on_examples([
         EXAMPLES_ROOTS['python3'].joinpath(_ + '.py')
         for _ in {'fundamentals', 'do_nothing', 'compute_pi', 'gemm',
@@ -126,7 +125,7 @@ class CppAndPythonTests(unittest.TestCase):
         basic_check_cpp_code(self, input_path, cpp_code)
         _LOG.info('translated "%s" to C++ in %fs', input_path, timer.elapsed)
 
-    @execute_on_all_language_examples('cpp14')
+    @execute_on_language_examples('cpp14')
     def test_translate_cpp_to_python(self, input_path):
         reader = CodeReader()
         cpp_code = reader.read_file(input_path)
@@ -140,51 +139,47 @@ class CppAndPythonTests(unittest.TestCase):
 
 class FortranAndPythonTests(unittest.TestCase):
 
-    def test_translate_fortran_to_python(self):
-        for input_path in EXAMPLES_F77_FILES:
-            reader = CodeReader()
-            parser = FortranParser()
-            generalizer = FortranAstGeneralizer()
-            unparser = TypedPythonUnparserWithComments()
-            writer = CodeWriter('.py')
-            with self.subTest(input_path=input_path):
-                code = reader.read_file(input_path)
-                fortran_ast = parser.parse(code, input_path)
-                tree = generalizer.generalize(fortran_ast)
-                python_code = unparser.unparse(tree)
-                writer.write_file(python_code, pathlib.Path('/tmp', input_path.name + '.py'))
+    @execute_on_language_examples('f77', 'f95')
+    def test_translate_fortran_to_python(self, input_path):
+        reader = CodeReader()
+        code = reader.read_file(input_path)
+        parser = FortranParser()
+        fortran_ast = parser.parse(code, input_path)
+        generalizer = FortranAstGeneralizer()
+        syntax = generalizer.generalize(fortran_ast)
+        unparser = TypedPythonUnparserWithComments()
+        python_code = unparser.unparse(syntax)
+        basic_check_python_code(self, input_path, python_code)
 
-    @unittest.skip('not ready yet')
-    def test_translate_python_to_fortran(self):
-        for input_path in EXAMPLES_PY3_FILES:
-            reader = CodeReader()
-            parser = TypedPythonParserWithComments()
-            unparser = Fortran77Unparser()
-            writer = CodeWriter('.f')
-            with self.subTest(input_path=input_path):
-                python_code = reader.read_file(input_path)
-                tree = parser.parse(python_code, input_path, mode='exec')
-                fortran_code = unparser.unparse(tree)
-                writer.write_file(fortran_code, pathlib.Path('/tmp', input_path.name + '.f'))
+    @execute_on_language_fundamentals('python3')
+    def test_translate_python_to_fortran(self, input_path):
+        reader = CodeReader()
+        python_code = reader.read_file(input_path)
+        parser = TypedPythonParserWithComments(default_mode='exec')
+        tree = parser.parse(python_code, input_path)
+        unparser = Fortran77Unparser()
+        fortran_code = unparser.unparse(tree)
+        basic_check_fortran_code(self, input_path, fortran_code)
 
     @unittest.skipIf(sys.version_info[:2] < (3, 6), 'requires Python >= 3.6')
-    def test_translate_fortran_to_python_to_fortran(self):
-        for input_path in EXAMPLES_F77_FILES:
-            parser = FortranParser()
-            generalizer = FortranAstGeneralizer()
-            unparser = TypedPythonUnparserWithComments()
-            python_parser = TypedPythonParserWithComments(default_mode='exec')
-            writer = CodeWriter('.f')
-            with self.subTest(input_path=input_path):
-                fortran_ast = parser.parse('', input_path)
-                tree = generalizer.generalize(fortran_ast)
-                python_code = unparser.unparse(tree)
-                tree = python_parser.parse(python_code)
-                fortran_code = unparser.unparse(tree)
-                writer.write_file(fortran_code, pathlib.Path('/tmp', input_path.name + '.py.f'))
+    @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
+    @execute_on_language_examples('f77', 'f95')
+    def test_translate_fortran_to_python_to_fortran(self, input_path):
+        parser = FortranParser()
+        fortran_ast = parser.parse('', input_path)
+        generalizer = FortranAstGeneralizer()
+        syntax = generalizer.generalize(fortran_ast)
+        python_unparser = TypedPythonUnparserWithComments()
+        python_code = python_unparser.unparse(syntax)
 
-    @unittest.skipIf(sys.version_info[:2] < (3, 6), 'unsupported in Python < 3.6')
-    @execute_on_examples([_ for _ in EXAMPLES_PY3_FILES if '_openmp' in _.name])
+        python_parser = TypedPythonParserWithComments(default_mode='exec')
+        reparsed_syntax = python_parser.parse(python_code)
+        fortran_unparser = Fortran77Unparser() if input_path.suffix == '.f' \
+            else Fortran2008Unparser()
+        fortran_code = fortran_unparser.unparse(reparsed_syntax)
+        basic_check_fortran_code(self, input_path, fortran_code, suffix='.py' + input_path.suffix)
+
+    @execute_on_examples([_ for _ in EXAMPLES_FILES['python3'] if '_openmp' in _.name])
     def test_transpile_with_openmp(self, input_path):
         output_dir = make_f2py_tmp_folder(input_path)
 

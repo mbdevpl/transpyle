@@ -2,7 +2,7 @@
 
 import logging
 import pathlib
-# import subprocess
+import platform
 import tempfile
 import xml.etree.ElementTree as ET
 
@@ -18,13 +18,14 @@ CASTXML_PATH = pathlib.Path('castxml')
 
 def run_castxml(input_path: pathlib.Path, output_path: pathlib.Path, gcc: bool = False):
     """Run CastXML with given arguments."""
-    args = ['-std=c++17', input_path]
+    args = ['-std=c++17', '-fcolor-diagnostics', input_path]
     kwargs = {}
     if gcc:
         kwargs['castxml-gccxml'] = True
     else:
         kwargs['castxml-output=1'] = True
-    kwargs['castxml-cc-gnu'] = 'g++'
+    if platform.system() == 'Linux':
+        kwargs['castxml-cc-gnu'] = 'g++'
     kwargs['o'] = str(output_path)
     return run_tool(CASTXML_PATH, args, kwargs,
                     argunparser=argunparse.ArgumentUnparser(opt_value=' '))

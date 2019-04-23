@@ -1,31 +1,20 @@
 """Tests of Python language support."""
 
 import ast
-import contextlib
 import logging
-import os
-import types
 import unittest
 
-import horast
 import timing
 import typed_ast.ast3
 
-from transpyle.general import CodeReader, Language, Parser
+from transpyle.general import CodeReader
 from transpyle.python import PythonAstGeneralizer
 from transpyle.python.parser import \
     NativePythonParser, TypedPythonParser, TypedPythonParserWithComments
 from transpyle.python.unparser import \
     NativePythonUnparser, TypedPythonUnparser, TypedPythonUnparserWithComments
-from transpyle.python.transformations import inline_syntax, inline
 
-from .common import EXAMPLES_PY3, basic_check_python_ast, execute_on_all_language_examples
-from .examples_inlining import \
-    buy_products, buy, buy_products_inlined, \
-    just_return, return_me, just_return_inlined, \
-    just_assign, just_assign_inlined, \
-    print_and_get_absolute, absolute_value, print_and_get_absolute_inlined, \
-    inline_oneliner, add_squares, inline_oneliner_inlined
+from .common import EXAMPLES_PY3, basic_check_python_ast, execute_on_language_examples
 
 _LOG = logging.getLogger(__name__)
 
@@ -34,13 +23,6 @@ _TIME = timing.get_timing_group(__name__)
 PARSER_CLASSES = (NativePythonParser, TypedPythonParser, TypedPythonParserWithComments)
 
 UNPARSER_CLASSES = (NativePythonUnparser, TypedPythonUnparser, TypedPythonUnparserWithComments)
-
-INLINING_EXAMPLES = {
-    (buy_products, buy): buy_products_inlined,
-    (just_return, return_me): just_return_inlined,
-    (just_assign, return_me): just_assign_inlined,
-    (print_and_get_absolute, absolute_value): print_and_get_absolute_inlined,
-    (inline_oneliner, add_squares): inline_oneliner_inlined}
 
 
 class ParserTests(unittest.TestCase):
@@ -80,7 +62,7 @@ class AstGeneralizerTests(unittest.TestCase):
         self.assertIsInstance(tree.body[0].annotation, typed_ast.ast3.Subscript)
         self.assertIsInstance(tree.body[0].annotation.slice, typed_ast.ast3.ExtSlice)
 
-    @execute_on_all_language_examples('python3')
+    @execute_on_language_examples('python3')
     def test_generalize_examples(self, input_path):
         code_reader = CodeReader()
         code = code_reader.read_file(input_path)
@@ -134,42 +116,3 @@ class UnparserTests(unittest.TestCase):
                                              .format(new_code)) from err
                     self.assertEqual(unparser.dump(tree), unparser.dump(new_tree))
                     self.assertEqual(example, new_code)
-
-
-class TransformationsTests(unittest.TestCase):
-
-    """Testing the AST transformations."""
-
-    def test_examples(self):
-        with open(os.devnull, 'w') as devnull:
-            for (target, inlined), target_inlined in INLINING_EXAMPLES.items():
-                for example in (target, inlined, target_inlined):
-                    with contextlib.redirect_stdout(devnull):
-                        example()
-            with contextlib.redirect_stdout(devnull):
-                print_and_get_absolute(1)
-                print_and_get_absolute_inlined(1)
-                inline_oneliner(1)
-                inline_oneliner_inlined(1)
-
-    def test_inline_syntax(self):
-        language = Language.find('Python 3')
-        parser = Parser.find(language)()
-        for (target, inlined), target_inlined in INLINING_EXAMPLES.items():
-            target_code = CodeReader.read_function(target)
-            inlined_code = CodeReader.read_function(inlined)
-            reference_code = CodeReader.read_function(target_inlined)
-            target_syntax = parser.parse(target_code).body[0]
-            inlined_syntax = parser.parse(inlined_code).body[0]
-            with self.subTest(target=target, inlined=inlined):
-                target_inlined_syntax = inline_syntax(target_syntax, inlined_syntax, verbose=False)
-                target_inlined_code = horast.unparse(target_inlined_syntax)
-                _LOG.warning('%s', target_inlined_code)
-                self.assertEqual(reference_code.replace('_inlined(', '(').lstrip(),
-                                 target_inlined_code.lstrip())
-
-    def test_inline(self):
-        for (target, inlined), target_inlined in INLINING_EXAMPLES.items():
-            with self.subTest(target=target, inlined=inlined):
-                target_inlined_ = inline(target, inlined)
-                self.assertIsInstance(target_inlined_, types.FunctionType)

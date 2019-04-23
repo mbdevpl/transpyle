@@ -6,26 +6,27 @@ import logging
 import pathlib
 import tempfile
 import types
-import typing as t
 
-import typed_ast.ast3 as typed_ast3
-
-from ..pair import make_range_call, make_numpy_constructor, make_st_ndarray
 from ..general import \
     CodeReader, Language, Parser, AstGeneralizer, IdentityAstGeneralizer, Unparser, Translator, \
     AutoTranspiler, Binder
 from .parser import TypedPythonParserWithComments
 from .unparser import TypedPythonUnparserWithComments
 from .translator import PythonTranslator
-from .transformations import inline
+
+__all__ = [
+    'TypedPythonParserWithComments', 'TypedPythonUnparserWithComments', 'PythonTranslator',
+    'transpile']
 
 _LOG = logging.getLogger(__name__)
 
 Language.register(Language(['Python 3.5'], ['.py']), ['Python 3.5'])
 Language.register(Language(['Python 3.6'], ['.py']), ['Python 3.6', 'Python 3', 'Python'])
+Language.register(Language(['Python 3.7'], ['.py']), ['Python 3.7'])
 
 Parser.register(TypedPythonParserWithComments,
-                (Language.find('Python 3.5'), Language.find('Python 3.6')))
+                (Language.find('Python 3.5'), Language.find('Python 3.6'),
+                 Language.find('Python 3.7')))
 
 
 class PythonAstGeneralizer(IdentityAstGeneralizer):
@@ -36,12 +37,15 @@ class PythonAstGeneralizer(IdentityAstGeneralizer):
 
 
 AstGeneralizer.register(PythonAstGeneralizer,
-                        (Language.find('Python 3.5'), Language.find('Python 3.6')))
+                        (Language.find('Python 3.5'), Language.find('Python 3.6'),
+                         Language.find('Python 3.7')))
 
 Unparser.register(TypedPythonUnparserWithComments,
-                  (Language.find('Python 3.5'), Language.find('Python 3.6')))
+                  (Language.find('Python 3.5'), Language.find('Python 3.6'),
+                   Language.find('Python 3.7')))
 
-Translator.register(PythonTranslator, (Language.find('Python 3.5'), Language.find('Python 3.6')))
+Translator.register(PythonTranslator, (Language.find('Python 3.5'), Language.find('Python 3.6'),
+                                       Language.find('Python 3.6')))
 
 
 def transpile(function_or_class, to_language: Language, *args, **kwargs):

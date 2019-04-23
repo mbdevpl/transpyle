@@ -95,6 +95,8 @@ before_install:
   - export PATH="${PATH}:$(pwd)/../open-fortran-compiler"
   # FFB-MINI app
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"
+  # FLASH 5 app
+  - git clone "https://github.com/ECP-Astro/FLASH5.git" "../flash5"
   # miranda_io app
   - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
 

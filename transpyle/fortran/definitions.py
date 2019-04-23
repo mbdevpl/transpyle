@@ -4,13 +4,29 @@ import typing as t
 
 import typed_ast.ast3 as typed_ast3
 
+from ..general.misc import dict_mirror
 from ..pair import make_slice_from_call
+
+
+def attribute_chain_components(attribute: typed_ast3.Attribute) -> t.List[typed_ast3.AST]:
+    assert isinstance(attribute, typed_ast3.Attribute), type(attribute)
+    components = []
+    while isinstance(attribute.value, typed_ast3.Attribute):
+        components.insert(0, attribute.attr)
+        attribute = attribute.value
+    components.insert(0, attribute)
+    return components
+
 
 FORTRAN_PYTHON_TYPE_PAIRS = {
     ('logical', None): 'bool',
     ('integer', None): 'int',
     ('real', None): 'float',
+    ('double precision', None): 'np.double',
     ('character', t.Any): 'str',
+    ('character', 256): 'str[256]',
+    ('character', 512): 'str[512]',
+    ('character', 1024): 'str[1024]',
     ('integer', 1): 'np.int8',
     ('integer', 2): 'np.int16',
     ('integer', 4): 'np.int32',
@@ -90,7 +106,7 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     'dble': 'float',  # incorrect
     'dim': None,
     'dprod': None,
-    'exp': None,
+    'exp': ('numpy', 'exp'),
     'ichar': None,
     'index': None,
     'int': 'int',
@@ -99,8 +115,8 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     'lgt': None,
     'lle': None,
     'llt': None,
-    'log': None,
-    'log10': None,
+    'log': ('numpy', 'log'),
+    'log10': ('numpy', 'log10'),
     'max': ('numpy', 'maximum'),
     'min': ('numpy', 'minimum'),
     'mod': None,
@@ -161,6 +177,8 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     # Fortran 2008
     }
 
+INTRINSICS_PYTHON_TO_FORTRAN = dict_mirror(INTRINSICS_FORTRAN_TO_PYTHON)
+
 
 def _transform_print_call(call):
     if not hasattr(call, 'fortran_metadata'):
@@ -169,8 +187,14 @@ def _transform_print_call(call):
     if len(call.args) == 1:
         arg = call.args[0]
         if isinstance(arg, typed_ast3.Call) and isinstance(arg.func, typed_ast3.Attribute):
-            label = int(arg.func.value.id.replace('format_label_', ''))
-            call.args = [typed_ast3.Num(n=label)] + arg.args
+            attribute = arg.func
+            assert attribute.attr == 'format'
+            if isinstance(arg.func.value, typed_ast3.Str):
+                call.args = [arg.func.value] + arg.args
+            else:
+                assert isinstance(arg.func.value, typed_ast3.Name), type(arg.func.value)
+                label = int(arg.func.value.id.replace('format_label_', ''))
+                call.args = [typed_ast3.Num(n=label)] + arg.args
             return call
     call.args.insert(0, typed_ast3.Ellipsis())
     return call
@@ -185,9 +209,12 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.conj': 'conjg',
     'np.cos': 'cos',
     'np.dot': 'dot_product',
+    'np.exp': 'exp',
     'np.finfo.eps': 'epsilon',
     'np.finfo.max': 'huge',
     'np.finfo.tiny': 'tiny',
+    'np.log': 'log',
+    'np.log10': 'log10',
     'np.maximum': 'max',
     'np.minimum': 'min',
     'np.sign': 'sign',
@@ -217,7 +244,16 @@ INTRINSICS_SPECIAL_CASES = {'getenv', 'trim', 'count'}
 
 PYTHON_TO_FORTRAN_SPECIAL_CASES = {'print', ('numpy', 'array'), ('numpy', 'zeros')}
 
-INTRINSICS_PYTHON_TO_FORTRAN = {value: key for key, value in INTRINSICS_FORTRAN_TO_PYTHON.items()
-                                if value is not None}
-
 CALLS_SPECIAL_CASES = {(..., 'rstrip'), ('os', 'environ'), (..., 'count')}
+
+MPI_FORTRAN_TO_PYTHON = {
+    'MPI_Init': 'Init',
+    'MPI_Comm_size': 'Comm_size',
+    'MPI_Comm_rank': 'Comm_rank',
+    'MPI_Barrier': 'Barrier',
+    'MPI_Bcast': 'Bcast',
+    'MPI_Allreduce': 'Allreduce',
+    'MPI_Finalize': 'Finalize'
+}
+
+MPI_PYTHON_TO_FORTRAN = dict_mirror(MPI_FORTRAN_TO_PYTHON)

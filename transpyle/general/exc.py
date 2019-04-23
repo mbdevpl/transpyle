@@ -6,3 +6,8 @@ class ContinueIteration(StopIteration):
     """Allows for "continue" keyword within a function called from within a loop."""
 
     pass
+
+
+class AstGeneralizationError(RuntimeError):
+
+    pass

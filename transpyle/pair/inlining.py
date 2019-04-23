@@ -1,6 +1,5 @@
 """Preliminary implementation of inlining."""
 
-import collections.abc
 import copy
 import functools
 import logging
@@ -17,6 +16,9 @@ import typed_astunparse
 
 from ..general import Language, CodeReader, Parser, CodeWriter
 from ..general.misc import flatten_syntax
+from .assertions import names_equivalent
+from .ast_query import ReturnFinder
+from .manipulate import convert_return_to_assign
 
 _LOG = logging.getLogger(__name__)
 
@@ -41,15 +43,41 @@ class Replacer(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         return 'Replacer({})'.format(self._replacer)
 
 
-class ReturnFinder(st.ast_manipulation.RecursiveAstVisitor[typed_ast3]):
+class DeclarationReplacer(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
 
     def __init__(self):
         super().__init__()
-        self.found = []
+        self.replaced = []
+
+    def replace_declaration(self, declaration):
+        if isinstance(declaration, (typed_ast3.Import, typed_ast3.ImportFrom)):
+            # TODO: it's a hack
+            _ = horast_nodes.Comment(
+                typed_ast3.Str(' skipping a "use" statement when inlining', ''), eol=False)
+            self.replaced.append((declaration, _))
+            return _
+        if not isinstance(declaration, (typed_ast3.Assign, typed_ast3.AnnAssign)):
+            return declaration
+        intent = getattr(declaration, 'fortran_metadata', {}).get('intent', None)
+        if intent in {'in', 'out', 'inout'}:
+            _ = horast_nodes.Comment(
+                typed_ast3.Str(' skipping intent({}) declaration when inlining'.format(intent), ''),
+                eol=False)
+            self.replaced.append((declaration, _))
+            return _
+        if getattr(declaration, 'fortran_metadata', {}).get('is_declaration', False):
+            # TODO: it's a hack
+            _ = horast_nodes.Comment(
+                typed_ast3.Str(' skipping a declaration when inlining', ''), eol=False)
+            self.replaced.append((declaration, _))
+            return _
+        return declaration
 
     def visit_node(self, node):
-        if isinstance(node, typed_ast3.Return):
-            self.found.append(node)
+        return self.replace_declaration(node)
+
+    def __repr__(self):
+        return 'DeclarationReplacer()'
 
 
 def replace_name(arg, value, name):
@@ -58,46 +86,11 @@ def replace_name(arg, value, name):
     return name
 
 
-def delete_declaration(declaration):
-    if isinstance(declaration, (typed_ast3.Import, typed_ast3.ImportFrom)):
-        # TODO: it's a hack
-        return horast_nodes.Comment(
-            typed_ast3.Str(' skipping a "use" statement when inlining', ''), eol=False)
-    if not isinstance(declaration, (typed_ast3.Assign, typed_ast3.AnnAssign)):
-        return declaration
-    intent = getattr(declaration, 'fortran_metadata', {}).get('intent', None)
-    if intent in {'in', 'out', 'inout'}:
-        return horast_nodes.Comment(
-            typed_ast3.Str(' skipping intent({}) declaration when inlining'.format(intent), ''),
-            eol=False)
-    if getattr(declaration, 'fortran_metadata', {}).get('is_declaration', False):
-        # TODO: it's a hack
-        return horast_nodes.Comment(
-            typed_ast3.Str(' skipping a declaration when inlining', ''), eol=False)
-    return declaration
-
-
-def names_equivalent(arg: str, value: typed_ast3.AST):
-    if isinstance(value, typed_ast3.Name):
-        return arg == value.id
-    if isinstance(value, typed_ast3.Subscript):
-        _LOG.warning('ignoring indices when checking name equivalence')
-        return names_equivalent(arg, value.value)
-    # import ipdb; ipdb.set_trace()
-    raise NotImplementedError('cannot check name equivalence of {}'.format(type(value)))
-
-
 def create_name_replacers(values, replacements):
     args_mapping = {arg: value for arg, value in zip(values, replacements)
                     if not names_equivalent(arg, value)}
     return [Replacer(functools.partial(replace_name, arg, value))
             for arg, value in args_mapping.items()]
-
-
-def convert_return_to_assign(target, return_statement):
-    if isinstance(return_statement, typed_ast3.Return):
-        return typed_ast3.Assign(targets=[target], value=return_statement.value)
-    return return_statement
 
 
 class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
@@ -121,6 +114,8 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         if arguments.defaults:
             _LOG.warning('default values for inlined function parameters will be ignored!')
 
+        self._body = None
+        self._omitted_declarations = []
         self._inlined_function = inlined_function
         self._inlined_args = [arg.arg for arg in inlined_function.args.args]
         self._verbose = verbose
@@ -133,7 +128,9 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         _LOG.warning('last statement is: %s', last_statement)
         if len(self._inlined_function.body) == 1 and isinstance(last_statement, typed_ast3.Return):
             self._valid_inlining_contexts |= {t.Any}
-        if not return_finder.found:
+        if not return_finder.found_any_with_value:
+            self._valid_inlining_contexts |= {typed_ast3.Expr}
+        if not return_finder.found_any:
             self._valid_inlining_contexts |= {typed_ast3.Assign, typed_ast3.AnnAssign,
                                               typed_ast3.Expr}
         elif len(return_finder.found) == 1 and return_finder.found[0] is last_statement:
@@ -177,10 +174,29 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         assert self._is_valid_target_for_inlining(call)
 
         replacers = []
-        replacers.append(Replacer(delete_declaration))
+        decl_replacer = DeclarationReplacer()
+        replacers.append(decl_replacer)
         replacers += create_name_replacers(self._inlined_args, call.args)
 
-        return self._inline_call(call, replacers)
+        inlined = self._inline_call(call, replacers)
+
+        if decl_replacer.replaced:
+            _LOG.warning('omitted %i declarations', len(decl_replacer.replaced))
+            if self._omitted_declarations:
+                _LOG.warning('will not restore them because there already are some declarations')
+            else:
+                if self._verbose:
+                    call_code = typed_astunparse.unparse(call).strip()
+                    self._omitted_declarations.append((horast_nodes.Comment(
+                        value=typed_ast3.Str(' start of declarations from inlined {}'
+                                             .format(call_code), ''), eol=False), None))
+                self._omitted_declarations += decl_replacer.replaced
+                if self._verbose:
+                    self._omitted_declarations.append((horast_nodes.Comment(
+                        value=typed_ast3.Str(' end of declarations from inlined {}'
+                                             .format(call_code), ''), eol=False), None))
+
+        return inlined
 
     def _inline_call(self, call, replacers):
         # template_code = '''for dummy_variable in (0,):\n    pass'''
@@ -199,7 +215,7 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         if self._verbose:
             inlined_statements.append(horast_nodes.Comment(
                 value=typed_ast3.Str(' end of inlined {}'.format(call_code), ''), eol=False))
-        _LOG.warning('inlining a call %s using replacers %s', call_code, replacers)
+        _LOG.warning('inlined a call %s using replacers %s', call_code, replacers)
         # inlined_call.body = scope
         # return st.augment(inlined_call), eval_=False)
         assert inlined_statements
@@ -208,8 +224,26 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         return inlined_statements
 
     def visit(self, node):
+        first_call = False
+        if self._body is None:
+            first_call = True
+            self._body = node.body
+            _LOG.warning('%s is the target', node)
         node = super().visit(node)
         flatten_syntax[typed_ast3](node)
+        if first_call:
+            if self._omitted_declarations:
+                line_after_declarations = 0  # TODO: find line after declarations in target function
+                inserted = []
+                for orig, repl in reversed(self._omitted_declarations):
+                    if any(_ is orig for _ in inserted):
+                        continue
+                    intent = getattr(orig, 'fortran_metadata', {}).get('intent', None)
+                    if intent in {'in', 'out', 'inout'}:
+                        continue
+                    _LOG.warning('inserting omitted decl %s', orig)
+                    node.body.insert(line_after_declarations, orig)
+                    inserted.append(orig)
         return node
 
     def generic_visit(self, node):
@@ -235,7 +269,8 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         if call.keywords:
             raise NotImplementedError('currently only simple calls can be inlined')
         if len(self._inlined_args) != len(call.args):
-            raise ValueError(
+            # raise ValueError(  # TODO: TMP
+            _LOG.warning(
                 'Inlined function has {} parameters: {}, but target call has {} arguments: {}.'
                 .format(len(self._inlined_args), self._inlined_args, len(call.args), call.args))
         return True
@@ -276,9 +311,9 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
 def inline_syntax(target: typed_ast3.FunctionDef, inlined_function: typed_ast3.FunctionDef,
                   globals_=None, *args, **kwargs) -> typed_ast3.FunctionDef:
     if not isinstance(target, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
-        target = st.augment(target, globals_=globals_)
+        target = st.augment(target, eval_=False, globals_=globals_)
     if not isinstance(inlined_function, st.nodes.StaticallyTypedFunctionDef[typed_ast3]):
-        inlined_function = st.augment(inlined_function, globals_=globals_)
+        inlined_function = st.augment(inlined_function, eval_=False, globals_=globals_)
     call_inliner = CallInliner(inlined_function, *args, **kwargs)
     target = call_inliner.visit(target)
     assert isinstance(target, typed_ast3.FunctionDef)

@@ -29,7 +29,7 @@ def make_call_from_slice(slice_: typed_ast3.Slice) -> typed_ast3.Call:
     assert isinstance(slice_, typed_ast3.Slice), type(slice_)
     lower, upper, step = slice_.lower, slice_.upper, slice_.step
     if lower is None and upper is None and step is None:
-        args = []
+        args = [typed_ast3.NameConstant(None)]
     elif lower is not None and upper is None and step is None:
         args = [lower, typed_ast3.NameConstant(None)]
     elif lower is None and upper is not None and step is None:

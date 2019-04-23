@@ -8,6 +8,7 @@ import pathlib
 import platform
 import typing as t
 
+import colorama
 from encrypted_config import normalize_path
 
 _LOG = logging.getLogger(__name__)
@@ -123,6 +124,8 @@ def configure_basic_logging():
 
 
 def configure(quick: bool = False):
+    colorama.init()
+
     config_path = normalize_path(CONFIG_PATH)
     if not config_path.is_dir():
         config_path.mkdir(parents=True)

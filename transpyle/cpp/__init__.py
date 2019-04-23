@@ -6,13 +6,15 @@ from .ast_generalizer import CppAstGeneralizer
 from .unparser import Cpp14Unparser
 from .compiler import CppSwigCompiler
 
+__all__ = ['CppParser', 'CppAstGeneralizer', 'Cpp14Unparser', 'CppSwigCompiler']
+
 
 class CppBinder(Binder):
 
     pass
 
 
-# Language.register(Language('C++11', ['.cpp', '.cxx', '.h', '.hpp', '.hxx']), ['C++11'])
+Language.register(Language(['C++11'], ['.cpp', '.cxx', '.h', '.hpp', '.hxx']), ['C++11'])
 Language.register(Language(['C++14'], ['.cpp', '.cxx', '.h', '.hpp', '.hxx']),
                   ['C++14', 'C++', 'Cpp'])
 # Language.register(Language('C++17', ['.cpp', '.cxx', '.h', '.hpp', '.hxx']), ['C++17'])

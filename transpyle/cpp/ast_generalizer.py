@@ -11,7 +11,7 @@ from static_typing.ast_manipulation import RecursiveAstTransformer
 import typed_ast.ast3 as typed_ast3
 
 from ..general import XmlAstGeneralizer
-from ..general.exc import ContinueIteration
+from ..general.exc import ContinueIteration, AstGeneralizationError
 from .definitions import CPP_PYTHON_TYPE_PAIRS, CPP_PYTHON_CLASS_PAIRS, CPP_STL_CLASSES
 
 NAMESPACE_NODES = {'Namespace'}
@@ -37,6 +37,27 @@ def make_const(base_type: typed_ast3.AST):
     return typed_ast3.Subscript(
         value=typed_ast3.Name(id='Const', ctx=typed_ast3.Load()),
         slice=typed_ast3.Index(base_type), ctx=typed_ast3.Load())
+
+
+class XmlAstGeneralizationError(AstGeneralizationError):
+
+    def __init__(self, generalizer: XmlAstGeneralizer, xml_node: ET.Element):
+        assert isinstance(generalizer, XmlAstGeneralizer), type(generalizer)
+        assert isinstance(xml_node, ET.Element), type(xml_node)
+        self.generalizer = generalizer
+        self.xml_node = xml_node
+        super().__init__(ET.tostring(xml_node).decode().rstrip())
+
+
+def diagnose(function):
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except AstGeneralizationError as error:
+            raise XmlAstGeneralizationError(*args, **kwargs) from error
+        except KeyError as error:
+            raise XmlAstGeneralizationError(*args, **kwargs) from error
+    return wrapper
 
 
 class CastXMLTypeFinder(XmlAstGeneralizer):
@@ -160,6 +181,7 @@ class CastXMLTypeFinder(XmlAstGeneralizer):
     def _Argument(self, node: ET.Element):  # pylint: disable=invalid-name
         self._new_relevant_types[node.attrib['type']] = None
 
+    @diagnose
     def _Namespace(self, node: ET.Element):  # pylint: disable=invalid-name
         id_ = node.attrib['id']
         self.namespaces[id_] = node.attrib['name']

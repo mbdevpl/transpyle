@@ -24,7 +24,7 @@
 
         do n = 1, limit
             c = 0
-            !$opemp for
+            !$omp parallel do
             do y = 1, height
                 do i = 1, width
                     do x = 1, height
@@ -35,6 +35,7 @@
                     end do
                 end do
             end do
+            !$omp end parallel do
         end do
 
         if (limit .gt. 0) then

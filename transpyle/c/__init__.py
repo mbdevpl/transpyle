@@ -4,6 +4,8 @@ from ..general import Language, Parser, AstGeneralizer
 from .parser import C99Parser
 from .ast_generalizer import CAstGeneralizer
 
+__all__ = ['C99Parser', 'CAstGeneralizer']
+
 Language.register(Language(['C99'], ['.c', '.h']), ['C99'])
 Language.register(Language(['C11'], ['.c', '.h']), ['C11', 'C'])
 

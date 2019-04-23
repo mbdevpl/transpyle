@@ -11,7 +11,7 @@ from .general import Language, CodeReader, CodeWriter, AutoTranslator
 from .general import Parser, AstGeneralizer, Unparser, Compiler, Binder
 
 PROG_NAME = 'transpyle'
-COPYRIGHT_NOTICE = 'Copyright 2017-2018 Mateusz Bysiek https://mbdevpl.github.io/,' \
+COPYRIGHT_NOTICE = 'Copyright 2017-2019 Mateusz Bysiek https://mbdevpl.github.io/,' \
     ' Apache License 2.0'
 STEP_DESCRIPTIONS = {
     'parsing':

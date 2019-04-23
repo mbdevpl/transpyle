@@ -16,6 +16,7 @@ import typed_ast.ast3 as typed_ast3
 import typed_astunparse
 
 from ..pair import \
+    annotate_ast, get_annotation, \
     make_expression_from_slice, make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, \
     separate_args_and_keywords
 from ..general.exc import ContinueIteration
@@ -28,8 +29,9 @@ from .definitions import \
 _LOG = logging.getLogger(__name__)
 
 FORTRAN_PYTHON_FORMAT_SPEC = {
-    'A': str,
-    'I': int}
+    'a': str,
+    'i': int,
+    'f': float}
 
 
 class FortranAstGeneralizer(XmlAstGeneralizer):
@@ -102,6 +104,15 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         # raise NotImplementedError('not implemented handling of:\n{}'
         #                          .format(ET.tostring(node).decode().rstrip()))
 
+    def _interface(self, fortran_interface: ET.Element):
+        # members = self.transform_all_subnodes(self.get_one(fortran_interface, './members'))
+        members = []
+        clsdef = typed_ast3.ClassDef(
+            name='FortranInterface', bases=[], keywords=[], body=members, decorator_list=[])
+        annotate_ast(clsdef, 'is_interface', True)
+        # return clsdef
+        return typed_ast3.Pass()
+
     def _function(self, node: ET.Element):
         arguments = self.transform_one(self.get_one(node, './header/names'))
         body = self.transform_all_subnodes(self.get_one(node, './body'))
@@ -158,7 +169,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             'actual-arg', 'actual-arg-spec', 'dummy-arg'})
         if values:
             assert len(values) == 1
-            _LOG.warning('generating invalid Python AST: keyword() in arguments()')
+            _LOG.warning('generating invalid Python AST: keyword(%s, %s) in arguments()',
+                         node.attrib['name'], '...')
             return typed_ast3.keyword(arg=node.attrib['name'], value=values[0])
         return typed_ast3.arg(arg=node.attrib['name'], annotation=None)
 
@@ -201,32 +213,24 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return declarations
 
     def _declaration(self, node: ET.Element) -> typed_ast3.AnnAssign:
-        # if 'type' not in node.attrib:
-        #    # return []  # TODO: TMP
-        #    raise SyntaxError(
-        #        '"type" attribute not present in:\n{}'.format(ET.tostring(node).decode().rstrip()))
         declaration_type = node.attrib.get('type', None)
         if declaration_type is None:
-            pass
-        elif declaration_type == 'implicit':
-            return self._declaration_implicit(node)
-        elif declaration_type == 'variable':
-            return self._declaration_variable(node)
-        # elif declaration_type == 'variable-dimensions':
-        #    return self._declaration_variable_dimensions(node)
-        elif declaration_type == 'parameter':
-            return self._declaration_parameter(node)
-        elif declaration_type == 'include':
-            return self._declaration_include(node)
-        elif declaration_type in ('variable-dimensions', 'data', 'external'):
+            _LOG.warning('declaration without a type:\n%s', ET.tostring(node).decode().rstrip())
+            return self.transform_all_subnodes(node, ignored={})
+        if declaration_type in {'implicit', 'variable', 'parameter', 'include', 'data', 'common',
+                                'external', 'save'}:
+            return getattr(self, '_declaration_{}'.format(declaration_type))(node)
+        if declaration_type in {'format', 'interface'}:
+            return self.transform_one(self.get_one(node, './{}'.format(declaration_type)))
+        if declaration_type in {'variable-dimensions'}:
+            _LOG.error('using placeholder instead of generalizing:\n%s',
+                       ET.tostring(node).decode().rstrip())
             return typed_ast3.Expr(value=typed_ast3.Call(
                 func=typed_ast3.Name(id='print', ctx=typed_ast3.Load()),
                 args=[typed_ast3.Str('declaration', ''), typed_ast3.Str(node.attrib['type'], '')],
                 keywords=[]))
-        details = self.transform_all_subnodes(node, ignored={})
-        return details
-        # raise NotImplementedError(
-        #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        raise NotImplementedError(
+            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _declaration_implicit(self, node) -> typed_ast3.AnnAssign:
         subtype = node.attrib['subtype'].lower()
@@ -288,8 +292,15 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if has_variable_dimensions and not self._split_declarations:
             raise NotImplementedError('inline dimensions not implemented yet')
         if dimensions_node is not None and has_variable_dimensions:
-            raise SyntaxError(
-                'declaration dimension data as well as per-variable dimension data present')
+            all_have_variable_dimensions = all([_ is not None for _ in variable_dimensions])
+            if not all_have_variable_dimensions:
+                raise SyntaxError(
+                    'declaration dimension data that applies to all variables,'
+                    ' as well as per-variable dimension data that applies to some, found in:\n{}'
+                    .format(ET.tostring(node).decode().rstrip()))
+            _LOG.warning(
+                'prioritizing per-variable dimensions over declaration dimension data in:\n%s',
+                ET.tostring(node).decode().rstrip())
         if dimensions_node is not None:
             dimensions = self.transform_one(dimensions_node)
             assert len(dimensions) >= 1
@@ -320,7 +331,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         if intent_node is not None:
             metadata['intent'] = intent_node.attrib['type']
 
-        attributes = ('allocatable', 'asynchronous', 'external', 'intrinsic', 'optional',
+        attributes = ('public', 'private',
+                      'allocatable', 'asynchronous', 'external', 'intrinsic', 'optional',
                       'parameter', 'pointer', 'protected', 'save', 'target', 'value', 'volatile')
         for attribute in attributes:
             if node.find('./attribute-{}'.format(attribute)) is not None:
@@ -380,8 +392,57 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         self.ensure_import(path_attrib)
         return typed_ast3.Import(names=[typed_ast3.alias(name=path_attrib, asname=None)])
 
+    def _declaration_data(self, fortran_data: ET.Element):
+        variables = self.transform_all_subnodes(
+            self.get_one(fortran_data, './variables'),
+            ignored={'data-stmt-object-list__begin', 'data-stmt-object', 'data-stmt-object-list'})
+        assert len(variables) == 1, variables
+        values = self.transform_all_subnodes(
+            self.get_one(fortran_data, './values'),
+            ignored={'data-stmt-value-list__begin', 'data-stmt-value', 'data-stmt-value-list'})
+        call = typed_ast3.Call(typed_ast3.Name('data', typed_ast3.Load()), variables + values, [])
+        annotate_ast(call, 'is_statement', True)
+        return typed_ast3.Expr(call)
+
+    def _declaration_common(self, fortran_common: ET.Element):
+        names = self.get_all(fortran_common, './common-block-name')
+        assert len(names) == 1, names
+        objects_lists = self.get_all(fortran_common, './objects')
+        assert len(objects_lists) == 1, objects_lists
+        name_node = names[0]
+        objects_list_node = objects_lists[0]
+        name = name_node.attrib['id']
+        objects = [
+            typed_ast3.Name(object_node.attrib['id'], typed_ast3.Load())
+            for object_node in self.get_all(objects_list_node, './common-block-object')]
+        call = typed_ast3.Call(
+            typed_ast3.Name('data', typed_ast3.Load()), [],
+            [typed_ast3.keyword(name, typed_ast3.Tuple(objects, typed_ast3.Load()))])
+        annotate_ast(call, 'is_statement', True)
+        return typed_ast3.Expr(call)
+
+    def _declaration_external(self, fortran_save: ET.Element):
+        # try:
+        args = self._arguments(self.get_one(fortran_save, './names'))
+        args = args.args
+        # except SyntaxError:
+        #     args = []
+        call = typed_ast3.Call(typed_ast3.Name('external', typed_ast3.Load()), args, [])
+        annotate_ast(call, 'is_statement', True)
+        return typed_ast3.Expr(call)
+
     def _label(self, node: ET.Element) -> typed_ast3.Num:
         return typed_ast3.Num(n=int(node.attrib['lbl']))
+
+    def _declaration_save(self, fortran_save: ET.Element):
+        try:
+            args = self._arguments(self.get_one(fortran_save, './names'))
+            args = args.args
+        except SyntaxError:
+            args = []
+        call = typed_ast3.Call(typed_ast3.Name('save', typed_ast3.Load()), args, [])
+        annotate_ast(call, 'is_statement', True)
+        return typed_ast3.Expr(call)
 
     def _format(self, node: ET.Element) -> t.Union[typed_ast3.AnnAssign, typed_ast3.JoinedStr]:
         value = self.transform_one(self.get_one(node, './format-items'))
@@ -404,23 +465,31 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         raw_item = node.attrib['descOrDigit']
         if raw_item[0] in ('"', "'"):
             return typed_ast3.Str(raw_item[1:-1], '')
-        if raw_item[0] in FORTRAN_PYTHON_FORMAT_SPEC:
-            assert len(raw_item) == 2, raw_item
+        if raw_item[0].lower() in FORTRAN_PYTHON_FORMAT_SPEC:
+            assert 1 <= len(raw_item) <= 3, raw_item
             item = typed_ast3.Name(id=raw_item, ctx=typed_ast3.Load())
             return typed_ast3.FormattedValue(value=item, conversion=-1, format_spec=None)
-        raise NotImplementedError(
-            'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+        _LOG.warning('taking unsupported format specifier as-is: "%s"', raw_item)
+        item = typed_ast3.Name(id=raw_item, ctx=typed_ast3.Load())
+        return typed_ast3.FormattedValue(value=item, conversion=-1, format_spec=None)
+        # raise NotImplementedError(
+        #    'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
 
     def _use(self, node: ET.Element):
         name = node.attrib['name']
         only_node = node.find('./only')
         if only_node is None:
-            return typed_ast3.Import(names=[typed_ast3.alias(name=name, asname=None)])
-        uses = self.transform_all_subnodes(only_node,
-                                           ignored={'only-list__begin', 'only', 'only-list'})
-        return typed_ast3.ImportFrom(
-            module=name, names=[typed_ast3.alias(name=use.id, asname=None) for use in uses],
-            level=0)
+            import_ = typed_ast3.Import(names=[typed_ast3.alias(name=name, asname=None)])
+        else:
+            uses = self.transform_all_subnodes(only_node,
+                                               ignored={'only-list__begin', 'only', 'only-list'})
+            import_ = typed_ast3.ImportFrom(
+                module=name, names=[typed_ast3.alias(name=use.id, asname=None) for use in uses],
+                level=0)
+        nature_node = node.find('./nature')
+        if nature_node is not None:
+            annotate_ast(import_, 'nature', nature_node.attrib['name'])
+        return import_
 
     def _loop(self, node: ET.Element):
         if node.attrib['type'] == 'do':
@@ -450,7 +519,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         body_node = self.get_one(node, './body')
         comp_target, comp_iter = self._index_variable(index_variable)
         expressions = self.transform_all_subnodes(body_node, ignored={})
-        assert len(expressions) > 0
+        assert expressions
         elt = expressions[0] if len(expressions) == 1 \
             else typed_ast3.Tuple(elts=expressions, ctx=typed_ast3.Load())
         generator = typed_ast3.comprehension(
@@ -461,7 +530,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _loop_do_while(self, node: ET.Element,
                        condition: typed_ast3.AST = None) -> typed_ast3.While:
         try:
-            header = self.transform_all_subnodes(self.get_one(node, './header'))
+            header = self.transform_all_subnodes(self.get_one(node, './header'),
+                                                 ignored={'loop-control'})
             assert len(header) == 1
             assert condition is None
             condition = header[0]
@@ -535,6 +605,18 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             args=[typed_ast3.Str('goto', ''), typed_ast3.Str(node.attrib['target_label'], '')],
             keywords=[]))
 
+    def _arithmetic_if(self, arithmetic_if):
+        test = self.transform_only_subnode(self.get_one(arithmetic_if, './header'))
+        values = typed_ast3.Tuple(elts=[
+            self.transform_only_subnode(self.get_one(arithmetic_if, './body/if-negative')),
+            self.transform_only_subnode(self.get_one(arithmetic_if, './body/if-zero')),
+            self.transform_only_subnode(self.get_one(arithmetic_if, './body/if-positive'))],
+                                  ctx=typed_ast3.Load())
+        args = [test, values]
+        call = typed_ast3.Call(typed_ast3.Name('arithmetic_if', typed_ast3.Load()), args, [])
+        annotate_ast(call, 'is_statement', True)
+        return typed_ast3.Expr(call)
+
     def _if(self, node: ET.Element):
         headers = self.get_all(node, './header')
         bodies = self.get_all(node, './body')
@@ -604,6 +686,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 _LOG.debug('accumulated %s', [horast.unparse(_) for _ in items])
                 continue
             assert not isinstance(case.test, list), case.test
+            if get_annotation(case, 'is_default_case'):
+                assert prev_case is not None
+                prev_case.orelse += case.body
+                continue
             if isinstance(case.test, typed_ast3.Tuple):
                 op_ = typed_ast3.In()
             else:
@@ -617,6 +703,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 first_case = case
             if prev_case is not None:
                 assert isinstance(case, typed_ast3.AST), type(case)
+                assert not prev_case.orelse, prev_case.orelse
                 prev_case.orelse.append(case)
             prev_case = case
         if items:
@@ -625,17 +712,25 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         first_case.fortran_metadata = {'is_select': True}
         return first_case
 
-    def _case(self, node: ET.Element):
-        header_node = self.get_one(node, './header')
-        body_node = self.get_one(node, './body')
-        header = self.transform_all_subnodes(header_node, ignored={
-            'executable-construct', 'execution-part-construct'})
-        if len(header) > 1:
-            _LOG.warning('many case values: %s',
-                         [typed_astunparse.unparse(_).rstrip() for _ in header])
-            header = [typed_ast3.Tuple(elts=header, ctx=typed_ast3.Load())]
-        body = self._if_body(body_node)
+    def _case(self, node: ET.Element) -> t.Union[typed_ast3.If, t.List[typed_ast3.AST]]:
+        type_ = node.attrib['type']
+        if type_ == 'default':
+            # assert not header, header
+            header = [typed_ast3.NameConstant(True)]
+        else:
+            header_node = self.get_one(node, './header')
+            header = self.transform_all_subnodes(header_node, ignored={
+                'executable-construct', 'execution-part-construct'})
+            if len(header) > 1:
+                _LOG.warning('many case values: %s',
+                             [typed_astunparse.unparse(_).rstrip() for _ in header])
+                header = [typed_ast3.Tuple(elts=header, ctx=typed_ast3.Load())]
+        body = self._if_body(self.get_one(node, './body'))
+        if type_ not in {'specific', 'default'}:
+            _LOG.warning('unexpected type of select case: "%s"', type_)
         if_ = typed_ast3.If(test=header[0], body=body, orelse=[])
+        if type_ == 'default':
+            annotate_ast(if_, 'is_default_case', True)
         return if_
 
     def _value_ranges(self, node: ET.Element):
@@ -736,6 +831,19 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             targets.append(expression)
         return typed_ast3.Delete(targets=targets)
 
+    def _pointer(self, node: ET.Element) -> typed_ast3.Name:
+        names = self.transform_all_subnodes(node, ignored={'pointer-object'})
+        assert len(names) == 1, names
+        return names[0]
+
+    def _nullify(self, node: ET.Element) -> typed_ast3.Assign:
+        names = self.transform_all_subnodes(self.get_one(node, './pointers'), ignored={
+            'pointer-object-list__begin', 'pointer-object-list'})
+        assignment = typed_ast3.Assign(targets=names, value=typed_ast3.NameConstant(None),
+                                       type_comment=None)
+        annotate_ast(assignment, 'is_nullification', True)
+        return assignment
+
     def _call(self, node: ET.Element) -> t.Union[typed_ast3.Call, typed_ast3.Assign]:
         called = self.transform_all_subnodes(node, ignored={'call-stmt'})
         if len(called) != 1:
@@ -824,6 +932,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                     name = 'format_label_{}'.format(format_.n)
                     value = typed_ast3.Name(id=name, ctx=typed_ast3.Load())
                 elif isinstance(format_, typed_ast3.Str):
+                    # _LOG.warning('using string label "%s" in format', format_.s)
                     value = format_
                 else:
                     raise NotImplementedError()
@@ -852,7 +961,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         arg_name = node.attrib['argument-name']
         if len(node) == 0 and not arg_name:
             return []  # TODO: TMP
-        if len(io_control) == 0:
+        if not io_control:
             assert arg_name == ''
             return typed_ast3.Ellipsis()  # TODO: TMP
         if len(io_control) != 1:
@@ -910,7 +1019,7 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         assert filename is not None, ET.tostring(node).decode().rstrip()
         if not mode:
             mode = 'r'
-        assert 0 < len(mode) <= 2, ET.tostring(node).decode().rstrip()
+        assert 1 <= len(mode) <= 2, ET.tostring(node).decode().rstrip()
         self.ensure_import('typing', 't')
         return typed_ast3.AnnAssign(
             target=file_handle, value=typed_ast3.Call(
@@ -943,11 +1052,11 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _transform_mpi_call(
             self, tree: typed_ast3.Call) -> t.Union[typed_ast3.Call, typed_ast3.Assign]:
         assert isinstance(tree, typed_ast3.Call)
-        assert tree.func.id.startswith('MPI_')
+        assert tree.func.id.startswith('MPI_'), tree.func.id
         assert len(tree.func.id) > 4
         core_name = typed_ast3.Name(id='MPI', ctx=typed_ast3.Load())
         mpi_function_name = tree.func.id[4] + tree.func.id[5:].lower()
-        assert len(tree.args) > 0
+        assert tree.args, tree.func.id
         # extract last arg -- it's error var
         error_var = tree.args.pop(-1)
         assert isinstance(error_var, typed_ast3.Name), (type(error_var), error_var)
@@ -955,12 +1064,17 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             # extract 1st arg - in some cases it's the MPI scope
             mpi_comm = tree.args.pop(0)
             assert isinstance(mpi_comm, typed_ast3.Name)
-            assert mpi_comm.id.startswith('MPI_')
-            assert len(mpi_comm.id) > 4
-            core_name = typed_ast3.Attribute(
-                value=core_name, attr=mpi_comm.id[4:], ctx=typed_ast3.Load())
+            if mpi_comm.id.startswith('MPI_'):
+                # assert mpi_comm.id.startswith('MPI_'), mpi_comm.id
+                assert len(mpi_comm.id) > 4
+                core_name = typed_ast3.Attribute(
+                    value=core_name, attr=mpi_comm.id[4:], ctx=typed_ast3.Load())
+            else:
+                _LOG.info('using own MPI comm: %s', mpi_comm.id)
+                core_name = mpi_comm
         tree.func = typed_ast3.Attribute(
             value=core_name, attr=mpi_function_name, ctx=typed_ast3.Load())
+        annotate_ast(tree, 'is_mpi_call', True)
         # create assignment of call result to its current 1st var (or 2nd var in some cases)
         if tree.args:
             arg_num = 0
@@ -1217,13 +1331,17 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
                 ' ("{}" and "{}" respectively) in:\n{}'
                 .format(length, kind, ET.tostring(node).decode().rstrip()))
         if name == 'character':
+            type_ = typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, t.Any], mode='eval').body
             if length is not None:
                 if isinstance(length, typed_ast3.Num):
-                    length = length.n
-                _LOG.info(
-                    'ignoring string length "%i" in:\n%s',
-                    length, ET.tostring(node).decode().rstrip())
-            return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, t.Any], mode='eval').body
+                    # length = length.n
+                    type_ = typed_ast3.Subscript(
+                        value=type_, slice=typed_ast3.Index(value=length), ctx=typed_ast3.Load())
+                else:
+                    _LOG.warning(
+                        'ignoring string length "%s" in:\n%s',
+                        length, ET.tostring(node).decode().rstrip())
+            return type_
         elif length is not None:
             self.ensure_import('numpy', 'np')
             return typed_ast3.parse(FORTRAN_PYTHON_TYPE_PAIRS[name, length], mode='eval').body
@@ -1273,6 +1391,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
             return int(node.attrib['value'])
         raise NotImplementedError(
             'not implemented handling of:\n{}'.format(ET.tostring(node).decode().rstrip()))
+
+    def _null_init(self, node: ET.Element) -> typed_ast3.NameConstant:
+        assert node.attrib['function-reference'] == 'null', node.attrib
+        return typed_ast3.NameConstant(None)
 
     def _variable(self, node: ET.Element) -> t.Tuple[typed_ast3.Name, t.Any]:
         value_node = node.find('./initial-value')
@@ -1365,8 +1487,8 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         assert len(value) >= 2, value
         package, *members = value
         if package == 'numpy':
-            if len(value) == 1 and value[0] == function:
-                return cls._intrinsic_numpy_call
+            # if len(value) == 1 and value[0] == function:
+            #     return cls._intrinsic_numpy_call
             return functools.partial(cls._intrinsic_numpy_call, members=members)
         raise NotImplementedError((case, value))
 
@@ -1399,18 +1521,18 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
 
         if name_type in ('procedure', 'function'):
             return call
-        elif not subscripts_node:
+        if not subscripts_node:
             return name
-        elif name_type in ('variable',):
+        if name_type in ('variable',):
             return subscript
-        elif not slice_:
+        if not slice_:
             return call
-        elif name_type in ('ambiguous',):
+        if name_type in ('ambiguous',):
             return subscript
-        elif name_type is not None:
+        if name_type is not None:
             raise NotImplementedError('unrecognized name type "{}" in:\n{}'
                                       .format(name_type, ET.tostring(node).decode().rstrip()))
-        elif name_type is None:
+        if name_type is None:
             raise NotImplementedError('no name type in:\n{}'
                                       .format(ET.tostring(node).decode().rstrip()))
         raise NotImplementedError('not implemented handling of:\n{}'

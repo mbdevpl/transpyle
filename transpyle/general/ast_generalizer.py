@@ -151,3 +151,10 @@ class XmlAstGeneralizer(AstGeneralizer):
         """Transform all subnodes of a given node."""
         assert isinstance(node, ET.Element), type(node)
         return self.transform_all(node, warn, skip_empty, ignored, node)
+
+    def transform_only_subnode(
+            self, node: ET.Element, warn: bool = False, skip_empty: bool = False,
+            ignored: t.Set[str] = None):
+        results = self.transform_all_subnodes(node, warn, skip_empty, ignored)
+        assert len(results) == 1
+        return results[0]

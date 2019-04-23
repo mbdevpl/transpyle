@@ -16,12 +16,13 @@ from transpyle.general.binder import Binder
 from transpyle.cpp.parser import CppParser
 from transpyle.cpp.ast_generalizer import CppAstGeneralizer
 from transpyle.cpp.unparser import Cpp14Unparser
-from transpyle.cpp.compiler import CppCompilerInterface, CppSwigCompiler
+from transpyle.cpp.compiler import CppSwigCompiler
+from transpyle.cpp.compiler_interface import GppInterface
 
 from .common import \
-    PERFORMANCE_RESULTS_ROOT, \
-    EXAMPLES_ROOTS, basic_check_cpp_code, basic_check_cpp_ast, make_swig_tmp_folder, \
-    basic_check_python_ast, execute_on_all_language_examples
+    PERFORMANCE_RESULTS_ROOT, EXAMPLES_ROOT, EXAMPLES_ROOTS, \
+    basic_check_cpp_code, basic_check_cpp_ast, make_swig_tmp_folder, \
+    basic_check_python_ast, execute_on_language_examples
 
 _LOG = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ _TIME = timing.get_timing_group(__name__)
 
 class ParserTests(unittest.TestCase):
 
-    @execute_on_all_language_examples('cpp14')
+    @execute_on_language_examples('cpp14')
     def test_parse_examples(self, input_path):
         code_reader = CodeReader()
         code = code_reader.read_file(input_path)
@@ -40,10 +41,21 @@ class ParserTests(unittest.TestCase):
         basic_check_cpp_ast(self, input_path, cpp_ast)
         _LOG.info('parsed "%s" in %fs', input_path, timer.elapsed)
 
+    def test_try_parse_invalid(self):
+        input_path = EXAMPLES_ROOT.joinpath('invalid', 'invalid_cpp.cpp')
+
+        code_reader = CodeReader()
+        code = code_reader.read_file(input_path)
+        parser = CppParser()
+        with self.assertLogs(level=logging.ERROR):
+            with self.assertRaises(RuntimeError) as err:
+                parser.parse(code, input_path)
+        _LOG.debug('%s', err.exception)
+
 
 class AstGeneralizerTests(unittest.TestCase):
 
-    @execute_on_all_language_examples('cpp14')
+    @execute_on_language_examples('cpp14')
     def test_generalize_examples(self, input_path):
         code_reader = CodeReader()
         code = code_reader.read_file(input_path)
@@ -61,7 +73,7 @@ class AstGeneralizerTests(unittest.TestCase):
 
 class UnparserTests(unittest.TestCase):
 
-    @execute_on_all_language_examples('cpp14')
+    @execute_on_language_examples('cpp14')
     def test_unparse_examples(self, input_path):
         code_reader = CodeReader()
         code = code_reader.read_file(input_path)
@@ -88,7 +100,7 @@ class UnparserTests(unittest.TestCase):
 class CompilerTests(unittest.TestCase):
 
     def test_cpp_paths_exist(self):
-        compiler = CppCompilerInterface()
+        compiler = GppInterface()
         for include_path in compiler.include_paths:
             with self.subTest(include_path=include_path):
                 self.assertTrue(include_path.is_dir())
@@ -98,7 +110,7 @@ class CompilerTests(unittest.TestCase):
 
     @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
-    @execute_on_all_language_examples('cpp14')
+    @execute_on_language_examples('cpp14')
     def test_compile_and_bind_examples(self, input_path):
         output_dir = make_swig_tmp_folder(input_path)
 
@@ -118,6 +130,18 @@ class CompilerTests(unittest.TestCase):
             output_dir.rmdir()
         except OSError:
             pass
+
+    def test_try_compile_invalid(self):
+        input_path = EXAMPLES_ROOT.joinpath('invalid', 'invalid_cpp.cpp')
+        output_dir = make_swig_tmp_folder(input_path)
+
+        code_reader = CodeReader()
+        code = code_reader.read_file(input_path)
+        compiler = CppSwigCompiler()
+        with self.assertLogs(level=logging.ERROR):
+            with self.assertRaises(RuntimeError) as err:
+                compiler.compile(code, input_path, output_dir)
+        _LOG.debug('%s', err.exception)
 
     def test_openmp(self):
         compiler = CppSwigCompiler()

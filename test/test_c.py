@@ -10,7 +10,7 @@ from transpyle.general.code_reader import CodeReader
 from transpyle.c.parser import C99Parser
 from transpyle.c.ast_generalizer import CAstGeneralizer
 
-from .common import basic_check_c_ast, basic_check_python_ast, execute_on_all_language_examples
+from .common import basic_check_c_ast, basic_check_python_ast, execute_on_language_examples
 
 _LOG = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ _TIME = timing.get_timing_group(__name__)
 
 class ParserTests(unittest.TestCase):
 
-    @execute_on_all_language_examples('c11')
+    @execute_on_language_examples('c11')
     def test_parse_examples(self, input_path):
         code_reader = CodeReader()
         code = code_reader.read_file(input_path)
@@ -32,7 +32,7 @@ class ParserTests(unittest.TestCase):
 
 class AstGeneralizerTests(unittest.TestCase):
 
-    @execute_on_all_language_examples('c11')
+    @execute_on_language_examples('c11')
     def test_generalize_examples(self, input_path):
         code_reader = CodeReader()
         code = code_reader.read_file(input_path)

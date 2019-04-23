@@ -4,6 +4,7 @@ import collections.abc
 import datetime
 import io
 import itertools
+import os
 import pathlib
 import platform
 import sys
@@ -13,11 +14,15 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 import pycparser.c_ast
-import static_typing
+import static_typing as st
 import typed_ast.ast3
 import typed_astunparse
 
 _HERE = pathlib.Path(__file__).resolve().parent
+
+_ROOT = _HERE.parent
+
+APPS_ROOT = pathlib.Path(os.environ.get('TEST_APPS_ROOT', _ROOT.parent)).resolve()
 
 RESULTS_ROOT = pathlib.Path(_HERE, 'results')
 RESULTS_ROOT.mkdir(exist_ok=True)
@@ -46,12 +51,17 @@ EXAMPLES_EXTENSIONS = {
     'f95': ['.f90'],
     'python3': ['.py']}
 
-EXAMPLES_ROOTS = {lang: pathlib.Path(_HERE, 'examples', lang) for lang in EXAMPLES_LANGS}
+EXAMPLES_ROOT = pathlib.Path(_HERE, 'examples')
+
+EXAMPLES_ROOTS = {lang: EXAMPLES_ROOT.joinpath(lang) for lang in EXAMPLES_LANGS}
 
 EXAMPLES_FILES = {lang: list(
     itertools.chain.from_iterable(EXAMPLES_ROOTS[lang].glob('**/*{}'.format(ext))
                                   for ext in EXAMPLES_EXTENSIONS[lang]))
                   for lang in EXAMPLES_LANGS}
+
+# for _ in EXAMPLES_CATEGORIES:
+#     EXAMPLES_FILES[_] = list(EXAMPLES_ROOTS[_].glob('**/*.*'))
 
 EXAMPLES_RESULTS_ROOT = pathlib.Path(RESULTS_ROOT, 'examples')
 EXAMPLES_RESULTS_ROOT.mkdir(exist_ok=True)
@@ -96,7 +106,15 @@ def basic_check_ast(
         result_file.write(formatter(tree))
 
 
-EXAMPLES_C11_FILES = EXAMPLES_FILES['c11']
+def make_tmp_folder(sub_path: pathlib.Path, input_path: pathlib.Path) -> pathlib.Path:
+    parent_dir = EXAMPLES_RESULTS_ROOT.joinpath(input_path.parent.name, sub_path)
+    if not parent_dir.is_dir():
+        parent_dir.mkdir(parents=True)
+    output_dir = parent_dir.joinpath(
+        '{}_tmp_{}'.format(str(sub_path).replace(os.path.sep, '_'), now_timestamp()))
+    if not output_dir.is_dir():
+        output_dir.mkdir()
+    return output_dir
 
 
 def c_ast_dump(node: pycparser.c_ast.Node) -> str:
@@ -109,9 +127,6 @@ def basic_check_c_ast(case: unittest.TestCase, path, c_tree, **kwargs):
     basic_check_ast(case, path, c_tree, pycparser.c_ast.FileAST, '.yaml', c_ast_dump, **kwargs)
 
 
-EXAMPLES_CPP14_FILES = EXAMPLES_FILES['cpp14']
-
-
 def basic_check_cpp_code(case: unittest.TestCase, path, code, **kwargs):
     basic_check_code(case, path, code, 'cpp14', **kwargs)
 
@@ -122,20 +137,7 @@ def basic_check_cpp_ast(case: unittest.TestCase, path, fortran_ast, **kwargs):
 
 
 def make_swig_tmp_folder(input_path):
-    swig_output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig')
-    if not swig_output_dir.is_dir():
-        swig_output_dir.mkdir()
-    output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'swig',
-                              'swig_tmp_{}'.format(now_timestamp()))
-    if not output_dir.is_dir():
-        output_dir.mkdir()
-    return output_dir
-
-
-EXAMPLES_CYTHON_FILES = EXAMPLES_FILES['cython']
-
-EXAMPLES_F77_FILES = EXAMPLES_FILES['f77']
-EXAMPLES_F95_FILES = EXAMPLES_FILES['f95']
+    return make_tmp_folder(pathlib.Path('swig'), input_path)
 
 
 def basic_check_fortran_code(case: unittest.TestCase, path, code, **kwargs):
@@ -148,17 +150,8 @@ def basic_check_fortran_ast(case: unittest.TestCase, path, fortran_ast, **kwargs
 
 
 def make_f2py_tmp_folder(input_path):
-    f2py_root_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py')
-    if not f2py_root_dir.is_dir():
-        f2py_root_dir.mkdir()
-    output_dir = pathlib.Path(EXAMPLES_RESULTS_ROOT, input_path.parent.name, 'f2py',
-                              'f2py_tmp_{}'.format(now_timestamp()))
-    if not output_dir.is_dir():
-        output_dir.mkdir()
-    return output_dir
+    return make_tmp_folder(pathlib.Path('f2py'), input_path)
 
-
-EXAMPLES_PY3_FILES = EXAMPLES_FILES['python3']
 
 EXAMPLES_PY3_ORDINARY = [
     """a = 1""",
@@ -185,31 +178,45 @@ def basic_check_python_ast(case: unittest.TestCase, path, tree, **kwargs):
     basic_check_ast(case, path, tree, typed_ast.ast3.AST, '-ast.py', typed_astunparse.dump,
                     **kwargs)
     if sys.version_info[:2] >= (3, 6):
-        validator = static_typing.ast_manipulation.AstValidator[typed_ast.ast3]()
+        validator = st.ast_manipulation.AstValidator[typed_ast.ast3]()
         validator.visit(tree)
 
 
-def execute_on_all_language_fundamentals(*languages: t.Sequence[str]):
+def execute_on_language_fundamentals(*languages: t.Sequence[str], **filters):
     return execute_on_examples(itertools.chain.from_iterable(
         (_ for _ in EXAMPLES_FILES[language] if _.name.startswith('fundamentals'))
-        for language in languages))
+        for language in languages), **filters)
 
 
-def execute_on_all_language_examples(*languages: t.Sequence[str]):
+def execute_on_language_examples(*languages: t.Sequence[str], **filters):
     return execute_on_examples(itertools.chain.from_iterable(
-        EXAMPLES_FILES[language] for language in languages))
+        EXAMPLES_FILES[language] for language in languages), **filters)
 
 
-def execute_on_examples(example_paths: t.Iterable[pathlib.Path]):
+def execute_on_examples(example_paths: t.Iterable[pathlib.Path], **filters):
     assert isinstance(example_paths, collections.abc.Iterable), type(example_paths)
+    for filter_ in filters:
+        assert filter_ in {'predicate', 'suffix', 'predicate_not', 'suffix_not'}, filter_
 
     def test_implementation_wrapper(test_function):
         def wrapped_test_implementation(test_case: unittest.TestCase):
             for input_path in example_paths:
+                if 'suffix' in filters and input_path.suffix != filters['suffix']:
+                    continue
+                if 'suffix_not' in filters and input_path.suffix == filters['suffix_not']:
+                    continue
+                if 'predicate' in filters and not filters['predicate'](input_path):
+                    continue
+                if 'predicate_not' in filters and filters['predicate_not'](input_path):
+                    continue
                 with test_case.subTest(input_path=input_path):
                     test_function(test_case, input_path)
         return wrapped_test_implementation
     return test_implementation_wrapper
+
+
+def accelerated(path):
+    return 'openacc' in path.name or 'openmp' in path.name
 
 
 MACHINE = platform.node()
