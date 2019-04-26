@@ -179,7 +179,7 @@ class CompilerTests(unittest.TestCase):
             arrays += [np.array(np.random.random_sample((array_size,)), dtype=np.double)
                        for array_size in range(4 * MB, 32 * MB + 1, 4 * MB)]
             arrays += [np.array(np.random.random_sample((array_size,)), dtype=np.double)
-                       for array_size in range(128 * MB, 512 * MB + 1, 128 * MB)]
+                       for array_size in range(64 * MB, 256 * MB + 1, 64 * MB)]
 
         for variant, path in variants.items():
             with binder.temporarily_bind(path) as binding:
