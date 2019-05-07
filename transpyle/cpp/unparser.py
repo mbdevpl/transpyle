@@ -306,10 +306,16 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.write(t.arg)
 
     def _Comment(self, node):
-        if node.eol:
-            self.write(' //')
+        if node.value.s.startswith("pragma"):
+            if node.eol:
+                self.write('\n#')
+            else:
+                self.fill('#')
         else:
-            self.fill('//')
+            if node.eol:
+                self.write(' //')
+            else:
+                self.fill('//')
         self.write(node.value.s)
 
     def _NameConstant(self, node):
