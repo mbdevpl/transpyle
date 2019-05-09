@@ -47,7 +47,7 @@ class PgifortranInterface(CompilerInterface):
         '': ('-O', '4', '-fPIC', '-fast', '-Mvect=simd', '-Mcache_align', '-Mflushz', '-Mpre',
              '-Minfo=all'),
         'OpenMP': ('-mp',),
-        'OpenACC': ('-acc', '-ta=tesla:cc60', '-ta=tesla:nordc')
+        'OpenACC': ('-acc', '-ta=tesla', '-ta=tesla:nordc')
     }
 
     libraries = {
