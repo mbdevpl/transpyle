@@ -74,6 +74,8 @@ class ClangppInterface(CompilerInterface):
 
     """LLVM C++ compiler (Clang++) interface."""
 
+    _features = {'OpenMP'}
+
     _executables = {'': pathlib.Path('clang++')}
 
     _flags = {
@@ -81,5 +83,3 @@ class ClangppInterface(CompilerInterface):
         'OpenMP': ('-fopenmp',)
     }
     # -Ofast
-
-    _features = {'OpenMP'}
