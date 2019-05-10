@@ -143,6 +143,7 @@ class CompilerTests(unittest.TestCase):
                 compiler.compile(code, input_path, output_dir)
         _LOG.debug('%s', err.exception)
 
+    @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     def test_openmp(self):
         compiler = CppSwigCompiler()
         input_path = EXAMPLES_ROOTS['cpp14'].joinpath('matmul_openmp.cpp')

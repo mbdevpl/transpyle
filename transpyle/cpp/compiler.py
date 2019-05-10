@@ -92,6 +92,8 @@ _LOG = logging.getLogger(__name__)
 
 class SwigCompiler(Compiler):
 
+    # TODO: create SWIG compiler interface similarily to F2PY interface
+
     """SWIG-based compiler."""
 
     def __init__(self, language: Language):

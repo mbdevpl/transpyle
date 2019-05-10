@@ -184,6 +184,9 @@ class CastXMLTypeFinder(XmlAstGeneralizer):
     @diagnose
     def _Namespace(self, node: ET.Element):  # pylint: disable=invalid-name
         id_ = node.attrib['id']
+        if 'name' not in node.attrib:
+            _LOG.info('ignoring namespace without name')
+            return
         self.namespaces[id_] = node.attrib['name']
 
     def _FundamentalType(self, node: ET.Element):  # pylint: disable=invalid-name

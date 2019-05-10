@@ -26,6 +26,8 @@ def run_castxml(input_path: pathlib.Path, output_path: pathlib.Path, gcc: bool =
         kwargs['castxml-output=1'] = True
     if platform.system() == 'Linux':
         kwargs['castxml-cc-gnu'] = 'g++'
+    elif platform.system() == 'Darwin':
+        kwargs['castxml-cc-gnu'] = 'clang++'
     kwargs['o'] = str(output_path)
     return run_tool(CASTXML_PATH, args, kwargs,
                     argunparser=argunparse.ArgumentUnparser(opt_value=' '))
