@@ -17,8 +17,8 @@ import typed_astunparse
 
 from ..pair import \
     annotate_ast, get_annotation, \
-    make_expression_from_slice, make_numpy_constructor, make_st_ndarray, fix_stmts_in_body, \
-    separate_args_and_keywords
+    make_expression_from_slice, make_numpy_constructor, make_st_ndarray, make_main, \
+    fix_stmts_in_body, separate_args_and_keywords
 from ..general.exc import ContinueIteration
 from ..general.misc import flatten_sequence
 from ..general import Language, XmlAstGeneralizer
@@ -86,20 +86,18 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         directive_.fortran_metadata = {'is_directive': True}
         return directive_
 
-    def _module(self, node: ET.Element):
-        module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
+    def _module(self, node: ET.Element) -> t.List[typed_ast3.AST]:
         body = self.transform_all_subnodes(self.get_one(node, './body'))
-        conditional = module.body[0]
-        conditional.body = body
+        main_stmts = make_main(body)
         members_node = node.find('./members')
         if members_node is None:
-            return conditional
+            return main_stmts
         members = self.transform_all_subnodes(members_node)
         if not members:
             members = [typed_ast3.Pass()]
         clsdef = typed_ast3.ClassDef(
             name=node.attrib['name'], bases=[], keywords=[], body=members, decorator_list=[])
-        return [conditional, clsdef]
+        return [clsdef] + main_stmts
         # _LOG.warning('%s', ET.tostring(node).decode().rstrip())
         # raise NotImplementedError('not implemented handling of:\n{}'
         #                          .format(ET.tostring(node).decode().rstrip()))
@@ -194,12 +192,10 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         return typed_ast3.Call(func=typed_ast3.Name(id='exit', ctx=typed_ast3.Load()),
                                args=args, keywords=[])
 
-    def _program(self, node: ET.Element) -> typed_ast3.AST:
-        module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
+    def _program(self, node: ET.Element) -> t.List[typed_ast3.AST]:
         body = self.transform_all_subnodes(self.get_one(node, './body'))
-        conditional = module.body[0]
-        conditional.body = body
-        return conditional
+        main_stmts = make_main(body)
+        return main_stmts
 
     def _specification(self, node: ET.Element) -> t.List[typed_ast3.AST]:
         declarations = self.transform_all_subnodes(node, skip_empty=True, ignored={

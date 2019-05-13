@@ -9,7 +9,7 @@ from .manipulate import fix_stmts_in_body, separate_args_and_keywords, convert_r
 from .code_manipulation import replace_line, replace_scope
 from .synthetic_ast import \
     make_range_call, make_call_from_slice, make_expression_from_slice, make_slice_from_call, \
-    make_numpy_constructor, make_st_ndarray
+    make_numpy_constructor, make_st_ndarray, make_main
 from .inlining import CallInliner, inline_syntax, inline
 from .loop_annotations import annotate_loop_syntax
 
@@ -20,7 +20,7 @@ __all__ = [
     'fix_stmts_in_body', 'separate_args_and_keywords', 'convert_return_to_assign',
     'replace_line', 'replace_scope',
     'make_range_call', 'make_call_from_slice', 'make_expression_from_slice', 'make_slice_from_call',
-    'make_numpy_constructor', 'make_st_ndarray',
+    'make_numpy_constructor', 'make_st_ndarray', 'make_main',
     'CallInliner', 'inline_syntax', 'inline',
     'annotate_loop_syntax']
 

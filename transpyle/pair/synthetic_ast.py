@@ -108,3 +108,29 @@ def make_st_ndarray(data_type: typed_ast3.AST,
                 typed_ast3.Tuple(elts=sizes, ctx=typed_ast3.Load())] if sizes else [],
             ctx=typed_ast3.Load())),
         ctx=typed_ast3.Load())
+
+
+def make_main(statements: t.Sequence[typed_ast3.AST],
+              function_name: str = 'main') -> t.List[typed_ast3.AST]:
+    """Create a 2-element list of FunctionDef and If which represent the main module idiom.
+
+    The idiom looks like this:
+
+    def main() -> None:
+        ...
+
+    if __name__ == '__main__':
+        main()
+    """
+    assert isinstance(function_name, str), type(function_name)
+    assert function_name
+    main_function = typed_ast3.FunctionDef(
+        function_name, typed_ast3.arguments([], None, [], [], None, []), [_ for _ in statements],
+        [], typed_ast3.NameConstant(None), None)
+    conditional = typed_ast3.If(
+        typed_ast3.Compare(typed_ast3.Name('__name__', typed_ast3.Load()), [typed_ast3.Eq()],
+                           [typed_ast3.Str('__main__', '')]),
+        [typed_ast3.Expr(
+            typed_ast3.Call(typed_ast3.Name(function_name, typed_ast3.Load()), [], []))], [])
+
+    return [main_function, conditional]
