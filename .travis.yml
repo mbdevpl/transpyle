@@ -91,7 +91,7 @@ before_install:
   - g++ --version
   - swig -version
   - gfortran --version
-  - .travis/install_pyenv.sh
+  - .build/install_pyenv.sh
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "linux" && "${TRAVIS_PYTHON_VERSION}" != "3.7" ]]; then
@@ -104,10 +104,10 @@ before_install:
   - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
 
 install:
-  - .travis/install_open_fortran_compiler.sh
-  - .travis/install_castxml.sh
+  - .build/install_open_fortran_compiler.sh
+  - .build/install_castxml.sh
   - pip install -U pip
-  - .travis/install_open_fortran_parser_xml.sh
+  - .build/install_open_fortran_parser_xml.sh
   - pip install -U -r dev_requirements.txt
 
 script:

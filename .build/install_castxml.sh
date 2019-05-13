@@ -6,10 +6,10 @@ set -Eeuxo pipefail
 
 git clone "https://github.com/CastXML/CastXML" "../CastXML"
 cd "../CastXML"
-if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-  CC=clang CXX=clang++ cmake .
-else
+if [[ "$(uname)" == "Linux" ]]; then
   cmake .
+else
+  CC=clang CXX=clang++ cmake .
 fi
 make
 # export PATH="$(pwd)/bin:${PATH}"

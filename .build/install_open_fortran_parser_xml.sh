@@ -5,7 +5,7 @@ set -Eeuxo pipefail
 # updated: 2019-05-10
 
 # on Linux, use OFP XML from repo
-if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+if [[ "$(uname)" == "Linux" ]]; then
   git clone "https://github.com/mbdevpl/open-fortran-parser-xml" "../open-fortran-parser-xml"
   cd "../open-fortran-parser-xml"
   pip install -U -r dev_requirements.txt

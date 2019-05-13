@@ -7,7 +7,7 @@ set -Eeuxo pipefail
 # use the following to enable diagnostics
 # export PYENV_DIAGNOSE=1
 
-if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+if [[ "$(uname)" == "Darwin" ]]; then
   if [ -n "${DIAGNOSE_PYENV-}" ] ; then
     pyenv install --list
   fi
