@@ -5,6 +5,7 @@ import logging
 import pathlib
 import typing as t
 
+from .tools import run_tool
 from .compiler import Compiler
 
 _LOG = logging.getLogger(__name__)
@@ -106,3 +107,17 @@ class CompilerInterface(Compiler):
             #    args.append(previous_step_result)
             step_output = step(code, path, output_folder, **kwargs, **step_output)
         return step_output
+
+    def _compile(self, code, path, output_folder, input_paths: t.Sequence[pathlib.Path], **kwargs):
+        result = run_tool(self.executable('compile'), [
+            *self.flags('compile'), *self.options('compile'),
+            '-c', *[str(path) for path in input_paths]])
+        return {'results': {'compile': result}}
+
+    def _link(self, code, path, output_folder, input_paths: t.Sequence[pathlib.Path],
+              output_path: pathlib.Path, **kwargs):
+        input_paths = [path.with_suffix('.o') for path in input_paths]
+        result = run_tool(self.executable('link'), [
+            *self.flags('link'), *self.options('link'),
+            '-shared', *[str(path) for path in input_paths], '-o', str(output_path)])
+        return {'results': {'link': result, **kwargs['results']}}

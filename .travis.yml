@@ -14,7 +14,9 @@ addons:
     packages:
       - ant
       - gcc
+      - llvm
       - pyenv
+      - swig
 matrix:
   include:
     - os: linux
@@ -39,14 +41,13 @@ matrix:
       env: TRAVIS_PYTHON_VERSION="3.7"
   allow_failures:
     - python: "3.7"
-    - env: TRAVIS_PYTHON_VERSION="3.5"
-    - env: TRAVIS_PYTHON_VERSION="3.6"
     - env: TRAVIS_PYTHON_VERSION="3.7"
 
 env:
   - TRAVIS_JDK_VERSION=oraclejdk9
 
 before_install:
+  - mkdir -p "${HOME}/.local/bin"
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
@@ -65,65 +66,47 @@ before_install:
       sudo update-alternatives --install /lib/cpp cpp /usr/local/bin/cpp 100
       sudo update-alternatives --install /usr/bin/f77 f77 /usr/local/bin/gfortran 100
       sudo update-alternatives --install /usr/bin/f95 f95 /usr/local/bin/gfortran 100
+    else
+      sudo ln -s /usr/local/bin/gcc-8 /usr/local/bin/gcc
+      sudo ln -s /usr/local/bin/g++-8 /usr/local/bin/g++
+      sudo ln -s /usr/local/bin/cpp-8 /usr/local/bin/cpp
+      # sudo ln -s /usr/local/bin/gfortran-8 /usr/local/bin/gfortran  # already exists
+      sudo ln -s /usr/local/bin/gcc-ar-8 /usr/local/bin/gcc-ar
+      sudo ln -s /usr/local/bin/gcc-nm-8 /usr/local/bin/gcc-nm
+      sudo ln -s /usr/local/bin/gcc-ranlib-8 /usr/local/bin/gcc-ranlib
+      sudo ln -s /usr/local/bin/gcov-8 /usr/local/bin/gcov
+      sudo ln -s /usr/local/bin/gcov-dump-8 /usr/local/bin/gcov-dump
+      export PATH="/usr/local/opt/llvm/bin:${PATH}"
+      export LLVM_DIR=$(llvm-config --prefix)
+      echo "${LLVM_DIR}"
+      # find / -name "LLVMConfig.cmake" 2>/dev/null
+      # find / -name "llvm-config.cmake" 2>/dev/null
+      # ls -lah /usr/local/bin
+      # ls -lah /opt/local/bin
+      mkdir /tmp/includes
+      brew doctor 2>&1 | grep "/usr/local/include" | awk '{$1=$1;print}' | xargs -I _ mv _ /tmp/includes
     fi
     set +e
   - gcc --version
   - g++ --version
   - gfortran --version
-  - |
-    set -e
-    if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
-      TRAVIS_PYTHON_VERSION="$(pyenv install --list | grep -E " ${TRAVIS_PYTHON_VERSION}(\.[0-9brc]+)+" | tail -n 1 | sed -e 's/^[[:space:]]*//')"
-      pyenv install "${TRAVIS_PYTHON_VERSION}"
-      export PATH="$HOME/.pyenv/versions/${TRAVIS_PYTHON_VERSION}/bin:${PATH}"
-    fi
-    set +e
+  - .travis/install_pyenv.sh
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "linux" && "${TRAVIS_PYTHON_VERSION}" != "3.7" ]]; then
       jdk_switcher use $TRAVIS_JDK_VERSION
     fi
     set +e
-  # Open Fortran Compiler
-  - git clone "https://github.com/codethinklabs/ofc" "../open-fortran-compiler"
-  - |
-    set -e
-    cd "../open-fortran-compiler"
-    CFLAGS="-Wno-implicit-fallthrough -Wno-maybe-uninitialized" make
-    cd -
-    set +e
-  - export PATH="${PATH}:$(pwd)/../open-fortran-compiler"
-  # FFB-MINI app
+  # apps
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"
-  # FLASH 5 app
   - git clone "https://github.com/ECP-Astro/FLASH5.git" "../flash5"
-  # miranda_io app
   - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
 
 install:
+  - .travis/install_open_fortran_compiler.sh
+  - .travis/install_castxml.sh
   - pip install -U pip
-  # CastXML
-  - |
-    set -e
-    git clone "https://github.com/CastXML/CastXML" "../CastXML"
-    cd "../CastXML"
-    cmake .
-    make
-    export PATH="$(pwd)/bin:${PATH}"
-    cd -
-    set +e
-  # use OFP XML from repo
-  - |
-    set -e
-    git clone "https://github.com/mbdevpl/open-fortran-parser-xml" "../open-fortran-parser-xml"
-    cd "../open-fortran-parser-xml"
-    pip install -U -r dev_requirements.txt
-    python -m open_fortran_parser --deps
-    ant
-    python setup.py bdist_wheel
-    pip install -U dist/*.whl
-    cd -
-    set +e
+  - .travis/install_open_fortran_parser_xml.sh
   - pip install -U -r dev_requirements.txt
 
 script:
