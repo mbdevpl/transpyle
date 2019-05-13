@@ -176,7 +176,7 @@ subset of basic types and basic syntax is supported.
 Python AST to C++
 ~~~~~~~~~~~~~~~~~
 
-Only very basic supported currently.
+Only very basic syntax is supported currently.
 
 
 Cython to Python AST
@@ -207,6 +207,7 @@ Python file might not work as expected.
 
 The above behaviour will change in the future.
 
+
 OpenCL to Python AST
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -236,7 +237,7 @@ Presence of end-of-line comments or comments in expressions might result in erro
 Requirements
 ============
 
-Python >= 3.5.
+Python 3.5 or later.
 
 Python libraries as specified in `<requirements.txt>`_.
 
@@ -263,11 +264,22 @@ Therefore to enable support for all languages, execute :bash:`pip3 install trans
 Alternatively, to enable support for C++ and Fortran only, execute
 :bash:`pip3 install transpyle[cpp,fortran]`.
 
-Additionally, support for some languages requires the following software to be installed:
+Additionally, full support for some languages requires the following software to be installed:
 
-*   C, C++: SWIG (Simplified Wrapper and Interface Generator) with executable `swig`
+*   C++:
+    *   a modern C++ compiler (fully tested with GNU's ``g++`` versions 7 and 8
+        and partially tested with LLVM's ``clang++`` version 7)
+    *   SWIG (Simplified Wrapper and Interface Generator), tested with version 3
 
-*   Fortran: a modern Fortran compiler with executable `gfortran`
+*   Fortran:
+    *   a modern Fortran compiler (fully tested with GNU's ``gfortran`` versions 7 and 8
+        and partially tested with PGI's ``pgfortran`` version 2018)
+
+The core functionality of transpyle is platform-independent. However, as support of some languages
+depends on presence of additional software, some functionality might be limited/unavailable
+on selected platforms.
+
+Transpyle is fully tested on Linux, and partially tested on OS X.
 
 
 Installation

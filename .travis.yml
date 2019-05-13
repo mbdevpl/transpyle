@@ -89,6 +89,7 @@ before_install:
     set +e
   - gcc --version
   - g++ --version
+  - swig -version
   - gfortran --version
   - .travis/install_pyenv.sh
   - |
