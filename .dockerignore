@@ -21,3 +21,6 @@ __pycache__
 # Python: coverage
 /htmlcov
 /.coverage
+
+# rules from subdirectories
+/test/results
