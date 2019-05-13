@@ -197,12 +197,6 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
     def _program(self, node: ET.Element) -> typed_ast3.AST:
         module = typed_ast3.parse('''if __name__ == '__main__':\n    pass''')
         body = self.transform_all_subnodes(self.get_one(node, './body'))
-        for i in range(len(body) - 1, -1, -1):
-            if isinstance(body[i], list):
-                sublist = body[i]
-                del body[i]
-                for elem in reversed(sublist):
-                    body.insert(i, elem)
         conditional = module.body[0]
         conditional.body = body
         return conditional
