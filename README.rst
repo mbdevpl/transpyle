@@ -152,6 +152,8 @@ Transpyle intends to support selected subsets of: C, C++, Cython, Fortran, OpenC
 
 For each language pair and direction of translation, the set of supported features may differ.
 
+For details of supported constructs, see `<README.LANGUAGES.rst>`_.
+
 
 C to Python AST
 ~~~~~~~~~~~~~~~
@@ -159,11 +161,14 @@ C to Python AST
 C-specific AST is created via pycparse, and some of elementary C syntax is transformed into
 Python AST.
 
+For details of supported C constructs, see `<README.LANGUAGES.rst#C>`_.
 
 Python AST to C
 ~~~~~~~~~~~~~~~
 
 Not implemented yet.
+
+For details of supported C constructs, see `<README.LANGUAGES.rst#C>`_.
 
 
 C++ to Python AST
@@ -197,6 +202,8 @@ Fortran to Python AST
 Fortran-specific AST is created via Open Fortran Parser, then that AST is translated
 into Python AST.
 
+For details of supported C constructs, see `<README.LANGUAGES.rst#Fortran>`_.
+
 
 Python AST to Fortran
 ~~~~~~~~~~~~~~~~~~~~~
@@ -206,6 +213,8 @@ to selected Python AST nodes, and therefore unparsing raw Python AST created dir
 Python file might not work as expected.
 
 The above behaviour will change in the future.
+
+For details of supported C constructs, see `<README.LANGUAGES.rst#Fortran>`_.
 
 
 OpenCL to Python AST
