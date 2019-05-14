@@ -75,6 +75,7 @@ def summarize_completed_process(result, *, executable=None, actual_call=None) ->
         _LOG.error('execution of "%s" failed', executable.name)
         _LOG.info('details of failed execution of "%s": %s', executable.name, result)
         raise RuntimeError(make_completed_process_report(result))
+    _LOG.warning('%s', make_completed_process_report(result))
 
 
 @contextlib.contextmanager

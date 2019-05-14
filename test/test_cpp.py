@@ -108,7 +108,7 @@ class CompilerTests(unittest.TestCase):
             with self.subTest(library_path=library_path):
                 self.assertTrue(library_path.is_dir())
 
-    @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
+    # @unittest.skipUnless(platform.system() == 'Linux', 'tested only on Linux')
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
     @execute_on_language_examples('cpp14')
     def test_compile_and_bind_examples(self, input_path):

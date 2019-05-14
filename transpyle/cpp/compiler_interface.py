@@ -67,6 +67,7 @@ class ClangppInterface(CompilerInterface):
         '': ('-O3', '-fPIC', '-Wall', '-Wextra', '-Wpedantic', '-fcolor-diagnostics'),
         'compile': tuple(split_and_strip('{} {}'.format(
             PYTHON_CONFIG['BASECFLAGS'], PYTHON_CONFIG['BASECPPFLAGS']))),
+        'link': ('-undefined', 'dynamic_lookup'),
         'OpenMP': ('-fopenmp',)
     }
     # -Ofast
@@ -80,8 +81,24 @@ class ClangppInterface(CompilerInterface):
 
     ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
 
-    libraries = split_and_strip('-l{} {} {} {}'.format(
-        ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
+    # libraries = split_and_strip('-l{} {} {} {}'.format(
+    #     ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'],
+    #     PYTHON_CONFIG['LINKFORSHARED']))
+    # ld: -stack_size option can only be used when linking a main executable
+    # clang: error: linker command failed with exit code 1 (use -v to see invocation)
+
+    libraries = split_and_strip('-l{} {} {}'.format(
+        ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS']))
+    # Fatal Python error: PyThreadState_Get: no current thread
+
+    # libraries = split_and_strip('-l{} {}'.format(
+    #     ldlibrary, PYTHON_CONFIG['SYSLIBS']))
+    # Fatal Python error: PyThreadState_Get: no current thread
+
+    print(PYTHON_CONFIG['LIBS'])
+    print(PYTHON_CONFIG['SYSLIBS'])
+    # print(PYTHON_CONFIG['LINKFORSHARED'])
+    # print(PYTHON_CONFIG['LDSHARED'])
 
     _options = {
         'compile': ['-I{}'.format(_) for _ in include_paths],
