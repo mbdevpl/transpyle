@@ -267,11 +267,14 @@ Alternatively, to enable support for C++ and Fortran only, execute
 Additionally, full support for some languages requires the following software to be installed:
 
 *   C++:
+
     *   a modern C++ compiler (fully tested with GNU's ``g++`` versions 7 and 8
         and partially tested with LLVM's ``clang++`` version 7)
+
     *   SWIG (Simplified Wrapper and Interface Generator), tested with version 3
 
 *   Fortran:
+
     *   a modern Fortran compiler (fully tested with GNU's ``gfortran`` versions 7 and 8
         and partially tested with PGI's ``pgfortran`` version 2018)
 
