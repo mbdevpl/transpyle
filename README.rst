@@ -268,15 +268,15 @@ Additionally, full support for some languages requires the following software to
 
 *   C++:
 
-    *   a modern C++ compiler (fully tested with GNU's ``g++`` versions 7 and 8
-        and partially tested with LLVM's ``clang++`` version 7)
+    *   a modern C++ compiler -- fully tested with GNU's ``g++`` versions 7 and 8
+        and partially tested with LLVM's ``clang++`` version 7
 
-    *   SWIG (Simplified Wrapper and Interface Generator), tested with version 3
+    *   SWIG (Simplified Wrapper and Interface Generator) -- tested with version 3
 
 *   Fortran:
 
-    *   a modern Fortran compiler (fully tested with GNU's ``gfortran`` versions 7 and 8
-        and partially tested with PGI's ``pgfortran`` version 2018)
+    *   a modern Fortran compiler -- fully tested with GNU's ``gfortran`` versions 7 and 8
+        and partially tested with PGI's ``pgfortran`` version 2018
 
 The core functionality of transpyle is platform-independent. However, as support of some languages
 depends on presence of additional software, some functionality might be limited/unavailable
