@@ -168,8 +168,11 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 unparsed = horast.unparse(type_hint.value).strip()
                 self.write(unparsed)
                 self.write('<')
-                self.write(horast.unparse(type_hint.slice).strip())  
-                self.write('>')
+                if isinstance(type_hint.slice, typed_ast3.Subscript):
+                    self.dispatch_type(type_hint.slice)
+                else:
+                    self.write(horast.unparse(type_hint.slice).strip())
+                self.write(' >')
                 if isinstance(type_hint.slice, typed_ast3.Index):
                     self.write('&')
                 return
@@ -241,7 +244,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self._unsupported_syntax(t, 'which is not simple')
         self.dispatch_type(t.annotation)
         self.write(' ')
-        self.dispatch(t.target)
+        try:
+            self.dispatch(t.target)
+        except AttributeError as e:
+            print(e)
         if t.value:
             self.write(' = ')
             self.dispatch(t.value)
