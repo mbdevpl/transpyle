@@ -11,7 +11,7 @@ class Package(setup_boilerplate.Package):
 
     name = 'transpyle'
     description = 'performance-oriented transpiler for Python'
-    download_url = 'https://github.com/mbdevpl/transpyle'
+    url = 'https://github.com/mbdevpl/transpyle'
     classifiers = [
         'Development Status :: 2 - Pre-Alpha',
         'Environment :: Console',
@@ -19,7 +19,8 @@ class Package(setup_boilerplate.Package):
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
-        'Operating System :: POSIX',
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3 :: Only',
