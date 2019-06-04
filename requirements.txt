@@ -5,7 +5,7 @@ colorlog
 encrypted-config
 horast
 pandas
-setuptools >= 20.5
+setuptools >= 41.0
 static-typing >= 0.2.7.dev1
 typed_ast
 typed-astunparse >= 2.1.2
