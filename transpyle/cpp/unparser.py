@@ -101,7 +101,7 @@ def for_header_to_tuple(target, target_type, iter_) -> t.Tuple[
         init = typed_ast3.Assign(targets=[target], value=begin, type_comment=None)
     else:
         init = typed_ast3.AnnAssign(target=target, annotation=target_type, value=begin, simple=True)
-    condition = typed_ast3.Expr(typed_ast3.Compare(left=target, ops=[typed_ast3.Lt()], comparators=[end]))
+    condition = typed_ast3.Compare(left=target, ops=[typed_ast3.Lt()], comparators=[end])
     increment = typed_ast3.AugAssign(target=target, op=typed_ast3.Add(), value=step)
     return init, condition, increment
 
@@ -219,9 +219,13 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
     def _Assign(self, t):
         if self._context != 'for header':
             self.fill()
-        if t.type_comment:
-            self.dispatch_type(t.resolved_type_comment)
-            self.write(' ')
+        try: # type_comment does not exist on my source AST
+            if t.type_comment:
+                self.dispatch_type(t.resolved_type_comment)
+                self.write(' ')
+        except AttributeError:
+            pass
+
         for target in t.targets:
             self.dispatch(target)
             self.write(" = ")
@@ -263,10 +267,18 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _ClassDef(self, t):
         self.write('\n')
+        if len(t.decorator_list) > 1:
+            self._unsupported_syntax(t, 'with too many decorators')
+
         is_struct = False
         if len(t.decorator_list) == 1:
-            is_struct = t.decorator_list[0].id=='struct'
-        self.fill('{}} {}'.format('struct' if is_struct else 'class', t.name))
+            is_struct = t.decorator_list[0].id == 'struct'
+
+        if is_struct:
+            self.fill('struct {}'.format(t.name))
+        else:
+            self.fill('class {}'.format(t.name))
+
         if t.bases:
             _LOG.warning('C++: assuming base classes are inherited as public')
             self.write(': public ')
@@ -374,7 +386,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _For(self, t):
         self.fill('for (')
-        init, cond, increment = for_header_to_tuple(t.target, t.resolved_type_comment, t.iter)
+        init, cond, increment = for_header_to_tuple(t.target, t.type_comment, t.iter) # resolved_type_comment does not exsit on my source AST
         self._context = 'for header'
         self.dispatch(init)
         self.write('; ')
@@ -484,11 +496,15 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.write('->')
                 self.write(t.attr)
                 return
-            unparsed = PY_TUPLES_TO_CPP[t.value.id, t.attr]
-            if unparsed == 'sqrt':
-                self._includes['cmath'] = True
-            self.write(unparsed)
-            return
+            try:
+                unparsed = PY_TUPLES_TO_CPP[t.value.id, t.attr]
+                if unparsed == 'sqrt':
+                    self._includes['cmath'] = True
+                self.write(unparsed)
+                return
+            except KeyError:
+                _LOG.warning('Could not find %s.%s attribute in standard tuples. Assuming normal object.', t.value.id, t.attr)
+
         self.dispatch(t.value)
         self.write('.')
         self.write(t.attr)
