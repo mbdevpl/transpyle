@@ -13,5 +13,6 @@ else
 fi
 make
 # export PATH="$(pwd)/bin:${PATH}"
+mkdir -p "${HOME}/.local/bin"
 ln -s "$(pwd)/bin/castxml" "${HOME}/.local/bin/castxml"
 cd -

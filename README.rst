@@ -308,11 +308,15 @@ First, download and run the docker container (migth require sudo):
     docker pull "mbdevpl/transpyle"
     docker run -h transmachine -it "mbdevpl/transpyle"
 
+
+By default, this will download latest more or less stable development build,
+if you wish to use a specific release, use :bash:`"mbdevpl/transpyle:version"` instead.
+
 Then, in the container:
 
 .. code:: bash
 
-    python3 -m jupyter notebok --ip="$(hostname -i)" --port=8080
+    python3 -m jupyter notebook --ip="$(hostname -i)" --port=8080
 
 Open the shown link in your host's web browser, navigate to `<examples.ipynb>`_,
 and start transpiling!

@@ -47,7 +47,6 @@ env:
   - TRAVIS_JDK_VERSION=oraclejdk9
 
 before_install:
-  - mkdir -p "${HOME}/.local/bin"
   - |
     set -e
     if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then

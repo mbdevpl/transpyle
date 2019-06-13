@@ -13,5 +13,6 @@ else
   CFLAGS="-Wno-implicit-fallthrough -Wno-maybe-uninitialized" make
 fi
 # export PATH="$(pwd):${PATH}"
+mkdir -p "${HOME}/.local/bin"
 ln -s "$(pwd)/ofc" "${HOME}/.local/bin/ofc"
 cd -
