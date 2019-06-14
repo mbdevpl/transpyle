@@ -1,0 +1,64 @@
+version: "{build}"
+
+environment:
+  matrix:
+    - ARCHITECTURE: "x86"
+      PYTHON_VERSION: "3.5"
+      PYTHON: "C:\\Python35"
+    - ARCHITECTURE: "x64"
+      PYTHON_VERSION: "3.5"
+      PYTHON: "C:\\Python35-x64"
+    - ARCHITECTURE: "x86"
+      PYTHON_VERSION: "3.6"
+      PYTHON: "C:\\Python36"
+    - ARCHITECTURE: "x64"
+      PYTHON_VERSION: "3.6"
+      PYTHON: "C:\\Python36-x64"
+    - ARCHITECTURE: "x86"
+      PYTHON_VERSION: "3.7"
+      PYTHON: "C:\\Python37"
+    - ARCHITECTURE: "x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON: "C:\\Python37-x64"
+
+init:
+  - set PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
+
+install:
+  - python -m pip install -U pip
+  - python -m pip install -U -r dev_requirements.txt
+
+build: off
+
+test_script:
+  - set TEST_PACKAGING=1
+  - python -m coverage run --branch --source . -m unittest -v
+
+after_test:
+  - python -m coverage report --show-missing
+  - codecov
+  # Bintray archive preparation
+  - python -m pip install version_query
+  - ps: Invoke-WebRequest "https://gist.githubusercontent.com/mbdevpl/46d458350f0c9cc7d793b67573e01f7b/raw/prepare_bintray_deployment.py" -OutFile "prepare_bintray_deployment.py"
+  - python prepare_bintray_deployment.py "windows%ARCHITECTURE%-python%PYTHON_VERSION%" "dist\*.tar.gz" "dist\*.whl" "dist\*.zip"
+  - set /p BINTRAY_VERSION=<.bintray_version.txt
+
+artifacts:
+  - path: dist\*.tar.gz
+  - path: dist\*.whl
+  - path: dist\*.zip
+  - path: '*-bintray.zip'
+
+deploy:
+  - provider: BinTray
+    username: $(APPVEYOR_ACCOUNT_NAME)
+    api_key:
+      secure: cMLbWadS24XyCD5RU3XM+2GrgqtTfoBgKwkQXyDyVa/3QOF1rXheHki+BRXP5tLo
+    subject: $(APPVEYOR_ACCOUNT_NAME)
+    repo: pkgs
+    package: $(APPVEYOR_PROJECT_NAME)
+    version: $(BINTRAY_VERSION)
+    publish: true
+    override: true
+    explode: true
+    artifact: /.*-bintray\.zip/
