@@ -2,7 +2,7 @@
 set -Eeuxo pipefail
 
 # pyenv installer (for macOS)
-# updated: 2019-05-10
+# updated: 2019-05-13
 
 # use the following to enable diagnostics
 # export PYENV_DIAGNOSE=1
