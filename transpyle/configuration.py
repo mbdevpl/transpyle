@@ -27,9 +27,7 @@ CONFIG_PATH = CONFIG_PATHS[platform.system()]
 LOGTS_PATHS = {
     'Linux': pathlib.Path('~', '.local', 'share', APP_DIRNAME),
     'Darwin': pathlib.Path('~', 'Library', 'Logs', APP_DIRNAME),
-    # TODO: where to store logs on Windows?
-    # 'Windows': pathlib.Path('%LOCALAPPDATA%', APP_DIRNAME)
-    }
+    'Windows': pathlib.Path('%LOCALAPPDATA%', APP_DIRNAME)}
 
 LOGS_PATH = LOGTS_PATHS[platform.system()]
 
