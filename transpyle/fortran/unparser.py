@@ -1,6 +1,7 @@
 """Fortran unparsing."""
 
 import collections.abc
+import contextlib
 import copy
 import io
 import itertools
@@ -42,6 +43,13 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._context_input_args = False
         self._syntax = args[0]
         super().__init__(*args, **kwargs)
+
+    @contextlib.contextmanager
+    def _ignore_max_line_len(self):
+        _max_line_len = self._max_line_len
+        self._max_line_len = None
+        yield
+        self._max_line_len = _max_line_len
 
     def fill(self, text='', continuation: bool = False):
         self.write('\n')
@@ -934,21 +942,20 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
     def _Comment(self, node):
         if node.value.s.startswith(' Fortran metadata:'):
             return
-        metadata = getattr(node, 'fortran_metadata', {})
-        _max_line_len = self._max_line_len
-        self._max_line_len = None
-        if metadata.get('is_directive', False):
-            _indent = self._indent
-            self._indent = 0
-            super().fill('#')
-            self._indent = _indent
-        else:
+        with self._ignore_max_line_len():
             if node.eol:
                 self.write('  !')
             else:
                 self.fill('!')
-        self.write(node.value.s)
-        self._max_line_len = _max_line_len
+            self.write(node.value.s)
+
+    def _Directive(self, node):
+        with self._ignore_max_line_len():
+            _indent = self._indent
+            self._indent = 0
+            super().fill('#')
+            self._indent = _indent
+            self.write(node.value.s)
 
 
 class Fortran77Unparser(Unparser):

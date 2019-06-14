@@ -77,13 +77,12 @@ class FortranAstGeneralizer(XmlAstGeneralizer):
         comment = comment[1:]
         return horast_nodes.Comment(value=typed_ast3.Str(comment, ''), eol=False)
 
-    def _directive(self, node) -> horast_nodes.Comment:
+    def _directive(self, node) -> horast_nodes.Directive:
         directive = node.attrib['text']
         if not directive or directive[0] not in ('#',):
             raise SyntaxError('directive token {} has unexpected prefix'.format(repr(directive)))
         directive = directive[1:]
-        directive_ = horast_nodes.Comment(value=typed_ast3.Str(directive, ''), eol=False)
-        directive_.fortran_metadata = {'is_directive': True}
+        directive_ = horast_nodes.Directive(value=typed_ast3.Str(directive, ''))
         return directive_
 
     def _module(self, node: ET.Element):

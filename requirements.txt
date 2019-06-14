@@ -3,7 +3,7 @@ astunparse
 colorama
 colorlog
 encrypted-config
-horast
+horast >= 0.3.0
 pandas
 setuptools >= 41.0
 static-typing >= 0.2.7.dev1
