@@ -31,8 +31,12 @@ install:
 build: off
 
 test_script:
+  - set TEST_LONG=1
   - set TEST_PACKAGING=1
-  - python -m coverage run --branch --source . -m unittest -v
+  - python -m coverage run --branch --source . -m unittest -v test.test_python
+  - python -m coverage run --branch --source . -m unittest -v test.test_pair
+  - python -m coverage run --branch --source . -m unittest -v test.test_script
+  - python -m coverage run --branch --source . -m unittest -v test.test_setup
 
 after_test:
   - python -m coverage report --show-missing
