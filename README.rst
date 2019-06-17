@@ -320,3 +320,48 @@ Then, in the container:
 
 Open the shown link in your host's web browser, navigate to `<examples.ipynb>`_,
 and start transpiling!
+
+
+Related publications
+====================
+
+Below is the list of papers describing various aspects of transpyle and/or principles behind it.
+Further research is ongoing, so the list might be extended in the future.
+
+*   M. Bysiek, A. Drozd and S. Matsuoka,
+    *Migrating Legacy Fortran to Python While Retaining Fortran-Level Performance
+    Through Transpilation and Type Hints*,
+    PyHPC 2016: 6th Workshop on Python for High-Performance and Scientific Computing @ SC16,
+    Salt Lake City, Utah, United States of America, 2016, pp. 9-18
+
+    Abstract:
+
+        We propose a method of accelerating Python code by just-in-time compilation leveraging type
+        hints mechanism introduced in Python 3.5. In our approach performance-critical kernels are
+        expected to be written as if Python was a strictly typed language, however without the need
+        to extend Python syntax. This approach can be applied to any Python application, however we
+        focus on a special case when legacy Fortran applications are automatically translated into
+        Python for easier maintenance. We developed a framework implementing two-way transpilation
+        and achieved performance equivalent to that of Python manually translated to Fortran, and
+        better than using other currently available JIT alternatives (up to 5x times faster than
+        Numba in some experiments).
+
+    https://doi.org/10.1109/PyHPC.2016.006
+
+*   M. Bysiek, M. Wahib, A. Drozd and S. Matsuoka,
+    *Towards Portable High Performance in Python: Transpilation, High-Level IR,
+    Code Transformations and Compiler Directives (Unreferred Workshop Manuscript)*,
+    2018-HPC-165: 研究報告ハイパフォーマンスコンピューティング,
+    Kumamoto, Kumamoto, Japan, 2018, pp. 1-7
+
+    Abstract:
+
+        We present a method for accelerating the execution of Python programs. We rely on
+        just-in-time automatic code translation and compilation with Python itself being used as a
+        high-level intermediate representation. We also employ performance-oriented code
+        transformations and compiler directives to achieve high performance portability while
+        enabling end users to keep their codebase in pure Python. To evaluate our method, we
+        implement an open-source transpilation framework with an easy-to-use interface that
+        achieves performance better than state-of-the-art methods for accelerating Python.
+
+    http://id.nii.ac.jp/1001/00190591/
