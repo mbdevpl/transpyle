@@ -511,7 +511,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _Call(self, t):
         func_name = horast.unparse(t.func).strip()
-
+       
         if func_name == 'np.zeros':
             self._includes['valarray'] = True
             self.write('std::valarray<')
@@ -527,10 +527,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                     comma = True
                 self.dispatch(arg)
             return
-
+        
         if t.keywords:
             self._unsupported_syntax(t, 'with keyword arguments')
-
+        
         if func_name == 'print':
             self._includes['iostream'] = True
             self.write('std::cout << ')
@@ -543,7 +543,17 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.dispatch(arg)
             return
 
-        super()._Call(t)
+        self.dispatch_type(t.func)
+        self.write('(')
+
+        comma = False
+        for arg in t.args:
+            if comma:
+                self.write(", ")
+            else:
+                comma = True
+            self.dispatch(arg)
+        self.write(')')
 
     # def _Subscript(self, t):
     #     super()._Subscript(t)
