@@ -16,14 +16,23 @@ from colorama import Fore, Style
 
 _LOG = logging.getLogger(__name__)
 
+OUTPUT_INTRO_LENGTH = 1024
+OUTPUT_REPLACEMENT = '(...)'
+OUTPUT_OUTRO_LENGTH = 10240
+OUTPUT_MAX_LENGTH = OUTPUT_INTRO_LENGTH + len(OUTPUT_REPLACEMENT) + OUTPUT_OUTRO_LENGTH
+
 
 def _postprocess_result(result: subprocess.CompletedProcess) -> None:
     if isinstance(result.stdout, bytes):
         result.stdout = result.stdout.decode('utf-8', 'ignore')
+    if len(result.stdout) > OUTPUT_MAX_LENGTH:
+        result.stdout = '{}{}{}'.format(result.stdout[:OUTPUT_INTRO_LENGTH], OUTPUT_REPLACEMENT,
+                                        result.stdout[-OUTPUT_OUTRO_LENGTH:])
     if isinstance(result.stderr, bytes):
         result.stderr = result.stderr.decode('utf-8', 'ignore')
-    if len(result.stderr) > 10240:
-        result.stderr = result.stderr[:10240]
+    if len(result.stderr) > OUTPUT_MAX_LENGTH:
+        result.stderr = '{}{}{}'.format(result.stderr[:OUTPUT_INTRO_LENGTH], OUTPUT_REPLACEMENT,
+                                        result.stderr[-OUTPUT_OUTRO_LENGTH:])
 
 
 def make_completed_process_report(
@@ -60,21 +69,24 @@ def make_completed_process_report(
 
 
 def summarize_completed_process(result, *, executable=None, actual_call=None) -> None:
+    _postprocess_result(result)
     if actual_call is not None:
         function, args, kwargs = actual_call
-        _postprocess_result(result)
-        if result.returncode != 0:
-            _LOG.error('execution of %s() failed', function.__name__)
-            _LOG.info('details of failed execution of %s(): %s', function.__name__, result)
-            raise RuntimeError(make_completed_process_report(
-                result, '{}(*{}, **{})'.format(function.__name__, args, kwargs)))
-        return
-    assert executable is not None
-    _postprocess_result(result)
-    if result.returncode != 0:
-        _LOG.error('execution of "%s" failed', executable.name)
-        _LOG.info('details of failed execution of "%s": %s', executable.name, result)
-        raise RuntimeError(make_completed_process_report(result))
+        simple_name = '{}()'.format(function.__name__)
+        full_name = '{}(*{}, **{})'.format(function.__name__, args, kwargs)
+    else:
+        assert executable is not None
+        simple_name = '"{}"'.format(executable.name)
+        full_name = '"{}"'.format(executable)
+
+    report = make_completed_process_report(result, None if actual_call is None else full_name)
+    if result.returncode == 0:
+        _LOG.debug('execution of %s succeeded', simple_name)
+        _LOG.debug('details of successful execution of %s: %s', full_name, report)
+    else:
+        _LOG.error('execution of %s failed (returncode=%i)', simple_name, result.returncode)
+        # _LOG.info('details of failed execution of %s: %s', full_name, result)
+        raise RuntimeError(report)
 
 
 @contextlib.contextmanager
@@ -166,7 +178,6 @@ def run_tool(executable: pathlib.Path, args=(), kwargs=None, cwd: pathlib.Path =
         run_kwargs['cwd'] = str(cwd)
     _LOG.debug('running tool %s ...', command)
     result = subprocess.run(command, **run_kwargs)
-    _LOG.debug('return code of "%s" tool: %s', executable, result)
     summarize_completed_process(result, executable=executable)
     return result
 
