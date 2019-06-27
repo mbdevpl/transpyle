@@ -15,7 +15,7 @@ class GfortranInterface(CompilerInterface):
 
     """GNU Fortran compiler interface."""
 
-    _features = {'MPI', 'OpenMP'}
+    _features = {'MPI', 'OpenMP', 'OpenACC'}
 
     _executables = {
         '': pathlib.Path('gfortran'),
@@ -25,11 +25,13 @@ class GfortranInterface(CompilerInterface):
         '': (
             '-O3', '-fPIC', '-funroll-loops', '-Wall', '-Wextra', '-Wpedantic',
             '-fdiagnostics-color=always'),
-        'OpenMP': ('-fopenmp',)
+        'OpenMP': ('-fopenmp',),
+        'OpenACC': ('-fopenacc', '-foffload-force')
     }
 
     _options = {
-        'OpenMP': ('-lgomp',)
+        'OpenMP': ('-lgomp',),
+        'OpenACC': ('-lgomp',)
     }
 
 
