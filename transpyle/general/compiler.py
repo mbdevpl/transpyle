@@ -21,7 +21,9 @@ class Compiler(Registry):
                 output_folder: t.Optional[pathlib.Path] = None, **kwargs) -> pathlib.Path:
         raise NotImplementedError()
 
-    def compile_file(self, path: pathlib.Path, output_folder=None):
+    def compile_file(self, path: pathlib.Path,
+                     output_folder: t.Optional[pathlib.Path] = None) -> pathlib.Path:
+        """Read the contents of the file and call the compile method."""
         if self._reader is None:
             self._reader = CodeReader()
         code = self._reader.read_file(path)
