@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 
+import numpy as np
 import timing
 
 from transpyle.general.code_reader import CodeReader
@@ -16,12 +17,15 @@ from transpyle.general.language import Language
 from transpyle.general.parser import Parser
 from transpyle.general.ast_generalizer import AstGeneralizer
 from transpyle.general.unparser import Unparser
+from transpyle.general.binder import Binder
 from transpyle.general.translator import Translator, AutoTranslator
 from transpyle.general.transpiler import AutoTranspiler
 
 from transpyle.fortran.parser import FortranParser
 from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
 from transpyle.fortran.unparser import Fortran77Unparser, Fortran2008Unparser
+from transpyle.fortran.compiler import F2PyCompiler
+from transpyle.fortran.compiler_interface import GfortranInterface, PgifortranInterface
 
 from transpyle.python.parser import TypedPythonParserWithComments
 from transpyle.python.unparser import TypedPythonUnparserWithComments
@@ -199,3 +203,30 @@ class FortranAndPythonTests(unittest.TestCase):
         compiled_path = transpiler.transpile(
             reader.read_file(input_path), input_path, output_path, output_dir)
         # TODO: run it
+
+    @execute_on_examples([_ for _ in EXAMPLES_FILES['python3'] if 'heavy_compute' in _.name])
+    def test_transpile_with_directives(self, input_path):
+
+        translator = AutoTranslator(Language.find('Python'), Language.find('Fortran'))
+        self.assertIsNotNone(translator)
+        reader = CodeReader()
+
+        # with tempfile.NamedTemporaryFile(suffix='.f90', delete=False) as output_file:
+        #     # TO DO: this leaves garbage behind in /tmp/
+        #     output_path = pathlib.Path(output_file.name)
+
+        translated_path = translator.translate(reader.read_file(input_path), input_path)
+        # , output_path, output_dir
+
+        compilers = [F2PyCompiler(interface) for interface in (
+            GfortranInterface(), GfortranInterface({'OpenMP'}), GfortranInterface({'OpenACC'}),
+            PgifortranInterface({'OpenMP'}), PgifortranInterface({'OpenACC'}))]
+        binder = Binder()
+
+        input_data = np.linspace(1.0001, 1.0002, 4096, dtype=np.double)
+        for compiler in compilers:
+            output_dir = make_f2py_tmp_folder(input_path)
+
+            compiled_path = compiler.compile_file(translated_path, output_dir)
+            with binder.temporarily_bind(compiled_path) as binding:
+                output_data = binding.heavy_compute(input_data)
