@@ -1,6 +1,7 @@
 argunparse
 astunparse
 colorama
+colored_traceback
 colorlog
 encrypted-config
 horast >= 0.3.0
