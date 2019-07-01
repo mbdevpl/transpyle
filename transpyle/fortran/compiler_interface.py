@@ -110,18 +110,16 @@ class F2pyInterface(CompilerInterface):
         _LOG.info('f2py compiling file: "%s", (%i characters)', path, len(code))
         _LOG.debug('f2py extra args: %s', extra_args)
         # _LOG.debug('compiled file\'s contents: %s', code)
-        flgs = self.f_compiler.options('compile') + self.f_compiler.flags('compile')
-        with temporarily_set_envvars(
-                NPY_DISTUTILS_APPEND_FLAGS='1',
-                # FFLAGS=self.argunparser.unparse(*flgs),
-                # LDFLAGS=self.argunparser.unparse(*flgs)
-                ):
-            result = call_tool(
-                numpy.f2py.compile, kwargs={
-                    'source': code, 'modulename': module_name, 'extra_args': extra_args,
-                    'verbose': False, 'source_fn': '{}'.format(path).replace(' ', '\\ '),
-                    'extension': path.suffix},
-                cwd=output_folder,
-                commandline_equivalent='f2py -c -m {} {} "{}"'.format(module_name, extra_args, path),
-                capture_output=True)
+        # flgs = self.f_compiler.options('compile') + self.f_compiler.flags('compile')
+        f2py_envvars = {
+            # 'FFLAGS': self.argunparser.unparse(*flgs),
+            # 'LDFLAGS': self.argunparser.unparse(*flgs),
+            'NPY_DISTUTILS_APPEND_FLAGS': '1'}
+        f2py_compile_kwargs = {
+            'source': code, 'modulename': module_name, 'extra_args': extra_args, 'verbose': False,
+            'source_fn': '{}'.format(path).replace(' ', '\\ '), 'extension': path.suffix}
+        f2py_cmd_equivalent = 'f2py -c -m {} {} "{}"'.format(module_name, extra_args, path)
+        with temporarily_set_envvars(**f2py_envvars):
+            result = call_tool(numpy.f2py.compile, kwargs=f2py_compile_kwargs, cwd=output_folder,
+                               commandline_equivalent=f2py_cmd_equivalent, capture_output=True)
         return {'result': result}
