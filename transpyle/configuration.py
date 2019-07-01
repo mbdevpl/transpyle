@@ -9,6 +9,7 @@ import platform
 import typing as t
 
 import colorama
+import colored_traceback
 from encrypted_config import normalize_path
 
 _LOG = logging.getLogger(__name__)
@@ -125,6 +126,7 @@ def configure_basic_logging():
 
 def configure(quick: bool = False):
     colorama.init()
+    colored_traceback.add_hook(always=True)
 
     config_path = normalize_path(CONFIG_PATH)
     if not config_path.is_dir():

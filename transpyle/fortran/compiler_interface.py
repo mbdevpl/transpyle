@@ -7,6 +7,7 @@ import argunparse
 import numpy.f2py
 
 from ..general import call_tool, CompilerInterface
+from ..general.tools import temporarily_set_envvars
 
 _LOG = logging.getLogger(__name__)
 
@@ -24,9 +25,11 @@ class GfortranInterface(CompilerInterface):
     _flags = {
         '': (
             '-O3', '-fPIC', '-funroll-loops', '-Wall', '-Wextra', '-Wpedantic',
+            '-ffree-form',
             '-fdiagnostics-color=always'),
         'OpenMP': ('-fopenmp',),
-        'OpenACC': ('-fopenacc', '-foffload-force')
+        'OpenACC': ('-fopenacc',)
+        # '-foffload-force'
     }
 
     _options = {
@@ -46,10 +49,10 @@ class PgifortranInterface(CompilerInterface):
         'MPI': pathlib.Path('pgmpifortran')}
 
     _flags = {
-        '': ('-O', '4', '-fPIC', '-fast', '-Mvect=simd', '-Mcache_align', '-Mflushz', '-Mpre',
+        '': ('-O', '4', '-fPIC', '-fast',
              '-Minfo=all'),
         'OpenMP': ('-mp',),
-        'OpenACC': ('-acc', '-ta=tesla', '-ta=tesla:nordc')
+        'OpenACC': ('-acc', '-Mvect=simd', '-Mcache_align', '-Mflushz', '-Mpre', '-ta=tesla', '-ta=tesla:nordc')
     }
 
     libraries = {
@@ -72,11 +75,12 @@ class F2pyInterface(CompilerInterface):
     _executables = {'': pathlib.Path('f2py')}
 
     _flags = {
+        # 'compile': ('-fPIC',)
         # 'debug': ('debug', 'debug-capi')
     }
 
     _options = {
-        '': ('-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION',)}
+        '': ('-DNPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION', '-DNPY_DISTUTILS_APPEND_FLAGS=1')}
 
     def __init__(self, f_compiler: CompilerInterface = None, *args, **kwargs):
         self.argunparser = argunparse.ArgumentUnparser()
@@ -106,12 +110,18 @@ class F2pyInterface(CompilerInterface):
 
         _LOG.warning('f2py compiling file: "%s", (%i characters)', path, len(code))
         # _LOG.debug('compiled file\'s contents: %s', code)
-        result = call_tool(
-            numpy.f2py.compile, kwargs={
-                'source': code, 'modulename': module_name, 'extra_args': extra_args,
-                'verbose': False, 'source_fn': '{}'.format(path).replace(' ', '\\ '),
-                'extension': path.suffix},
-            cwd=output_folder,
-            commandline_equivalent='f2py -c -m {} {} "{}"'.format(module_name, extra_args, path),
-            capture_output=True)
+        flgs = self.f_compiler.options('compile') + self.f_compiler.flags('compile')
+        with temporarily_set_envvars(
+                NPY_DISTUTILS_APPEND_FLAGS='1',
+                # FFLAGS=self.argunparser.unparse(*flgs),
+                # LDFLAGS=self.argunparser.unparse(*flgs)
+                ):
+            result = call_tool(
+                numpy.f2py.compile, kwargs={
+                    'source': code, 'modulename': module_name, 'extra_args': extra_args,
+                    'verbose': False, 'source_fn': '{}'.format(path).replace(' ', '\\ '),
+                    'extension': path.suffix},
+                cwd=output_folder,
+                commandline_equivalent='f2py -c -m {} {} "{}"'.format(module_name, extra_args, path),
+                capture_output=True)
         return {'result': result}

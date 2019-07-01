@@ -12,6 +12,7 @@ import typing as t
 from .registry import Registry
 
 _LOG = logging.getLogger(__name__)
+_LOG.setLevel(logging.WARNING)
 
 
 @contextlib.contextmanager

@@ -8,11 +8,12 @@ import sys
 import tempfile
 import unittest
 
+import matplotlib
 import numpy as np
 import timing
 
 from transpyle.general.code_reader import CodeReader
-# from transpyle.general.code_writer import CodeWriter
+from transpyle.general.code_writer import CodeWriter
 from transpyle.general.language import Language
 from transpyle.general.parser import Parser
 from transpyle.general.ast_generalizer import AstGeneralizer
@@ -205,28 +206,16 @@ class FortranAndPythonTests(unittest.TestCase):
         # TODO: run it
 
     @execute_on_examples([_ for _ in EXAMPLES_FILES['python3'] if 'heavy_compute' in _.name])
-    def test_transpile_with_directives(self, input_path):
-
+    def test_tranlate_with_directives(self, input_path):
         translator = AutoTranslator(Language.find('Python'), Language.find('Fortran'))
         self.assertIsNotNone(translator)
-        reader = CodeReader()
+        # reader = CodeReader()
 
         # with tempfile.NamedTemporaryFile(suffix='.f90', delete=False) as output_file:
         #     # TO DO: this leaves garbage behind in /tmp/
         #     output_path = pathlib.Path(output_file.name)
 
-        translated_path = translator.translate(reader.read_file(input_path), input_path)
+        translated_code = translator.translate(reader.read_file(input_path), input_path)
         # , output_path, output_dir
-
-        compilers = [F2PyCompiler(interface) for interface in (
-            GfortranInterface(), GfortranInterface({'OpenMP'}), GfortranInterface({'OpenACC'}),
-            PgifortranInterface({'OpenMP'}), PgifortranInterface({'OpenACC'}))]
-        binder = Binder()
-
-        input_data = np.linspace(1.0001, 1.0002, 4096, dtype=np.double)
-        for compiler in compilers:
-            output_dir = make_f2py_tmp_folder(input_path)
-
-            compiled_path = compiler.compile_file(translated_path, output_dir)
-            with binder.temporarily_bind(compiled_path) as binding:
-                output_data = binding.heavy_compute(input_data)
+        # print(translated_code)
+        # TODO: run it

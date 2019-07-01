@@ -17,7 +17,7 @@ from colorama import Fore, Style
 _LOG = logging.getLogger(__name__)
 
 OUTPUT_INTRO_LENGTH = 1024
-OUTPUT_REPLACEMENT = '(...)'
+OUTPUT_REPLACEMENT = '<skipped part of output>'
 OUTPUT_OUTRO_LENGTH = 10240
 OUTPUT_MAX_LENGTH = OUTPUT_INTRO_LENGTH + len(OUTPUT_REPLACEMENT) + OUTPUT_OUTRO_LENGTH
 
@@ -26,13 +26,15 @@ def _postprocess_result(result: subprocess.CompletedProcess) -> None:
     if isinstance(result.stdout, bytes):
         result.stdout = result.stdout.decode('utf-8', 'ignore')
     if len(result.stdout) > OUTPUT_MAX_LENGTH:
-        result.stdout = '{}{}{}'.format(result.stdout[:OUTPUT_INTRO_LENGTH], OUTPUT_REPLACEMENT,
-                                        result.stdout[-OUTPUT_OUTRO_LENGTH:])
+        result.stdout = '{}{}{}{}{}'.format(
+            result.stdout[:OUTPUT_INTRO_LENGTH], Fore.CYAN, OUTPUT_REPLACEMENT, Fore.RESET,
+            result.stdout[-OUTPUT_OUTRO_LENGTH:])
     if isinstance(result.stderr, bytes):
         result.stderr = result.stderr.decode('utf-8', 'ignore')
     if len(result.stderr) > OUTPUT_MAX_LENGTH:
-        result.stderr = '{}{}{}'.format(result.stderr[:OUTPUT_INTRO_LENGTH], OUTPUT_REPLACEMENT,
-                                        result.stderr[-OUTPUT_OUTRO_LENGTH:])
+        result.stderr = '{}{}{}{}{}'.format(
+            result.stderr[:OUTPUT_INTRO_LENGTH], Fore.CYAN, OUTPUT_REPLACEMENT, Fore.RESET,
+            result.stderr[-OUTPUT_OUTRO_LENGTH:])
 
 
 def make_completed_process_report(
@@ -44,7 +46,7 @@ def make_completed_process_report(
     if actual_call is None:
         out.write('execution of "{}"'.format(args_str))
     else:
-        out.write('call to {} (simulating: "{}")'.format(actual_call, args_str))
+        out.write('call to {}{}{} (simulating: "{}{}{}")'.format(Style.DIM, actual_call, Style.RESET_ALL, Style.DIM, args_str, Style.RESET_ALL))
     out.write(' {}{}{}'.format(Style.BRIGHT, 'succeeded' if result.returncode == 0 else 'failed',
                                Style.NORMAL))
     if result.returncode != 0:
@@ -92,6 +94,45 @@ def summarize_completed_process(result, *, executable=None, actual_call=None) ->
 @contextlib.contextmanager
 def fake_context_manager(*args, **kwargs):
     yield
+
+
+def temporarily_set_envvar(variable: str, value: t.Optional[str]):
+    """Temporarily change the environment by altering single evnironment variable's value.
+
+    If given value is None, unset the variable.
+    But if at the same time variable is not set, do nothing.
+    """
+    return temporarily_change_envvars(**{variable: value})
+
+
+@contextlib.contextmanager
+def temporarily_set_envvars(**variables_and_values):
+    """Based on given keyword arguments, temporarily alter the environment.
+
+    For each given environment variable name, change its value to a given one.
+
+    For each given value, if given value is None, unset the variable.
+    But if at the same time the given variable is not set, do nothing.
+    """
+    if not variables_and_values:
+        yield
+        return
+
+    saved_values = {variable: (os.environ[variable] if variable in os.environ else None)
+                    for variable in variables_and_values.keys()}
+    try:
+        for variable, value in variables_and_values.items():
+            if value is None:
+                del os.environ[variable]
+            else:
+                os.environ[variable] = value
+        yield
+    finally:
+        for variable, saved_value in saved_values.items():
+            if saved_value is None:
+                del os.environ[variable]
+            else:
+                os.environ[variable] = saved_value
 
 
 @contextlib.contextmanager

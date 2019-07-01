@@ -13,13 +13,13 @@ def heavy_compute(input_data: st.ndarray[1, np.double, (N,)]) -> st.ndarray[1, n
     # pragma: omp parallel do
     for i in range(input_data.size):  # type: int
         output_data[i] = 1
-        for _ in range(10240):  # type: int
+        for n in range(10240):  # type: int
             output_data[i] = output_data[i] / input_data[i]
-        for _ in range(10240):  # type: int
+        for n in range(10240):  # type: int
             output_data[i] = output_data[i] * input_data[i]
-        for _ in range(10240):  # type: int
+        for n in range(10240):  # type: int
             output_data[i] = output_data[i] / input_data[i]
-        for _ in range(10240):  # type: int
+        for n in range(10240):  # type: int
             output_data[i] = output_data[i] * input_data[i]
     # pragma: omp end parallel do
 
