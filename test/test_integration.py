@@ -209,7 +209,7 @@ class FortranAndPythonTests(unittest.TestCase):
     def test_tranlate_with_directives(self, input_path):
         translator = AutoTranslator(Language.find('Python'), Language.find('Fortran'))
         self.assertIsNotNone(translator)
-        # reader = CodeReader()
+        reader = CodeReader()
 
         # with tempfile.NamedTemporaryFile(suffix='.f90', delete=False) as output_file:
         #     # TO DO: this leaves garbage behind in /tmp/
