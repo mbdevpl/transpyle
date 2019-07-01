@@ -164,6 +164,7 @@ class Tests(unittest.TestCase):
             _LOG.info('%s', summary)
             json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
+    @unittest.skipUnless(PgifortranInterface().executables_present(), 'no PGI compiler present')
     def test_heavy_compute(self):
         kernel_name = 'heavy_compute'
         input_path = EXAMPLES_ROOTS['f95'].joinpath(kernel_name + '.f90')

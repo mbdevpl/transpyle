@@ -2,7 +2,6 @@
 
 import logging
 import operator
-import shutil
 import types
 import unittest
 
@@ -159,8 +158,7 @@ class CompilerTests(unittest.TestCase):
         compiler_f95 = F2PyCompiler()
         compiler_f95_omp = F2PyCompiler(GfortranInterface({'OpenMP'}))
         compiler_f95_acc = F2PyCompiler(PgifortranInterface({'OpenACC'}))
-        test_acc = shutil.which(
-            str(compiler_f95_acc.f2py.f_compiler.executable('compile'))) is not None
+        test_acc = compiler_f95_acc.f2py.f_compiler.executables_present()
 
         name = 'itemwise_calc'
         variants = {

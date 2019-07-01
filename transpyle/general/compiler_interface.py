@@ -3,6 +3,7 @@
 # import itertools
 import logging
 import pathlib
+import shutil
 import typing as t
 
 from .tools import run_tool
@@ -74,6 +75,12 @@ class CompilerInterface(Compiler):
         if step_name in field:
             return field[step_name]
         return field['']
+
+    def executables_present(self) -> bool:
+        for step_name in self.step_names:
+            if shutil.which(str(self.executable(step_name))) is None:
+                return False
+        return True
 
     def executable(self, step_name) -> pathlib.Path:
         return self._get_value(self._executables, step_name)
