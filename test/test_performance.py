@@ -203,7 +203,7 @@ class Tests(unittest.TestCase):
                               kernel_name, name, timer.elapsed, input_size)
 
                     if input_size in reference_outputs:
-                        self.assertTrue(np.array_equal(output_data, reference_outputs[input_size]))
+                        self.assertTrue(np.allclose(output_data, reference_outputs[input_size]))
                     else:
                         reference_outputs[input_size] = output_data
 
