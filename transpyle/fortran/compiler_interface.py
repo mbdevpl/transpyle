@@ -106,9 +106,9 @@ class F2pyInterface(CompilerInterface):
             f2py_kwargs['compiler'] = 'unix'
             f2py_kwargs['fcompiler'] = 'pg'
         extra_args = self.argunparser.unparse(*f2py_args, **f2py_kwargs)
-        _LOG.info('f2py extra args: %s', extra_args)
 
-        _LOG.warning('f2py compiling file: "%s", (%i characters)', path, len(code))
+        _LOG.info('f2py compiling file: "%s", (%i characters)', path, len(code))
+        _LOG.debug('f2py extra args: %s', extra_args)
         # _LOG.debug('compiled file\'s contents: %s', code)
         flgs = self.f_compiler.options('compile') + self.f_compiler.flags('compile')
         with temporarily_set_envvars(
