@@ -164,6 +164,7 @@ class Tests(unittest.TestCase):
             _LOG.info('%s', summary)
             json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
+    @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
     @unittest.skipUnless(PgifortranInterface().executables_present(), 'no PGI compiler present')
     def test_heavy_compute(self):
         kernel_name = 'heavy_compute'
@@ -185,6 +186,7 @@ class Tests(unittest.TestCase):
         large_input_sizes = [pow(2, n) for n in range(14, 22)]  # 20  # (11, 14) for quick tests
         large_inputs = [np.linspace(1.0001, 1.0002, i, dtype=np.double)
                         for i in large_input_sizes]
+        reference_outputs = {}
         for name, compiler in compilers.items():
             output_dir = make_f2py_tmp_folder(input_path)
 
@@ -199,6 +201,11 @@ class Tests(unittest.TestCase):
                         output_data = binding.heavy_compute(input_data, input_size)
                     _LOG.info('%s compiled with %s ran in %fs for input size %i',
                               kernel_name, name, timer.elapsed, input_size)
+
+                    if input_size in reference_outputs:
+                        self.assertTrue(np.array_equal(output_data, reference_outputs[input_size]))
+                    else:
+                        reference_outputs[input_size] = output_data
 
         for name in compilers:
             timings_name = '.'.join([__name__, kernel_name, name])
