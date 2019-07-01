@@ -25,8 +25,8 @@ class GfortranInterface(CompilerInterface):
     _flags = {
         '': (
             '-O3', '-fPIC', '-funroll-loops', '-Wall', '-Wextra', '-Wpedantic',
-            '-ffree-form',
             '-fdiagnostics-color=always'),
+        # '-ffree-form',
         'OpenMP': ('-fopenmp',),
         'OpenACC': ('-fopenacc',)
         # '-foffload-force'
