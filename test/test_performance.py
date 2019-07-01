@@ -8,12 +8,12 @@ import unittest
 
 # from encrypted_config.path_tools import normalize_path
 from encrypted_config.json_io import json_to_file
-import matplotlib
+# import matplotlib
 import numba
 import numpy as np
 import timing
 
-from transpyle.general import Language, CodeWriter, Binder, AutoTranspiler
+from transpyle.general import Language, CodeReader, Binder, AutoTranspiler
 from transpyle.cpp import CppSwigCompiler
 from transpyle.fortran import F2PyCompiler
 from transpyle.fortran.compiler_interface import GfortranInterface, PgifortranInterface
@@ -166,63 +166,10 @@ class Tests(unittest.TestCase):
 
     def test_heavy_compute(self):
         kernel_name = 'heavy_compute'
-        input_path = EXAMPLES_ROOTS['python3'].joinpath(kernel_name + '.py')
+        input_path = EXAMPLES_ROOTS['f95'].joinpath(kernel_name + '.f90')
 
-        # translator = AutoTranslator(Language.find('Python'), Language.find('Fortran'))
-        # self.assertIsNotNone(translator)
-        # reader = CodeReader()
-
-        # with tempfile.NamedTemporaryFile(suffix='.f90', delete=False) as output_file:
-        #     # TO DO: this leaves garbage behind in /tmp/
-        #     output_path = pathlib.Path(output_file.name)
-
-        # translated_code = translator.translate(reader.read_file(input_path), input_path)
-        # , output_path, output_dir
-        # print(translated_code)
-        writer = CodeWriter('.f90')
-
-        translated_code = '''
-! inputSize
-
-subroutine heavy_compute (inputData, inputSize, outputData)
-  ! input arguments
-  real*8, dimension(0:inputSize-1), intent(in) :: inputData
-  integer, intent(in) :: inputSize
-
-  ! output arguments
-  real*8, dimension(0:(size(inputData) - 1)), intent(out) :: outputData
-
-  ! local vars
-  ! oh la la
-  integer :: i
-  integer :: n
-
-  outputData = 0
-
-  ! !$omp parallel do  ! 40x in gcc, 1x in pgi
-  ! !$omp parallel do private(i) shared(inputData)  ! 40x in gcc, 1x in pgi
-  ! !$omp parallel do private(i) shared(inputData, outputData)  ! 40x in gcc, 1x in pgi
-  !$omp parallel do
-  !$acc parallel loop
-  do i = 0, (size(inputData) - 1)
-    outputData(i) = 1
-    do n = 0, (102400 - 1)
-      outputData(i) = (outputData(i) / inputData(i))
-    end do
-    do n = 0, (102400 - 1)
-      outputData(i) = (outputData(i) * inputData(i))
-    end do
-    do n = 0, (51200 - 1)
-      outputData(i) = (outputData(i) / inputData(i))
-    end do
-    do n = 0, (51200 - 1)
-      outputData(i) = (outputData(i) * inputData(i))
-    end do
-  end do
-  !$omp end parallel do
-  return
-end subroutine heavy_compute
-'''
+        reader = CodeReader()
+        input_code = reader.read_file(input_path)
 
         compilers = {name: F2PyCompiler(interface) for name, interface in {
             'gcc.serial': GfortranInterface(), 'gcc.openmp': GfortranInterface({'OpenMP'}),
@@ -237,14 +184,10 @@ end subroutine heavy_compute
         large_input_sizes = [pow(2, n) for n in range(14, 22)]  # 20  # (11, 14) for quick tests
         large_inputs = [np.linspace(1.0001, 1.0002, i, dtype=np.double)
                         for i in large_input_sizes]
-        # for i in input_sizes:
-        #    input_data = np.linspace(1.0001, 1.0002, i, dtype=np.double)
         for name, compiler in compilers.items():
             output_dir = make_f2py_tmp_folder(input_path)
-            translated_path = output_dir.joinpath('{}.f90'.format(kernel_name))
-            writer.write_file(translated_code, translated_path)
 
-            compiled_path = compiler.compile(translated_code, translated_path, output_dir)
+            compiled_path = compiler.compile(input_code, input_path, output_dir)
             with binder.temporarily_bind(compiled_path) as binding:
                 inputs_ = itertools.chain(inputs, large_inputs) \
                     if name in {'gcc.openmp', 'pgi.openacc'} else inputs
@@ -255,8 +198,6 @@ end subroutine heavy_compute
                         output_data = binding.heavy_compute(input_data, input_size)
                     _LOG.info('%s compiled with %s ran in %fs for input size %i',
                               kernel_name, name, timer.elapsed, input_size)
-            # print(timing.query_cache('{}.compute.heavy_compute.{}'.format(__name__, 'gcc')))
-            # exit()
 
         for name in compilers:
             timings_name = '.'.join([__name__, kernel_name, name])
@@ -271,7 +212,6 @@ end subroutine heavy_compute
                 '.'.join([__name__, kernel_name, comp, 'serial'])).summary
             summary = timing.query_cache(
                 '.'.join([__name__, kernel_name, name])).summary
-            # import ipdb; ipdb.set_trace()
             speedups = {
                 i: baseline_summary['{}'.format(i)]['median'] / summary['{}'.format(i)]['median']
                 for i in input_sizes}
