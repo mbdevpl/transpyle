@@ -25,16 +25,19 @@ class GfortranInterface(CompilerInterface):
     _flags = {
         '': (
             '-O3', '-fPIC', '-funroll-loops', '-Wall', '-Wextra', '-Wpedantic',
+            '-fopt-info-optimized-loop', '-fopt-info-optimized-omp', '-fopt-info-optimized-vec',
             '-fdiagnostics-color=always'),
         # '-ffree-form',
         'OpenMP': ('-fopenmp',),
-        'OpenACC': ('-fopenacc',)
+        'OpenACC': ('-fopenacc', '-foffload=nvptx-none')
+        # '-foffload=nvptx-none'
+        # '-foffload=disable'
         # '-foffload-force'
     }
 
     _options = {
-        'OpenMP': ('-lgomp',),
-        'OpenACC': ('-lgomp',)
+        'OpenMP': ('-lgomp',)
+        # 'OpenACC': ('-lgomp',)
     }
 
 
@@ -112,6 +115,9 @@ class F2pyInterface(CompilerInterface):
         # _LOG.debug('compiled file\'s contents: %s', code)
         # flgs = self.f_compiler.options('compile') + self.f_compiler.flags('compile')
         f2py_envvars = {
+            'FFLAGS': f2py_kwargs['opt'],
+            # 'LDFLAGS': '-fPIC -fopenacc -foffload=disable',
+            'LDFLAGS': f2py_kwargs['opt'],
             # 'FFLAGS': self.argunparser.unparse(*flgs),
             # 'LDFLAGS': self.argunparser.unparse(*flgs),
             'NPY_DISTUTILS_APPEND_FLAGS': '1'}
