@@ -36,6 +36,11 @@ class C99Preprocessor(pcpp.Preprocessor):
         self.include_names = []
         self.i = 0
 
+    def parse(self, *args, **kwargs):
+        self.include_names = []
+        self.i = 0
+        return super().parse(*args, **kwargs)
+
     def include(self, tokens: t.List[LexToken]) -> t.List[LexToken]:
         if not tokens:
             return []
