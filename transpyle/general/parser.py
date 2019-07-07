@@ -7,6 +7,7 @@ import textwrap
 import typing as t
 
 from .registry import Registry
+from .code_reader import CodeReader
 
 
 # def remove_trailing_whitespace(code: str) -> str:
@@ -62,6 +63,7 @@ class Parser(Registry):
         Default scopes, if provided, limit parsing to the given line sections unless the default
         is overriden.
         """
+        self._code_reader = None
         if default_scopes is None:
             default_scopes = [(0, None)]
         self.default_scopes = default_scopes
@@ -104,3 +106,10 @@ class Parser(Registry):
     def _join_scopes(self, parsed_scopes):
         raise NotImplementedError('{} cannot join multiple parsed scopes'
                                   .format(type(self).__name__))
+
+    def parse_file(self, path: pathlib.Path):
+        """Read and parse a given file."""
+        if self._code_reader is None:
+            self._code_reader = CodeReader()
+        code = self._code_reader.read_file(path)
+        return self.parse(code, path, dedent=False)
