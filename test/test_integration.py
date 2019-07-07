@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 
+import horast
 import timing
 
 from transpyle.general.code_reader import CodeReader
@@ -15,6 +16,7 @@ from transpyle.general.code_reader import CodeReader
 from transpyle.general.language import Language
 from transpyle.general.parser import Parser
 from transpyle.general.ast_generalizer import AstGeneralizer
+from transpyle.general.auto_parser import GeneralizingAutoParser
 from transpyle.general.unparser import Unparser
 from transpyle.general.translator import Translator, AutoTranslator
 from transpyle.general.transpiler import AutoTranspiler
@@ -86,6 +88,22 @@ class Tests(unittest.TestCase):
                     specific_ast = parser.parse(code, path)
                     ast_generalizer = AstGeneralizer.find(language)()
                     general_ast = ast_generalizer.generalize(specific_ast)
+
+    def test_auto_parser(self):
+        for language_codename, paths in EXAMPLES_FILES.items():
+            language_name = EXAMPLES_LANGS_NAMES[language_codename]
+            if language_name in NOT_PARSED_LANGS:
+                continue
+            language = Language.find(language_name)
+            self.assertIsInstance(language, Language, msg=(language_codename, language_name))
+            auto_parser = GeneralizingAutoParser(language)
+            reader = CodeReader()
+            for path in paths:
+                code = reader.read_file(path)
+                with self.subTest(language_name=language_name, language=language):
+                    pair1 = auto_parser.parse_and_generalize(code, path)
+                    pair2 = auto_parser.parse_and_generalize_file(path)
+                    self.assertEqual(horast.dump(pair1), horast.dump(pair2))
 
     def test_language_deduction(self):
         self.skipTest('not ready yet')
