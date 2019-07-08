@@ -157,13 +157,13 @@ INTRINSICS_FORTRAN_TO_PYTHON = {
     'bit_size': None,
     # Vector- and matrix-multiplication functions
     'dot_product': ('numpy', 'dot'),
-    'matmul': None,
+    'matmul': ('numpy', 'matmul'),
     # Array functions
     'all': None,
     'any': None,
     'count': ('ndarray', 'count'),
-    'maxval': None,
-    'minval': None,
+    'maxval': ('numpy', 'amax'),
+    'minval': ('numpy', 'amin'),
     'product': None,
     'sum': 'sum',
     # Array location functions
@@ -201,6 +201,8 @@ def _transform_print_call(call):
 
 
 PYTHON_FORTRAN_INTRINSICS = {
+    'np.amax': 'maxval',
+    'np.amin': 'minval',
     'np.arcsin': 'asin',
     'np.arctan': 'atan',
     'np.argmin': 'minloc',
@@ -215,6 +217,7 @@ PYTHON_FORTRAN_INTRINSICS = {
     'np.finfo.tiny': 'tiny',
     'np.log': 'log',
     'np.log10': 'log10',
+    'np.matmul': 'matmul',
     'np.maximum': 'max',
     'np.minimum': 'min',
     'np.sign': 'sign',
