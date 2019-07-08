@@ -8,7 +8,7 @@ set -Eeuxo pipefail
 if [[ "$(uname)" == "Linux" ]]; then
   git clone "https://github.com/mbdevpl/open-fortran-parser-xml" "../open-fortran-parser-xml"
   cd "../open-fortran-parser-xml"
-  pip install -U -r dev_requirements.txt
+  pip install -U -r test_requirements.txt
   python -m open_fortran_parser --deps
   ant
   python setup.py bdist_wheel

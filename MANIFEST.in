@@ -1,7 +1,7 @@
 include setup_boilerplate.py
 include requirements.txt
 include test_requirements.txt
-include dev_requirements.txt
+include ci_requirements.txt
 include extras_requirements.json
 include LICENSE
 include NOTICE
