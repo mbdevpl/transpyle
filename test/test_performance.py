@@ -164,6 +164,40 @@ class Tests(unittest.TestCase):
             _LOG.info('%s', summary)
             json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
 
+    def test_heavy_compute_py(self):
+        kernel_name = 'heavy_compute'
+        input_path = EXAMPLES_ROOTS['python3'].joinpath(kernel_name + '.py')
+        binder = Binder()
+
+        input_sizes = [pow(2, n) for n in range(4, 9)]  # (4, 7) for quick tests
+        inputs = [np.linspace(1.0001, 1.0002, i, dtype=np.double)
+                  for i in input_sizes]
+
+        with binder.temporarily_bind(input_path) as binding:
+            kernel = binding.heavy_compute
+            kernel_versions = {
+                'py': kernel,
+            }
+        reference_outputs = {}
+        for name, kernel in kernel_versions.items():
+            for input_data in inputs:
+                input_size = np.size(input_data, 0)
+                for timer in _TIME.measure_many(
+                        '.'.join([kernel_name, name, str(input_size)]), samples=3):
+                    output_data = kernel(input_data)
+                _LOG.info('%s compiled with %s ran in %fs for input size %i',
+                          kernel_name, name, timer.elapsed, input_size)
+
+                if input_size in reference_outputs:
+                    self.assertTrue(np.allclose(output_data, reference_outputs[input_size]))
+                else:
+                    reference_outputs[input_size] = output_data
+
+        for name in kernel_versions:
+            timings_name = '.'.join([__name__, kernel_name, name])
+            summary = timing.query_cache(timings_name).summary
+            json_to_file(summary, PERFORMANCE_RESULTS_ROOT.joinpath(timings_name + '.json'))
+
     @unittest.skipUnless(os.environ.get('TEST_LONG'), 'skipping long test')
     @unittest.skipUnless(PgifortranInterface().executables_present(), 'no PGI compiler present')
     def test_heavy_compute(self):
