@@ -5,3 +5,4 @@ include LICENSE
 include NOTICE
 recursive-include ./transpyle/resources *.*
 recursive-include ./test/examples *.*
+include ./*/py.typed
