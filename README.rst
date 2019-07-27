@@ -9,6 +9,8 @@
 transpyle
 =========
 
+Human-oriented and high-performing transpiler for Python.
+
 .. image:: https://img.shields.io/pypi/v/transpyle.svg
     :target: https://pypi.org/project/transpyle
     :alt: package version from PyPI
@@ -24,8 +26,6 @@ transpyle
 .. image:: https://img.shields.io/github/license/mbdevpl/transpyle.svg
     :target: https://github.com/mbdevpl/transpyle/blob/master/NOTICE
     :alt: license
-
-Human-oriented and high-performing transpiler for Python.
 
 The main aim of transpyle is to let everyone who can code well enough in Python,
 benefit from modern high-performing computer hardware without need to reimplement their application
