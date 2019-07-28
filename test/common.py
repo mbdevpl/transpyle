@@ -12,9 +12,10 @@ import typing as t
 import unittest
 import xml.etree.ElementTree as ET
 
+import horast
 import numpy as np
 import pycparser.c_ast
-import static_typing as st
+# import static_typing as st
 import typed_ast.ast3
 import typed_astunparse
 
@@ -178,7 +179,7 @@ def basic_check_python_ast(case: unittest.TestCase, path, tree, **kwargs):
     basic_check_ast(case, path, tree, typed_ast.ast3.AST, '-ast.py', typed_astunparse.dump,
                     **kwargs)
     if sys.version_info[:2] >= (3, 6):
-        validator = st.ast_manipulation.AstValidator[typed_ast.ast3]()
+        validator = horast.AstValidator()
         validator.visit(tree)
 
 
