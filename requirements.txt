@@ -3,10 +3,10 @@ astunparse
 colorama
 colorlog
 encrypted-config
-horast >= 0.3.0
+horast >= 0.4.0
 pandas
 setuptools >= 41.0
-static-typing >= 0.2.7.dev1
-typed_ast
-typed-astunparse >= 2.1.2
+static-typing >= 0.2.8
+typed_ast >= 1.4.0
+typed-astunparse >= 2.1.4
 version-query
