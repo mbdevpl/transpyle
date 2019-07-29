@@ -3,10 +3,10 @@ astunparse
 colorama
 colorlog
 encrypted-config
-horast >= 0.4.0
+horast @ git+https://github.com/mbdevpl/horast.git@feature/node-hierarchy-redesign
 pandas
 setuptools >= 41.0
-static-typing >= 0.2.8
+static-typing >= 0.2.7
 typed_ast >= 1.4.0
 typed-astunparse >= 2.1.4
 version-query
