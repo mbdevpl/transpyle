@@ -52,8 +52,7 @@ class DeclarationReplacer(st.ast_manipulation.RecursiveAstTransformer[typed_ast3
     def replace_declaration(self, declaration):
         if isinstance(declaration, (typed_ast3.Import, typed_ast3.ImportFrom)):
             # TODO: it's a hack
-            _ = horast_nodes.Comment(
-                typed_ast3.Str(' skipping a "use" statement when inlining', ''), eol=False)
+            _ = horast_nodes.Comment(' skipping a "use" statement when inlining', eol=False)
             self.replaced.append((declaration, _))
             return _
         if not isinstance(declaration, (typed_ast3.Assign, typed_ast3.AnnAssign)):
@@ -61,14 +60,12 @@ class DeclarationReplacer(st.ast_manipulation.RecursiveAstTransformer[typed_ast3
         intent = getattr(declaration, 'fortran_metadata', {}).get('intent', None)
         if intent in {'in', 'out', 'inout'}:
             _ = horast_nodes.Comment(
-                typed_ast3.Str(' skipping intent({}) declaration when inlining'.format(intent), ''),
-                eol=False)
+                ' skipping intent({}) declaration when inlining'.format(intent), eol=False)
             self.replaced.append((declaration, _))
             return _
         if getattr(declaration, 'fortran_metadata', {}).get('is_declaration', False):
             # TODO: it's a hack
-            _ = horast_nodes.Comment(
-                typed_ast3.Str(' skipping a declaration when inlining', ''), eol=False)
+            _ = horast_nodes.Comment(' skipping a declaration when inlining', eol=False)
             self.replaced.append((declaration, _))
             return _
         return declaration
@@ -188,13 +185,12 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
                 if self._verbose:
                     call_code = typed_astunparse.unparse(call).strip()
                     self._omitted_declarations.append((horast_nodes.Comment(
-                        value=typed_ast3.Str(' start of declarations from inlined {}'
-                                             .format(call_code), ''), eol=False), None))
+                        ' start of declarations from inlined {}'.format(call_code), eol=False),
+                                                       None))
                 self._omitted_declarations += decl_replacer.replaced
                 if self._verbose:
                     self._omitted_declarations.append((horast_nodes.Comment(
-                        value=typed_ast3.Str(' end of declarations from inlined {}'
-                                             .format(call_code), ''), eol=False), None))
+                        ' end of declarations from inlined {}'.format(call_code), eol=False), None))
 
         return inlined
 
@@ -204,8 +200,8 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
         call_code = typed_astunparse.unparse(call).strip()
         inlined_statements = []
         if self._verbose:
-            inlined_statements.append(horast_nodes.Comment(
-                value=typed_ast3.Str(' inlined {}'.format(call_code), ''), eol=False))
+            inlined_statements.append(
+                horast_nodes.Comment(' inlined {}'.format(call_code), eol=False))
         for stmt in self._inlined_function.body:
             stmt = st.augment(copy.deepcopy(stmt), eval_=False)
             for replacer in replacers:
@@ -213,8 +209,8 @@ class CallInliner(st.ast_manipulation.RecursiveAstTransformer[typed_ast3]):
             if stmt is not None:
                 inlined_statements.append(stmt)
         if self._verbose:
-            inlined_statements.append(horast_nodes.Comment(
-                value=typed_ast3.Str(' end of inlined {}'.format(call_code), ''), eol=False))
+            inlined_statements.append(
+                horast_nodes.Comment(' end of inlined {}'.format(call_code), eol=False))
         _LOG.warning('inlined a call %s using replacers %s', call_code, replacers)
         # inlined_call.body = scope
         # return st.augment(inlined_call), eval_=False)

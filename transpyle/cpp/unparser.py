@@ -511,7 +511,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.write(' //')
         else:
             self.fill('//')
-        self.write(node.value.s)
+        self.write(node.comment)
 
 
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):

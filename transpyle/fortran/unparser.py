@@ -940,22 +940,35 @@ class Fortran77UnparserBackend(horast.unparser.Unparser):
         self._unsupported_syntax(t)
 
     def _Comment(self, node):
-        if node.value.s.startswith(' Fortran metadata:'):
+        if node.comment.startswith(' Fortran metadata:'):
             return
         with self._ignore_max_line_len():
             if node.eol:
                 self.write('  !')
             else:
                 self.fill('!')
-            self.write(node.value.s)
+            self.write(node.comment)
 
-    def _Directive(self, node):
+    def _generic_Directive(self, node, prefix: str = ''):
         with self._ignore_max_line_len():
             _indent = self._indent
             self._indent = 0
-            super().fill('#')
+            super().fill('#{}'.format(prefix))
+            self.write(node.expr)
             self._indent = _indent
-            self.write(node.value.s)
+            self.write(node.expr)
+
+    def _generic_Pragma(self, node, prefix: str = ''):
+        with self._ignore_max_line_len():
+            _indent = self._indent
+            self._indent = 0
+            super().fill('!${}'.format(prefix))
+            self.write(node.expr)
+            self._indent = _indent
+            self.write(node.expr)
+
+    def _Include(self, node):
+        self._generic_Directive(node, 'include ')
 
 
 class Fortran77Unparser(Unparser):

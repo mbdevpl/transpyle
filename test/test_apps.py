@@ -247,7 +247,7 @@ class Flash5Tests(unittest.TestCase):
             target_function, inlined_function,
             # globals_={'NSPECIES': 13, 'st': static_typing, **globals()},
             verbose=True)
-        annotation = horast_nodes.Directive(typed_ast3.Str('$acc parallel loop', ''))
+        annotation = horast_nodes.OpenAccPragma('parallel loop')
         annotate_loop_syntax(inlined_syntax, annotation)
 
         unparser = Unparser.find(Language.find('Fortran'))()
