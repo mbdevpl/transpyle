@@ -503,7 +503,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.write(unparsed)
                 return
             except KeyError:
-                _LOG.warning('Could not find %s.%s attribute in standard tuples. Assuming normal object.', t.value.id, t.attr)
+                pass #_LOG.warning('Could not find %s.%s attribute in standard tuples. Assuming normal object.', t.value.id, t.attr)
 
         self.dispatch(t.value)
         self.write('.')
