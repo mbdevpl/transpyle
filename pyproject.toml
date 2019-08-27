@@ -1,2 +1,2 @@
 [build-system]
-requires=['docutils', 'setuptools', 'version-query', 'wheel']
+requires=['docutils ~= 0.15.1', 'setuptools >= 41.0', 'version-query >= 1.0.5, == 1.*', 'wheel >= 0.33']

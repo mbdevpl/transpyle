@@ -1,12 +1,12 @@
 cython
-docutils
+docutils ~= 0.15.1
 numba
 numpy
 open-fortran-parser
 pcpp
 pip >= 10.0
 pycparser
-pygments
+pygments >= 2.4.2
 timing
 wheel
 -rrequirements.txt
