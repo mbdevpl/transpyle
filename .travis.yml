@@ -40,9 +40,6 @@ matrix:
       osx_image: xcode10.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.7"
-  allow_failures:
-    - python: "3.7"
-    - env: TRAVIS_PYTHON_VERSION="3.7"
 
 before_install:
   - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /; fi  # https://github.com/pyenv/pyenv/issues/1219

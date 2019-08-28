@@ -6,7 +6,6 @@ import setup_boilerplate
 
 
 class Package(setup_boilerplate.Package):
-
     """Package metadata."""
 
     name = 'transpyle'
@@ -23,6 +22,7 @@ class Package(setup_boilerplate.Package):
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Education',
         'Topic :: Scientific/Engineering',
