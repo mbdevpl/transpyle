@@ -1,7 +1,9 @@
 """Interfaces to existing C++ compilers."""
 
+import collections
 from distutils.sysconfig import get_python_inc, get_config_vars
 import pathlib
+import platform
 import typing as t
 
 import numpy as np
@@ -11,6 +13,9 @@ from ..general import CompilerInterface
 PYTHON_LIB_PATH = pathlib.Path(get_python_inc(plat_specific=1))
 
 PYTHON_CONFIG = get_config_vars()
+
+if platform.system() == 'Windows':
+    PYTHON_CONFIG = collections.defaultdict(str, PYTHON_CONFIG.items())
 
 
 def split_and_strip(text: str) -> t.List[str]:
