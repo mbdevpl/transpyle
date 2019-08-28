@@ -1,7 +1,9 @@
 """Interfaces to existing C++ compilers."""
 
+import collections
 from distutils.sysconfig import get_python_inc, get_config_vars
 import pathlib
+import platform
 import typing as t
 
 import numpy as np
@@ -11,6 +13,9 @@ from ..general import CompilerInterface
 PYTHON_LIB_PATH = pathlib.Path(get_python_inc(plat_specific=1))
 
 PYTHON_CONFIG = get_config_vars()
+
+if platform.system() == 'Windows':
+    PYTHON_CONFIG = collections.defaultdict(str, PYTHON_CONFIG.items())
 
 
 def split_and_strip(text: str) -> t.List[str]:
@@ -44,7 +49,10 @@ class GppInterface(CompilerInterface):
     library_paths = [
         pathlib.Path(PYTHON_CONFIG['LIBDIR'])]
 
-    ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
+    if PYTHON_CONFIG['LDLIBRARY']:
+        ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
+    else:
+        ldlibrary = pathlib.Path('not_implemented_yet.dll')
 
     # libraries = split_and_strip('-l{} {} {} {}'.format(
     #     ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
@@ -80,7 +88,10 @@ class ClangppInterface(CompilerInterface):
     library_paths = [
         pathlib.Path(PYTHON_CONFIG['LIBDIR'])]
 
-    ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
+    if PYTHON_CONFIG['LDLIBRARY']:
+        ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
+    else:
+        ldlibrary = pathlib.Path('not_implemented_yet.dll')
 
     libraries = split_and_strip('-l{} {} {} {}'.format(
         ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
