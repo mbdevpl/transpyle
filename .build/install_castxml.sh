@@ -7,7 +7,7 @@ set -Eeuxo pipefail
 git clone "https://github.com/CastXML/CastXML" "../CastXML"
 cd "../CastXML"
 if [[ "$(uname)" == "Linux" ]]; then
-  cmake .
+  cmake . -DLLVM_DIR=$(llvm-config --prefix)
 else
   CC=clang CXX=clang++ cmake . -DLLVM_DIR=$(llvm-config --prefix)
 fi
