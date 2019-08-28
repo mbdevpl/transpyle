@@ -9,7 +9,7 @@ cd "../CastXML"
 if [[ "$(uname)" == "Linux" ]]; then
   cmake .
 else
-  CC=clang CXX=clang++ cmake .
+  CC=clang CXX=clang++ cmake . -DLLVM_DIR=$(llvm-config --prefix)
 fi
 make
 # export PATH="$(pwd)/bin:${PATH}"

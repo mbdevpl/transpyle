@@ -46,8 +46,10 @@ class GppInterface(CompilerInterface):
 
     ldlibrary = pathlib.Path(PYTHON_CONFIG['LDLIBRARY'].lstrip('lib')).with_suffix('')
 
-    libraries = split_and_strip('-l{} {} {} {}'.format(
-        ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
+    # libraries = split_and_strip('-l{} {} {} {}'.format(
+    #     ldlibrary, PYTHON_CONFIG['LIBS'], PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
+    libraries = split_and_strip('-l{} {} {}'.format(
+        ldlibrary, PYTHON_CONFIG['SYSLIBS'], PYTHON_CONFIG['LINKFORSHARED']))
 
     _options = {
         'compile': ['-I{}'.format(_) for _ in include_paths],
