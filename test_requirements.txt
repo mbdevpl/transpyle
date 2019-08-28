@@ -2,7 +2,7 @@ cython
 docutils ~= 0.15.1
 numba
 numpy
-open-fortran-parser
+open-fortran-parser ~= 0.6.0
 pcpp
 pip >= 10.0
 pycparser
