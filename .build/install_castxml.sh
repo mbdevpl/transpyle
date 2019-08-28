@@ -2,15 +2,11 @@
 set -Eeuxo pipefail
 
 # CastXML installer
-# updated: 2019-05-10
+# updated: 2019-08-28
 
 git clone "https://github.com/CastXML/CastXML" "../CastXML"
 cd "../CastXML"
-if [[ "$(uname)" == "Linux" ]]; then
-  CC=clang CXX=clang++ cmake . -DLLVM_DIR=$(llvm-config --cmakedir)
-else
-  CC=clang CXX=clang++ cmake . -DLLVM_DIR=$(llvm-config --cmakedir)
-fi
+CC=clang CXX=clang++ cmake . -DLLVM_DIR=$(llvm-config --cmakedir)
 make
 # export PATH="$(pwd)/bin:${PATH}"
 mkdir -p "${HOME}/.local/bin"

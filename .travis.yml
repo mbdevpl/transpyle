@@ -29,15 +29,15 @@ matrix:
       language: python
       python: "3.7"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode10.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.5"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode10.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.6"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode10.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.7"
   allow_failures:
@@ -80,7 +80,7 @@ install:
   - pip install -U -r ci_requirements.txt
 
 script:
-  - if [[ "${TRAVIS_PYTHON_VERSION}" == "3.6" ]]; then TEST_PACKAGING=1 TEST_LONG=1; fi
+  - if [[ "${TRAVIS_PYTHON_VERSION}" == "3.6" ]]; then export TEST_PACKAGING=1 TEST_LONG=1; fi
   - python -m coverage run --branch --source . -m unittest -v
 
 after_success:
