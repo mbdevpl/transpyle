@@ -19,6 +19,10 @@ Human-oriented and high-performing transpiler for Python.
     :target: https://travis-ci.org/mbdevpl/transpyle
     :alt: build status from Travis CI
 
+.. image:: https://ci.appveyor.com/api/projects/status/github/mbdevpl/transpyle?branch=master&svg=true
+    :target: https://ci.appveyor.com/project/mbdevpl/transpyle
+    :alt: build status from AppVeyor
+
 .. image:: https://codecov.io/gh/mbdevpl/transpyle/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/mbdevpl/transpyle
     :alt: test coverage from Codecov
@@ -282,7 +286,7 @@ The core functionality of transpyle is platform-independent. However, as support
 depends on presence of additional software, some functionality might be limited/unavailable
 on selected platforms.
 
-Transpyle is fully tested on Linux, and partially tested on OS X.
+Transpyle is fully tested on Linux, and partially tested on OS X and Windows.
 
 
 Installation
