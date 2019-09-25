@@ -133,6 +133,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.fill('! TODO: unsupported syntax')
         unparsing_unsupported('C++', syntax, comment)
 
+    # Misusing ast.Index to signify reference types. Should probably fork typed-ast or something. The ast generalizer does something string based.
     def dispatch_type(self, type_hint):
         _LOG.debug('dispatching type hint %s', type_hint)
         if is_generic_type(type_hint):
@@ -154,8 +155,27 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self.write('*')
             return
         if isinstance(type_hint, typed_ast3.Subscript):
-            _LOG.error('encountered unsupported subscript form: %s',
-                       horast.unparse(type_hint).strip())
+            if isinstance(type_hint.value, typed_ast3.Attribute) \
+                    and isinstance(type_hint.value.value, typed_ast3.Name):
+                unparsed = horast.unparse(type_hint.value).strip()
+                self.write(PY_TO_CPP_TYPES[unparsed])
+                if unparsed == 'st.ndarray':
+                    self.write('<')
+                    sli = type_hint.slice
+                    self.write('>')
+                return
+            elif isinstance(type_hint.value, typed_ast3.Name):
+                unparsed = horast.unparse(type_hint.value).strip()
+                self.write(unparsed)
+                self.write('<')
+                if isinstance(type_hint.slice, typed_ast3.Subscript):
+                    self.dispatch_type(type_hint.slice)
+                else:
+                    self.write(horast.unparse(type_hint.slice).strip())
+                self.write(' >')
+                if isinstance(type_hint.slice, typed_ast3.Index):
+                    self.write('&')
+                return
             self._unsupported_syntax(type_hint)
         if isinstance(type_hint, typed_ast3.Attribute):
             if isinstance(type_hint.value, typed_ast3.Name):
@@ -169,11 +189,18 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             assert type_hint.value is None
             self.write('void')
             return
+
         self.dispatch(type_hint)
+        if isinstance(type_hint, typed_ast3.Index):
+            if isinstance(type_hint.value, typed_ast3.Name):
+                self.write('&')
 
     def _Expr(self, tree):
         super()._Expr(tree)
         self.write(';')
+
+    def _Pass(self, tree):
+        self.fill('/* pass */')
 
     def _Import(self, t):
         self.fill('/* Python import')
@@ -183,14 +210,22 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         # #include "boost/multi_array.hpp"
 
     def _ImportFrom(self, t):
-        raise NotImplementedError('not supported yet')
+        self.fill('/* Python import')
+        # raise NotImplementedError('not supported yet')
+        super()._ImportFrom(t)
+        self.fill('*/')
+        # #include "boost/multi_array.hpp"
 
     def _Assign(self, t):
         if self._context != 'for header':
             self.fill()
-        if t.type_comment:
-            self.dispatch_type(t.resolved_type_comment)
-            self.write(' ')
+        try: # type_comment does not exist on my source AST
+            if t.type_comment:
+                self.dispatch_type(t.resolved_type_comment)
+                self.write(' ')
+        except AttributeError:
+            pass
+
         for target in t.targets:
             self.dispatch(target)
             self.write(" = ")
@@ -213,7 +248,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
             self._unsupported_syntax(t, 'which is not simple')
         self.dispatch_type(t.annotation)
         self.write(' ')
-        self.dispatch(t.target)
+        try:
+            self.dispatch(t.target)
+        except AttributeError as e:
+            print(e)
         if t.value:
             self.write(' = ')
             self.dispatch(t.value)
@@ -229,9 +267,18 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _ClassDef(self, t):
         self.write('\n')
-        if t.decorator_list:
-            self._unsupported_syntax(t, 'with decorators')
-        self.fill('class {}'.format(t.name))
+        if len(t.decorator_list) > 1:
+            self._unsupported_syntax(t, 'with too many decorators')
+
+        is_struct = False
+        if len(t.decorator_list) == 1:
+            is_struct = t.decorator_list[0].id == 'struct'
+
+        if is_struct:
+            self.fill('struct {}'.format(t.name))
+        else:
+            self.fill('class {}'.format(t.name))
+
         if t.bases:
             _LOG.warning('C++: assuming base classes are inherited as public')
             self.write(': public ')
@@ -257,8 +304,6 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.dispatch(stmt)
         self.leave()
         self.write(';')
-
-        # raise NotImplementedError('not supported yet')
 
     constructor_and_destructor_names = {'__init__', '__del__'}
 
@@ -341,7 +386,7 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
 
     def _For(self, t):
         self.fill('for (')
-        init, cond, increment = for_header_to_tuple(t.target, t.resolved_type_comment, t.iter)
+        init, cond, increment = for_header_to_tuple(t.target, t.type_comment, t.iter) # resolved_type_comment does not exsit on my source AST
         self._context = 'for header'
         self.dispatch(init)
         self.write('; ')
@@ -451,18 +496,22 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.write('->')
                 self.write(t.attr)
                 return
-            unparsed = PY_TUPLES_TO_CPP[t.value.id, t.attr]
-            if unparsed == 'sqrt':
-                self._includes['cmath'] = True
-            self.write(unparsed)
-            return
+            try:
+                unparsed = PY_TUPLES_TO_CPP[t.value.id, t.attr]
+                if unparsed == 'sqrt':
+                    self._includes['cmath'] = True
+                self.write(unparsed)
+                return
+            except KeyError:
+                pass #_LOG.warning('Could not find %s.%s attribute in standard tuples. Assuming normal object.', t.value.id, t.attr)
+
         self.dispatch(t.value)
         self.write('.')
         self.write(t.attr)
 
     def _Call(self, t):
         func_name = horast.unparse(t.func).strip()
-
+       
         if func_name == 'np.zeros':
             self._includes['valarray'] = True
             self.write('std::valarray<')
@@ -478,10 +527,10 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                     comma = True
                 self.dispatch(arg)
             return
-
+        
         if t.keywords:
             self._unsupported_syntax(t, 'with keyword arguments')
-
+        
         if func_name == 'print':
             self._includes['iostream'] = True
             self.write('std::cout << ')
@@ -494,7 +543,17 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
                 self.dispatch(arg)
             return
 
-        super()._Call(t)
+        self.dispatch_type(t.func)
+        self.write('(')
+
+        comma = False
+        for arg in t.args:
+            if comma:
+                self.write(", ")
+            else:
+                comma = True
+            self.dispatch(arg)
+        self.write(')')
 
     # def _Subscript(self, t):
     #     super()._Subscript(t)
@@ -507,12 +566,44 @@ class Cpp14UnparserBackend(horast.unparser.Unparser):
         self.write(t.arg)
 
     def _Comment(self, node):
-        if node.eol:
-            self.write(' //')
+        if node.comment.startswith("pragma"):
+            if node.eol:
+                self.write('\n#')
+            else:
+                self.fill('#')
         else:
-            self.fill('//')
+            if node.eol:
+                self.write(' //')
+            else:
+                self.fill('//')
         self.write(node.comment)
 
+    def _NameConstant(self, node):
+        if node.value == 'False':
+            self.write("false")
+        elif node.value == 'True':
+            self.write("true")
+        elif node.value == 'None':
+            self.write("null")
+        else:
+            self.write(node.value)
+
+    def _Str(self, node):
+        self.write('"')
+        self.write(node.s.replace('"', '\\"').replace("\0", "\\0").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r"))
+        self.write('"')
+
+    def _Bytes(self, node):
+        # Char
+        if len(node.s) == 1:
+            self.write("'")
+            self.write(node.s.replace("'", "\\'").replace("\0", "\\0").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r"))
+            self.write("'")
+        else:
+            self._Str(node)
+
+    def _unsupported_syntax(self, tree, comment: str = ''):
+        raise SyntaxError('unparsing {}{} to C++ is not supported'.format(type(tree), comment))
 
 class Cpp14HeaderUnparserBackend(Cpp14UnparserBackend):
 
