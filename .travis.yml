@@ -29,20 +29,19 @@ matrix:
       language: python
       python: "3.7"
     - os: osx
-      osx_image: xcode10.2
+      osx_image: xcode11
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.5"
     - os: osx
-      osx_image: xcode10.2
+      osx_image: xcode11
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.6"
     - os: osx
-      osx_image: xcode10.2
+      osx_image: xcode11
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.7"
 
 before_install:
-  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then sudo installer -pkg /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg -target /; fi  # https://github.com/pyenv/pyenv/issues/1219
   - .build/choose_gcc.sh 8
   - |
     set -e
@@ -66,7 +65,7 @@ before_install:
   - .build/install_pyenv.sh
   # apps
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"
-  - git clone "https://github.com/ECP-Astro/FLASH5.git" "../flash5"
+  - git clone "https://github.com/mbdevpl/FLASH5.git" "../flash5"
   - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
 
 install:
