@@ -11,6 +11,9 @@ environment:
     - ARCHITECTURE: "x64"
       PYTHON_VERSION: "3.7"
       PYTHON: "C:\\Python37-x64"
+    - ARCHITECTURE: "x64"
+      PYTHON_VERSION: "3.8"
+      PYTHON: "C:\\Python37-x64"
 
 init:
   - set PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%
