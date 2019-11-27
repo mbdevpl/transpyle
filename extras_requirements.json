@@ -1,6 +1,6 @@
 {
-  "all": ["cython", "numpy", "open_fortran_parser ~= 0.6.0", "pcpp", "pycparser", "pyopencl"],
-  "c": ["cython", "pcpp", "pycparser"],
+  "all": ["cython", "numpy", "open_fortran_parser ~= 0.6.0", "pcpp ~= 1.20.1", "pycparser", "pyopencl"],
+  "c": ["cython", "pcpp ~= 1.20.1", "pycparser"],
   "cpp": [],
   "cython": ["cython"],
   "fortran": ["numpy", "open_fortran_parser ~= 0.6.0"],

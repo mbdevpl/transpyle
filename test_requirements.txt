@@ -3,7 +3,7 @@ docutils ~= 0.15.1
 numba
 numpy
 open-fortran-parser ~= 0.6.0
-pcpp
+pcpp ~= 1.20.1
 pip >= 10.0
 pycparser
 pygments >= 2.4.2
