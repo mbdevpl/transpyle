@@ -32,24 +32,26 @@ matrix:
       language: python
       python: "3.8"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode11.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.5"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode11.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.6"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode11.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.7"
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode11.2
       language: generic
       env: TRAVIS_PYTHON_VERSION="3.8"
 
 before_install:
-  - .build/choose_gcc.sh 8
+  - echo "${PATH}"
+  - which gcc
+  - .build/choose_gcc.sh 9
   - |
     set -e
     if [[ "$(uname)" == "Darwin" ]]; then
@@ -64,11 +66,13 @@ before_install:
       brew doctor 2>&1 | grep "/usr/local/include" | awk '{$1=$1;print}' | xargs -I _ mv _ /tmp/includes
     fi
     set +e
+  - which gcc
   - gcc --version
   - g++ --version
   - swig -version
   - gfortran --version
   - java --version
+  - qwertyuiop
   - .build/install_pyenv.sh
   # apps
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"

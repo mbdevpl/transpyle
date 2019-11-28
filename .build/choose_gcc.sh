@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -Eeuxo pipefail
+# set -Eeuxo pipefail
 
 # if [[ "$(uname)" == "Linux" ]]; then
 #   sudo update-alternatives \
@@ -20,14 +20,17 @@ set -Eeuxo pipefail
 # fi
 
 if [[ "$(uname)" == "Darwin" ]]; then
-  set -Eeuxo pipefail
-  sudo ln -s /usr/local/bin/gcc-$1 /usr/local/bin/gcc
-  sudo ln -s /usr/local/bin/g++-$1 /usr/local/bin/g++
-  sudo ln -s /usr/local/bin/cpp-$1 /usr/local/bin/cpp
+  BIN_ROOT_DIR="/usr/local/bin"
+  which gcc-$1
+  which gcc
+  sudo ln -s $(which gcc-$1) "${BIN_ROOT_DIR}/gcc"
+  which gcc
+  sudo ln -s $(which g++-$1) "${BIN_ROOT_DIR}/g++"
+  sudo ln -s $(which cpp-$1) "${BIN_ROOT_DIR}/cpp"
   # sudo ln -s /usr/local/bin/gfortran-$1 /usr/local/bin/gfortran  # already exists
-  sudo ln -s /usr/local/bin/gcc-ar-$1 /usr/local/bin/gcc-ar
-  sudo ln -s /usr/local/bin/gcc-nm-$1 /usr/local/bin/gcc-nm
-  sudo ln -s /usr/local/bin/gcc-ranlib-$1 /usr/local/bin/gcc-ranlib
-  sudo ln -s /usr/local/bin/gcov-$1 /usr/local/bin/gcov
-  sudo ln -s /usr/local/bin/gcov-dump-$1 /usr/local/bin/gcov-dump
+  sudo ln -s $(which gcc-ar-$1) "${BIN_ROOT_DIR}/gcc-ar"
+  sudo ln -s $(which gcc-nm-$1) "${BIN_ROOT_DIR}/gcc-nm"
+  sudo ln -s $(which gcc-ranlib-$1) "${BIN_ROOT_DIR}/gcc-ranlib"
+  sudo ln -s $(which gcov-$1) "${BIN_ROOT_DIR}/gcov"
+  sudo ln -s $(which gcov-dump-$1) "${BIN_ROOT_DIR}/gcov-dump"
 fi
