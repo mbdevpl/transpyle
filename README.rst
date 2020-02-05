@@ -15,8 +15,8 @@ Human-oriented and high-performing transpiler for Python.
     :target: https://pypi.org/project/transpyle
     :alt: package version from PyPI
 
-.. image:: https://travis-ci.org/mbdevpl/transpyle.svg?branch=master
-    :target: https://travis-ci.org/mbdevpl/transpyle
+.. image:: https://travis-ci.com/mbdevpl/transpyle.svg?branch=master
+    :target: https://travis-ci.com/mbdevpl/transpyle
     :alt: build status from Travis CI
 
 .. image:: https://ci.appveyor.com/api/projects/status/github/mbdevpl/transpyle?branch=master&svg=true
