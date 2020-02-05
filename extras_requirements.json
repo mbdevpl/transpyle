@@ -1,8 +1,8 @@
 {
-  "all": ["cython", "numpy", "open_fortran_parser ~= 0.6.0", "pcpp ~= 1.20.1", "pycparser", "pyopencl"],
-  "c": ["cython", "pcpp ~= 1.20.1", "pycparser"],
+  "all": ["Cython ~= 0.29.14", "numpy >= 1.18", "open_fortran_parser ~= 0.6.0", "pcpp ~= 1.20.1", "pycparser ~= 2.19", "pyopencl >= 2019.1"],
+  "c": ["Cython ~= 0.29.14", "pcpp ~= 1.20.1", "pycparser ~= 2.19"],
   "cpp": [],
-  "cython": ["cython"],
-  "fortran": ["numpy", "open_fortran_parser ~= 0.6.0"],
-  "opencl": ["pyopencl"]
+  "cython": ["Cython ~= 0.29.14"],
+  "fortran": ["numpy >= 1.18", "open_fortran_parser ~= 0.6.0"],
+  "opencl": ["pyopencl >= 2019.1"]
 }

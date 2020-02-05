@@ -1,11 +1,11 @@
-argunparse
-astunparse
-colorama
-colorlog
+argunparse ~= 0.1.2
+astunparse ~= 1.6
+colorama ~= 0.4.3
+colorlog ~= 4.1
 encrypted-config
 horast ~= 0.4.0
-pandas
-setuptools >= 41.0
+pandas ~= 1.0
+setuptools >= 45.1
 static-typing ~= 0.2.7
 typed_ast ~= 1.4
 typed-astunparse >= 2.1.4, == 2.*
