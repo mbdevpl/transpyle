@@ -1,3 +1,3 @@
-Cython ~= 0.29.14
-pcpp ~= 1.20.1
-pycparser ~= 2.19
+-r requirements_cython.txt
+pcpp ~= 1.30
+pycparser ~= 2.22
