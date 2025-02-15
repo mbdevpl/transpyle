@@ -31,7 +31,7 @@ class Package(setup_boilerplate.Package):
     keywords = ['compiler', 'just-in-time', 'source-to-source', 'transpilation', 'transpiler']
     extras_require = {
         'all': setup_boilerplate.parse_requirements('requirements_all.txt'),
-        'c': setup_boilerplate.parse_requirements('requirements_cc.txt'),
+        'c': setup_boilerplate.parse_requirements('requirements_c.txt'),
         'cpp': setup_boilerplate.parse_requirements('requirements_cpp.txt'),
         'cython': setup_boilerplate.parse_requirements('requirements_cython.txt'),
         'fortran': setup_boilerplate.parse_requirements('requirements_fortran.txt'),
