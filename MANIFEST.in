@@ -4,6 +4,13 @@ include extras_requirements.json
 include LICENSE
 include NOTICE
 
+include requirements_all.txt
+include requirements_c.txt
+include requirements_cpp.txt
+include requirements_cython.txt
+include requirements_fortran.txt
+include requirements_opencl.txt
+
 include requirements_test.txt
 recursive-include ./transpyle/resources *.*
 recursive-include ./test/examples *.*

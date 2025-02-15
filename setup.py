@@ -1,7 +1,5 @@
 """Setup script for transpyle package."""
 
-import json
-import pathlib
 import setup_boilerplate
 
 
@@ -31,13 +29,15 @@ class Package(setup_boilerplate.Package):
         'Topic :: Software Development :: Pre-processors',
         'Topic :: Utilities']
     keywords = ['compiler', 'just-in-time', 'source-to-source', 'transpilation', 'transpiler']
-    extras_require = {}
+    extras_require = {
+        'all': setup_boilerplate.parse_requirements('requirements_all.txt'),
+        'c': setup_boilerplate.parse_requirements('requirements_cc.txt'),
+        'cpp': setup_boilerplate.parse_requirements('requirements_cpp.txt'),
+        'cython': setup_boilerplate.parse_requirements('requirements_cython.txt'),
+        'fortran': setup_boilerplate.parse_requirements('requirements_fortran.txt'),
+        'opencl': setup_boilerplate.parse_requirements('requirements_opencl.txt')}
     entry_points = {'console_scripts': ['transpyle = transpyle.__main__:main']}
 
 
 if __name__ == '__main__':
-    _HERE = pathlib.Path(__file__).parent
-    _EXTRAS = pathlib.Path(_HERE, 'extras_requirements.json')
-    with _EXTRAS.open() as json_file:
-        Package.extras_require = json.load(json_file)
     Package.setup()

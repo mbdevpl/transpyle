@@ -22,5 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements_ci.txt
       - run: python -m coverage run --branch --source . -m unittest -v
+      - run: pip install -r requirements_all.txt
+      - run: python -m coverage run --append --branch --source . -m unittest -v
       - run: python -m coverage report --show-missing
       - run: codecov

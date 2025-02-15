@@ -1,0 +1,2 @@
+numpy >= 1.18
+open_fortran_parser ~= 0.6.0
