@@ -2,7 +2,6 @@
 
 import collections.abc
 import datetime
-import io
 import itertools
 import os
 import pathlib
@@ -14,7 +13,6 @@ import xml.etree.ElementTree as ET
 
 import horast
 import numpy as np
-import pycparser.c_ast
 # import static_typing as st
 import typed_ast.ast3
 import typed_astunparse
@@ -114,16 +112,6 @@ def make_tmp_folder(sub_path: pathlib.Path, input_path: pathlib.Path) -> pathlib
     if not output_dir.is_dir():
         output_dir.mkdir()
     return output_dir
-
-
-def c_ast_dump(node: pycparser.c_ast.Node) -> str:
-    io_ = io.StringIO()
-    node.show(io_, attrnames=True, nodenames=True, showcoord=True)
-    return io_.getvalue()
-
-
-def basic_check_c_ast(case: unittest.TestCase, path, c_tree, **kwargs):
-    basic_check_ast(case, path, c_tree, pycparser.c_ast.FileAST, '.yaml', c_ast_dump, **kwargs)
 
 
 def basic_check_cpp_code(case: unittest.TestCase, path, code, **kwargs):

@@ -16,7 +16,11 @@ except ImportError:
     pass
 from transpyle.general import AstGeneralizer, CodeReader, Parser
 
-from .common import basic_check_c_ast, basic_check_python_ast, execute_on_language_examples
+from .common import basic_check_python_ast, execute_on_language_examples
+try:
+    from .tools_c import basic_check_c_ast
+except ImportError:
+    pass
 
 _LOG = logging.getLogger(__name__)
 
