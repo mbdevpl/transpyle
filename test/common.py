@@ -33,9 +33,7 @@ def now_timestamp():
     return datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
 
 
-def random_data(shape=None, dtype=np.int):
-    if shape is None:
-        return dtype(np.random.rand() * 1000)
+def random_data(shape, dtype):
     return (np.random.rand(*shape) * 1000).astype(dtype)
 
 
