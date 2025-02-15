@@ -1,3 +1,4 @@
+-r requirements.txt
 Cython ~= 0.29.14
 docutils >= 0.16
 numba >= 0.47
@@ -9,4 +10,3 @@ pycparser ~= 2.19
 Pygments >= 2.5
 timing ~= 0.4
 wheel >= 0.34
--rrequirements.txt
