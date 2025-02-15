@@ -76,7 +76,7 @@ before_install:
   - .build/install_pyenv.sh
   # apps
   - git clone "https://github.com/mbdevpl/ffb-mini" "../ffb-mini"
-  - git clone "https://github.com/mbdevpl/FLASH5.git" "../flash5"
+  - git clone "https://github.com/mbdevpl/FLASH5" "../flash5"
   - git clone "https://github.com/mbdevpl/miranda_io" "../miranda_io"
 
 install:

@@ -32,8 +32,7 @@ class Package(setup_boilerplate.Package):
         'Topic :: Utilities']
     keywords = ['compiler', 'just-in-time', 'source-to-source', 'transpilation', 'transpiler']
     extras_require = {}
-    entry_points = {
-        'console_scripts': ['transpyle = transpyle.__main__:main']}
+    entry_points = {'console_scripts': ['transpyle = transpyle.__main__:main']}
 
 
 if __name__ == '__main__':

@@ -286,7 +286,7 @@ The core functionality of transpyle is platform-independent. However, as support
 depends on presence of additional software, some functionality might be limited/unavailable
 on selected platforms.
 
-Transpyle is fully tested on Linux, and partially tested on OS X and Windows.
+Transpyle is fully tested on Linux, and partially tested on macOS and Windows.
 
 
 Installation
