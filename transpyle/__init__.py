@@ -3,6 +3,7 @@
 import logging
 
 from .configuration import configure
+from .general.exc import ExternalToolError
 
 configure()
 
@@ -17,7 +18,7 @@ except ImportError:
 
 try:
     from .cpp import *
-except ImportError:
+except (ImportError, ExternalToolError):
     _LOG.warning("C++ unavailable")
 
 # try:

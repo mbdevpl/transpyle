@@ -1,6 +1,7 @@
 """Language-agnostic modules and base classes for language-specific modules in transpyle."""
 
 from .tools import temporarily_change_dir, redirect_stdout_and_stderr, run_tool, call_tool
+from .external_tool import ExternalTool
 
 from .language import Language
 
@@ -19,6 +20,7 @@ from .translator import Translator, AutoTranslator
 from .transpiler import Transpiler, AutoTranspiler
 
 __all__ = ['temporarily_change_dir', 'redirect_stdout_and_stderr', 'run_tool', 'call_tool',
+           'ExternalTool',
            'Language',
            'CodeReader', 'Parser', 'AstGeneralizer', 'IdentityAstGeneralizer', 'XmlAstGeneralizer',
            'GeneralizingAutoParser',
