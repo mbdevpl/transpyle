@@ -11,6 +11,7 @@ import numpy as np
 import timing
 
 from transpyle.general import AstGeneralizer, Binder, CodeReader, Compiler, Parser, Unparser
+from transpyle.general.exc import ExternalToolError
 try:
     from transpyle.fortran.parser import FortranParser
 except (ImportError, ExternalToolError):
