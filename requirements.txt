@@ -5,8 +5,7 @@ colorlog ~= 4.1
 encrypted-config
 horast ~= 0.4.0
 pandas ~= 1.0
-setuptools >= 45.1
 static-typing ~= 0.2.7
 typed_ast ~= 1.4
 typed-astunparse >= 2.1.4, == 2.*
-version-query >= 1.0.5, == 1.*
+version-query ~= 1.5

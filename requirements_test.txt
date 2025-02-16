@@ -1,7 +1,4 @@
 -r requirements.txt
-docutils >= 0.16
+boilerplates[packaging_tests] ~= 1.0
 numba >= 0.47
-pip >= 20.0
-Pygments >= 2.5
 timing ~= 0.4
-wheel >= 0.34

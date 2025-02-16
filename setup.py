@@ -1,13 +1,13 @@
 """Setup script for transpyle package."""
 
-import setup_boilerplate
+import boilerplates.setup
 
 
-class Package(setup_boilerplate.Package):
+class Package(boilerplates.setup.Package):
     """Package metadata."""
 
     name = 'transpyle'
-    description = 'performance-oriented transpiler for Python'
+    description = 'Performance-oriented transpiler for Python.'
     url = 'https://github.com/mbdevpl/transpyle'
     classifiers = [
         'Development Status :: 2 - Pre-Alpha',
@@ -18,9 +18,8 @@ class Package(setup_boilerplate.Package):
         'Natural Language :: English',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Education',
         'Topic :: Scientific/Engineering',
@@ -30,12 +29,12 @@ class Package(setup_boilerplate.Package):
         'Topic :: Utilities']
     keywords = ['compiler', 'just-in-time', 'source-to-source', 'transpilation', 'transpiler']
     extras_require = {
-        'all': setup_boilerplate.parse_requirements('requirements_all.txt'),
-        'c': setup_boilerplate.parse_requirements('requirements_c.txt'),
-        'cpp': setup_boilerplate.parse_requirements('requirements_cpp.txt'),
-        'cython': setup_boilerplate.parse_requirements('requirements_cython.txt'),
-        'fortran': setup_boilerplate.parse_requirements('requirements_fortran.txt'),
-        'opencl': setup_boilerplate.parse_requirements('requirements_opencl.txt')}
+        'all': boilerplates.setup.parse_requirements('requirements_all.txt'),
+        'c': boilerplates.setup.parse_requirements('requirements_c.txt'),
+        'cpp': boilerplates.setup.parse_requirements('requirements_cpp.txt'),
+        'cython': boilerplates.setup.parse_requirements('requirements_cython.txt'),
+        'fortran': boilerplates.setup.parse_requirements('requirements_fortran.txt'),
+        'opencl': boilerplates.setup.parse_requirements('requirements_opencl.txt')}
     entry_points = {'console_scripts': ['transpyle = transpyle.__main__:main']}
 
 

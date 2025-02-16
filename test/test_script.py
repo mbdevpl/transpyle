@@ -4,7 +4,7 @@ import contextlib
 import io
 import unittest
 
-from .test_setup import run_module
+from boilerplates.packaging_tests import run_module
 
 
 class Tests(unittest.TestCase):
