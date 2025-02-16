@@ -36,8 +36,7 @@ class GfortranInterface(CompilerInterface):
 
 
 class Gfortran(ExternalTool):
-
-    """GNU Fortran compiler tool."""
+    """Define requirements for GNU Fortran compiler."""
 
     path = GfortranInterface._executables['']
     _version_arg = '--version'
