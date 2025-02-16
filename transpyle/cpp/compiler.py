@@ -9,10 +9,12 @@ import tempfile
 import typing as t
 
 import argunparse
+import version_query
 
 from ..general import \
     temporarily_change_dir, run_tool, \
-    Language, CodeReader, Parser, AstGeneralizer, Unparser, Compiler
+    ExternalTool, Language, CodeReader, Parser, AstGeneralizer, Unparser, Compiler
+from ..general.exc import ExternalToolVersionError
 from .compiler_interface import GppInterface, ClangppInterface
 
 SWIG_INTERFACE_TEMPLATE = '''/* File: {module_name}.i */
@@ -88,6 +90,23 @@ TRANSPYLE_CPP_RESOURCES_PATH = _HERE.joinpath('..', 'resources', 'cpp').resolve(
 assert TRANSPYLE_CPP_RESOURCES_PATH.is_dir(), TRANSPYLE_CPP_RESOURCES_PATH
 
 _LOG = logging.getLogger(__name__)
+
+
+class Swig(ExternalTool):
+    """Define requirements for SWIG."""
+
+    path = pathlib.Path('swig')
+    _version_arg = '-version'
+
+    @classmethod
+    def _version_output_filter(cls, output: str) -> str:
+        for output_line in output.splitlines():
+            if output_line.startswith('SWIG Version '):
+                return output_line.replace('SWIG Version ', '')
+        raise ExternalToolVersionError(f'could not extract version from output: {output}')
+
+
+Swig.assert_version_at_least(version_query.Version(4, 0))
 
 
 class SwigCompiler(Compiler):
