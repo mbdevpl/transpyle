@@ -6,13 +6,6 @@ import unittest
 
 class Tests(unittest.TestCase):
 
-    def test_cython(self):
-        import cython
-
-    @unittest.skip('not ready yet')
-    def test_pyopencl(self):
-        import pyopencl
-
     def test_gfortran(self):
         gfortran_path = shutil.which('gfortran')
         self.assertIsNotNone(gfortran_path)
