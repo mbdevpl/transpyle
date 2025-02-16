@@ -10,13 +10,27 @@ from encrypted_config.json_io import json_to_file
 import numpy as np
 import timing
 
-from transpyle.general.code_reader import CodeReader
-from transpyle.general.binder import Binder
-from transpyle.fortran.parser import FortranParser
-from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
-from transpyle.fortran.unparser import Fortran77Unparser
-from transpyle.fortran.compiler import F2PyCompiler
-from transpyle.fortran.compiler_interface import GfortranInterface, PgifortranInterface
+from transpyle.general import AstGeneralizer, Binder, CodeReader, Compiler, Parser, Unparser
+try:
+    from transpyle.fortran.parser import FortranParser
+except ImportError:
+    pass
+try:
+    from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
+except ImportError:
+    pass
+try:
+    from transpyle.fortran.unparser import Fortran77Unparser
+except ImportError:
+    pass
+try:
+    from transpyle.fortran.compiler import F2PyCompiler
+except ImportError:
+    pass
+try:
+    from transpyle.fortran.compiler_interface import GfortranInterface, PgifortranInterface
+except ImportError:
+    pass
 
 from .common import \
     random_data, EXAMPLES_ROOT, EXAMPLES_ROOTS, PERFORMANCE_RESULTS_ROOT, \
@@ -32,6 +46,7 @@ KB = 1024
 MB = 1024 * KB
 
 
+@unittest.skipIf(Parser.find('Fortran') is None, 'skipping due to missing Fortran language support')
 class ParserTests(unittest.TestCase):
 
     @execute_on_language_examples('f77', 'f95')
@@ -51,6 +66,8 @@ class ParserTests(unittest.TestCase):
         _LOG.debug('%s', err.exception)
 
 
+@unittest.skipIf(
+    AstGeneralizer.find('Fortran') is None, 'skipping due to missing Fortran language support')
 class AstGeneralizerTests(unittest.TestCase):
 
     @execute_on_language_examples('f77', 'f95')
@@ -65,6 +82,8 @@ class AstGeneralizerTests(unittest.TestCase):
         _LOG.info('generalized "%s" in %fs', input_path, timer.elapsed)
 
 
+@unittest.skipIf(
+    Unparser.find('Fortran') is None, 'skipping due to missing Fortran language support')
 class UnparserTests(unittest.TestCase):
 
     @execute_on_language_fundamentals('f77', 'f95')
@@ -82,6 +101,8 @@ class UnparserTests(unittest.TestCase):
         _LOG.info('unparsed "%s" in %fs', input_path, timer.elapsed)
 
 
+@unittest.skipIf(
+    Compiler.find('Fortran') is None, 'skipping due to missing Fortran language support')
 class CompilerTests(unittest.TestCase):
 
     @execute_on_language_examples('f77', 'f95', predicate_not=accelerated)
