@@ -5,8 +5,10 @@ import pathlib
 
 import argunparse
 import numpy.f2py
+import version_query
 
-from ..general import call_tool, CompilerInterface
+from ..general import call_tool, CompilerInterface, ExternalTool
+from ..general.exc import ExternalToolVersionError
 
 _LOG = logging.getLogger(__name__)
 
@@ -31,6 +33,23 @@ class GfortranInterface(CompilerInterface):
     _options = {
         'OpenMP': ('-lgomp',)
     }
+
+
+class Gfortran(ExternalTool):
+    """Define requirements for GNU Fortran compiler."""
+
+    path = GfortranInterface._executables['']
+    _version_arg = '--version'
+
+    @classmethod
+    def _version_output_filter(cls, output: str) -> str:
+        for output_line in output.splitlines():
+            if output_line.startswith('GNU Fortran '):
+                return output_line.split(' ')[-1]
+        raise ExternalToolVersionError(f'could not extract version from output: {output}')
+
+
+Gfortran.assert_version_at_least(version_query.Version(10, 0))
 
 
 class PgifortranInterface(CompilerInterface):

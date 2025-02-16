@@ -1,0 +1,31 @@
+name: actions
+
+on:
+  push:
+  pull_request:
+    branches:
+      - $default-branch
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # TODO: restore 'macos-latest' and 'windows-latest' after fixing on linux
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements_ci.txt
+      - run: python -m coverage run --branch --source . -m unittest -v
+      # TODO: restore C, C++ and Fortran tests after fixing python
+      # - run: pip install -r requirements_all.txt
+      # - run: python -m coverage run --append --branch --source . -m unittest -v
+      - run: python -m coverage report --show-missing
+      - run: codecov

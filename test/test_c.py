@@ -6,17 +6,28 @@ import unittest
 import timing
 import typed_astunparse
 
-from transpyle.general.code_reader import CodeReader
-from transpyle.c.parser import C99Parser
-from transpyle.c.ast_generalizer import CAstGeneralizer
+try:
+    from transpyle.c.ast_generalizer import CAstGeneralizer
+except ImportError:
+    pass
+try:
+    from transpyle.c.parser import C99Parser
+except ImportError:
+    pass
+from transpyle.general import AstGeneralizer, CodeReader, Parser
 
-from .common import basic_check_c_ast, basic_check_python_ast, execute_on_language_examples
+from .common import basic_check_python_ast, execute_on_language_examples
+try:
+    from .tools_c import basic_check_c_ast
+except ImportError:
+    pass
 
 _LOG = logging.getLogger(__name__)
 
 _TIME = timing.get_timing_group(__name__)
 
 
+@unittest.skipIf(Parser.find('C') is None, 'skipping due to missing C language support')
 class ParserTests(unittest.TestCase):
 
     @execute_on_language_examples('c11')
@@ -30,6 +41,7 @@ class ParserTests(unittest.TestCase):
         _LOG.info('parsed "%s" in %fs', input_path, timer.elapsed)
 
 
+@unittest.skipIf(AstGeneralizer.find('C') is None, 'skipping due to missing C language support')
 class AstGeneralizerTests(unittest.TestCase):
 
     @execute_on_language_examples('c11')

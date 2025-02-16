@@ -11,13 +11,29 @@ from encrypted_config.json_io import json_to_file
 import timing
 import typed_astunparse
 
-from transpyle.general.code_reader import CodeReader
-from transpyle.general.binder import Binder
-from transpyle.cpp.parser import CppParser
-from transpyle.cpp.ast_generalizer import CppAstGeneralizer
-from transpyle.cpp.unparser import Cpp14Unparser
-from transpyle.cpp.compiler import CppSwigCompiler
-from transpyle.cpp.compiler_interface import GppInterface
+from transpyle.general import AstGeneralizer, Binder, CodeReader, Compiler, Parser, Unparser
+from transpyle.general.exc import ExternalToolError
+
+try:
+    from transpyle.cpp.parser import CppParser
+except (ImportError, ExternalToolError):
+    pass
+try:
+    from transpyle.cpp.ast_generalizer import CppAstGeneralizer
+except (ImportError, ExternalToolError):
+    pass
+try:
+    from transpyle.cpp.unparser import Cpp14Unparser
+except (ImportError, ExternalToolError):
+    pass
+try:
+    from transpyle.cpp.compiler import CppSwigCompiler
+except (ImportError, ExternalToolError):
+    pass
+try:
+    from transpyle.cpp.compiler_interface import GppInterface
+except (ImportError, ExternalToolError):
+    pass
 
 from .common import \
     PERFORMANCE_RESULTS_ROOT, EXAMPLES_ROOT, EXAMPLES_ROOTS, \
@@ -29,6 +45,7 @@ _LOG = logging.getLogger(__name__)
 _TIME = timing.get_timing_group(__name__)
 
 
+@unittest.skipIf(Parser.find('C++') is None, 'skipping due to missing C++ language support')
 class ParserTests(unittest.TestCase):
 
     @execute_on_language_examples('cpp14')
@@ -53,6 +70,7 @@ class ParserTests(unittest.TestCase):
         _LOG.debug('%s', err.exception)
 
 
+@unittest.skipIf(AstGeneralizer.find('C++') is None, 'skipping due to missing C++ language support')
 class AstGeneralizerTests(unittest.TestCase):
 
     @execute_on_language_examples('cpp14')
@@ -71,6 +89,7 @@ class AstGeneralizerTests(unittest.TestCase):
         _LOG.debug('%s', typed_astunparse.unparse(syntax))
 
 
+@unittest.skipIf(Unparser.find('C++') is None, 'skipping due to missing C++ language support')
 class UnparserTests(unittest.TestCase):
 
     @execute_on_language_examples('cpp14')
@@ -97,6 +116,7 @@ class UnparserTests(unittest.TestCase):
         _LOG.info('unparsed "%s" in %fs', input_path, timer.elapsed)
 
 
+@unittest.skipIf(Compiler.find('C++') is None, 'skipping due to missing C++ language support')
 class CompilerTests(unittest.TestCase):
 
     def test_cpp_paths_exist(self):

@@ -1,2 +1,37 @@
 [build-system]
-requires=['docutils ~= 0.15.1', 'setuptools >= 41.0', 'version-query >= 1.0.5, == 1.*', 'wheel >= 0.33']
+requires = [
+    'boilerplates[setup] ~= 1.0'
+]
+
+[tool.flake8]
+max-line-length = 100
+max-doc-length = 100
+
+[tool.pydocstyle]
+ignore = [
+    'D102', 'D103', 'D105', 'D107',
+    'D203', 'D213',
+    'D406', 'D407', 'D412', 'D413'
+]
+
+[tool.pylint.MASTER]
+load-plugins = [
+    'pylint.extensions.broad_try_clause',
+    'pylint.extensions.mccabe',
+    'pylint.extensions.no_self_use',
+    'pylint.extensions.redefined_variable_type'
+]
+
+[tool.pylint.'MESSAGES CONTROL']
+docstring-min-length = 5
+
+[tool.pylint.SIMILARITIES]
+ignore-imports = 'yes'
+min-similarity-lines = 5
+
+[tool.pylint.BASIC]
+no-docstring-rgx = '^(test)?_|.*Tests$'
+unsafe-load-any-extension = 'yes'
+
+[tool.pylint.REPORTS]
+output-format = 'colorized'
