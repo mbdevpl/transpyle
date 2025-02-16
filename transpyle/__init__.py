@@ -28,7 +28,7 @@ except (ImportError, ExternalToolError):
 
 try:
     from .fortran import *
-except ImportError:
+except (ImportError, ExternalToolError):
     _LOG.warning("Fortran unavailable")
 
 # try:

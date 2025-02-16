@@ -13,23 +13,23 @@ import timing
 from transpyle.general import AstGeneralizer, Binder, CodeReader, Compiler, Parser, Unparser
 try:
     from transpyle.fortran.parser import FortranParser
-except ImportError:
+except (ImportError, ExternalToolError):
     pass
 try:
     from transpyle.fortran.ast_generalizer import FortranAstGeneralizer
-except ImportError:
+except (ImportError, ExternalToolError):
     pass
 try:
     from transpyle.fortran.unparser import Fortran77Unparser
-except ImportError:
+except (ImportError, ExternalToolError):
     pass
 try:
     from transpyle.fortran.compiler import F2PyCompiler
-except ImportError:
+except (ImportError, ExternalToolError):
     pass
 try:
     from transpyle.fortran.compiler_interface import GfortranInterface, PgifortranInterface
-except ImportError:
+except (ImportError, ExternalToolError):
     pass
 
 from .common import \

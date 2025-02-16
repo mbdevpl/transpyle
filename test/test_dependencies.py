@@ -6,10 +6,6 @@ import unittest
 
 class Tests(unittest.TestCase):
 
-    def test_gfortran(self):
-        gfortran_path = shutil.which('gfortran')
-        self.assertIsNotNone(gfortran_path)
-
     def test_swig(self):
         swig_path = shutil.which('swig')
         self.assertIsNotNone(swig_path)
